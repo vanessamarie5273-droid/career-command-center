@@ -1,0 +1,50 @@
+{
+  "name": "career-command-center",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start -p ${PORT:-3000}",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx scripts/seed.ts",
+    "user:create": "tsx scripts/create-user.ts",
+    "job:ingest": "tsx scripts/ingest.ts",
+    "job:briefing": "tsx scripts/briefing.ts",
+    "job:daily": "tsx scripts/daily.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "3.0.3",
+    "docx": "9.11.0",
+    "jose": "6.2.12",
+    "mammoth": "1.13.0",
+    "next": "15.5.27",
+    "pdf-lib": "1.17.1",
+    "pdf-parse": "1.1.4",
+    "prisma": "6.19.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "recharts": "2.15.4",
+    "tsx": "4.20.5",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "@types/pdf-parse": "1.1.5",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "autoprefixer": "10.4.21",
+    "postcss": "8.5.6",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7"
+  },
+  "engines": {
+    "node": ">=20.18 <23"
+  }
+}

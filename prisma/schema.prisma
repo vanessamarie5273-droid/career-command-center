@@ -1,0 +1,483 @@
+// Career Command Center — data model
+// Conventions:
+//  * Every fact that comes from outside carries a provenance (sourceUrl / verifiedAt / factType).
+//  * factType: CONFIRMED (from a primary source), ESTIMATE (third-party or user estimate),
+//    AI_ASSESSMENT (model judgement, never presented as fact).
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum FactType {
+  CONFIRMED
+  ESTIMATE
+  AI_ASSESSMENT
+}
+
+enum AtsProvider {
+  GREENHOUSE
+  LEVER
+  ASHBY
+  SMARTRECRUITERS
+  WORKDAY
+  NONE
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+}
+
+enum Tier {
+  TIER1
+  TIER2
+  TIER3
+}
+
+enum Stage {
+  RESEARCHING
+  PRIORITIZED
+  RESUME_PREP
+  READY_TO_APPLY
+  APPLIED
+  RECRUITER_CONTACT
+  HIRING_MANAGER
+  INTERVIEWING
+  FINAL_INTERVIEW
+  OFFER
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  ON_HOLD
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  passwordHash   String
+  role           Role      @default(ADMIN)
+  failedLogins   Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  alertEmail     String?
+  alertMinScore  Int       @default(80)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  savedFilters   SavedFilter[]
+}
+
+model Company {
+  id                 String       @id @default(cuid())
+  slug               String       @unique
+  name               String
+  website            String?
+  careersUrl         String?
+  logoUrl            String?
+  linkedinUrl        String?
+  category           String
+  subCategory        String?
+  headquarters       String?
+  footprint          String?
+  ownership          String?      // Public / Private / Subsidiary
+  ticker             String?
+  maturity           String?      // Emerging, High-growth, Late-stage private, Pre-IPO, Recently public, Established
+  description        String?
+  keyProducts        String?
+  customers          String?
+  buyerPersonas      String?
+  profileFactType    FactType     @default(AI_ASSESSMENT)
+  profileSource      String?
+  profileVerifiedAt  DateTime?
+
+  // Financials: only filled when verified; each has its own source + date.
+  revenue            String?
+  revenueGrowth      String?
+  fundingSummary     String?
+  valuation          String?
+  investors          String?
+  liquidityNotes     String?
+  financialSourceUrl String?
+  financialVerifiedAt DateTime?
+
+  // AI assessments (0-100), labelled as such everywhere they are shown.
+  marketPositionScore Int?
+  equityUpsideScore   Int?
+  compCompetitiveness Int?
+  assessmentRationale String?
+  risks               String?
+  cultureNotes        String?
+  engagementStrategy  String?
+  myContribution      String?
+
+  // Job feed configuration
+  atsProvider        AtsProvider  @default(NONE)
+  atsToken           String?      // board token / site handle; for Workday "tenant|wdN|site"
+  atsHints           String[]     @default([])
+  atsStatus          String?      // ok | not_found | error | unsupported | pending
+  atsCheckedAt       DateTime?
+  atsError           String?
+  totalOpenings      Int?         // all openings at the company (hiring momentum), not just suitable ones
+  lastIngestedAt     DateTime?
+
+  favorite           Boolean      @default(false)
+  userPriority       Int?         // manual override 1-5
+  notes              String?
+  addedBy            String       @default("seed")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  jobs               Job[]
+  applications       Application[]
+  contacts           Contact[]
+  leaders            Leader[]
+  news               CompanyNews[]
+  activities         Activity[]
+}
+
+model Leader {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  title       String
+  linkedinUrl String?
+  factType    FactType @default(AI_ASSESSMENT)
+  sourceUrl   String?
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model CompanyNews {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  headline    String
+  kind        String   // funding, leadership, product, acquisition, partnership, hiring
+  url         String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Job {
+  id                String     @id @default(cuid())
+  companyId         String
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fingerprint       String     @unique  // company + normalized title + normalized location
+  title             String
+  department        String?
+  description       String?
+  descriptionText   String?
+  location          String?
+  workArrangement   String?    // Remote / Hybrid / Onsite / Unknown
+  isRemote          Boolean    @default(false)
+  isUS              Boolean    @default(true)
+  territory         String?
+  postedAt          DateTime?
+  applyUrl          String
+  // compensation as published by the employer (factType CONFIRMED) or entered estimates
+  salaryMin         Int?
+  salaryMax         Int?
+  oteMin            Int?
+  oteMax            Int?
+  compText          String?
+  compFactType      FactType?
+  equityMentioned   Boolean    @default(false)
+  commissionNotes   String?
+  seniority         String?
+  roleFamily        String?
+  yearsRequired     Int?
+  requiresClearance Boolean    @default(false)
+  travelNotes       String?
+  relocationNotes   String?
+  requiredQuals     String?
+  preferredQuals    String?
+
+  status            JobStatus  @default(OPEN)
+  firstSeenAt       DateTime   @default(now())
+  lastVerifiedAt    DateTime   @default(now())
+  closedAt          DateTime?
+  updatedAt         DateTime   @updatedAt
+
+  // Scoring (AI model — explainable)
+  score             Int?
+  scoreBreakdown    Json?
+  scoreReasons      Json?
+  confidence        String?    // High / Medium / Low
+  tier              Tier?
+  category          String?    // MAIN / RELOCATION / STRETCH / EXCLUDED
+  excludedReason    String?
+  overrideTier      Tier?
+  overrideScore     Int?
+  overrideNote      String?
+  dismissed         Boolean    @default(false)
+  favorite          Boolean    @default(false)
+
+  sources           JobSource[]
+  events            JobEvent[]
+  applications      Application[]
+  manual            Boolean    @default(false)
+
+  @@index([companyId, status])
+  @@index([status, score])
+}
+
+model JobSource {
+  id          String      @id @default(cuid())
+  jobId       String
+  job         Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  provider    String      // GREENHOUSE / LEVER / ASHBY / SMARTRECRUITERS / WORKDAY / MANUAL / LINKEDIN
+  externalId  String
+  url         String
+  firstSeenAt DateTime    @default(now())
+  lastSeenAt  DateTime    @default(now())
+
+  @@unique([provider, externalId])
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  kind      String   // discovered, verified, updated, closed, reopened, rescored, override
+  detail    String?
+  at        DateTime @default(now())
+
+  @@index([at])
+}
+
+model Application {
+  id                 String    @id @default(cuid())
+  companyId          String
+  company            Company   @relation(fields: [companyId], references: [id])
+  jobId              String?
+  job                Job?      @relation(fields: [jobId], references: [id])
+  title              String
+  stage              Stage     @default(RESEARCHING)
+  applied            Boolean   @default(false)
+  appliedAt          DateTime?
+  resumeId           String?
+  resume             Document? @relation("SubmittedResume", fields: [resumeId], references: [id])
+  coverLetterId      String?
+  coverLetter        Document? @relation("SubmittedCover", fields: [coverLetterId], references: [id])
+  introText          String?
+  jdSnapshot         String?
+  jdSnapshotAt       DateTime?
+  recruiterName      String?
+  hiringManagerName  String?
+  linkedinActivity   String?
+  interviewNotes     String?
+  nextAction         String?
+  nextActionDue      DateTime?
+  personalNotes      String?
+  outcome            String?
+  outcomeReason      String?
+  // compensation (offer / estimate)
+  baseSalary         Int?
+  ote                Int?
+  variableComp       Int?
+  commissionNotes    String?
+  signingBonus       Int?
+  equityGrant        String?
+  equityValueEst     Int?
+  vesting            String?
+  equityType         String?   // RSU / Options / None
+  quota              Int?
+  compSource         String?   // "Published", "Recruiter", "Offer letter", "Third-party estimate", "My estimate"
+  compFactType       FactType?
+  interviewAt        DateTime?
+  priority           Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tasks              Task[]
+  activities         Activity[]
+  touches            OutreachTouch[]
+  documents          Document[] @relation("AppDocs")
+  stageHistory       StageChange[]
+
+  @@unique([companyId, jobId])
+  @@index([stage])
+}
+
+model StageChange {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  from          Stage?
+  to            Stage
+  at            DateTime    @default(now())
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  title         String
+  dueAt         DateTime?
+  done          Boolean      @default(false)
+  doneAt        DateTime?
+  source        String       @default("manual") // manual / assistant / system
+  createdAt     DateTime     @default(now())
+}
+
+model Activity {
+  id            String       @id @default(cuid())
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  companyId     String?
+  company       Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind          String       // note, interview, email, call, assistant_recommendation
+  body          String
+  at            DateTime     @default(now())
+}
+
+model Contact {
+  id              String    @id @default(cuid())
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyName     String?
+  firstName       String
+  lastName        String?
+  title           String?
+  email           String?
+  linkedinUrl     String?
+  degree          String?   // 1st / 2nd / none — as entered or imported from your own LinkedIn export
+  role            String?   // recruiter / hiring_manager / executive / referral / peer
+  source          String    @default("manual") // manual / linkedin_export
+  connectedOn     DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  touches         OutreachTouch[]
+  tasks           Task[]
+
+  @@unique([linkedinUrl])
+}
+
+model OutreachTouch {
+  id            String       @id @default(cuid())
+  contactId     String
+  contact       Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  channel       String       // linkedin / email / phone / in_person
+  message       String?
+  sentAt        DateTime     @default(now())
+  replied       Boolean      @default(false)
+  repliedAt     DateTime?
+  followUpAt    DateTime?
+}
+
+model Document {
+  id            String        @id @default(cuid())
+  kind          String        // resume / cover_letter / recommendation / bio / references / other
+  name          String
+  version       String?
+  parentId      String?       // previous version
+  industry      String?
+  roleType      String?
+  fileName      String
+  mimeType      String
+  size          Int
+  sha256        String
+  data          Bytes
+  text          String?
+  atsReport     Json?
+  isTailored    Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  submittedAs   Application[] @relation("SubmittedResume")
+  coverFor      Application[] @relation("SubmittedCover")
+  applications  Application[] @relation("AppDocs")
+}
+
+model IngestionRun {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  trigger     String    // cron / manual / cli
+  companies   Int       @default(0)
+  fetched     Int       @default(0)
+  relevant    Int       @default(0)
+  created     Int       @default(0)
+  updated     Int       @default(0)
+  closed      Int       @default(0)
+  errors      Int       @default(0)
+  log         Json?
+  status      String    @default("running") // running / ok / partial / failed
+}
+
+model IntegrationStatus {
+  id          String    @id // e.g. "greenhouse", "email", "anthropic", "linkedin"
+  name        String
+  status      String    // connected / not_configured / error / degraded
+  detail      String?
+  checkedAt   DateTime  @default(now())
+}
+
+model Briefing {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  basedOnRun  String?
+  content     Json
+  emailedTo   String?
+  emailStatus String?
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  kind        String    // new_high_score_job / job_closed / follow_up_due / interview / integration_error
+  title       String
+  body        String?
+  link        String?
+  read        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  entity      String
+  entityId    String
+  action      String    // create / update / delete / import / export / login
+  changes     Json?
+  at          DateTime  @default(now())
+
+  @@index([entity, entityId])
+  @@index([at])
+}
+
+model SavedFilter {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  page        String
+  name        String
+  query       String
+  createdAt   DateTime @default(now())
+}
+
+model Profile {
+  id          String   @id @default("me")
+  summary     String
+  targetRoles String[]
+  keywords    String[]
+  homeBase    String
+  preferences Json
+  updatedAt   DateTime @updatedAt
+}

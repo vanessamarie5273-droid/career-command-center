@@ -1,0 +1,57 @@
+# Render Blueprint: web app + managed Postgres + daily 6:00 AM Arizona job.
+# Deploy: Render dashboard → New → Blueprint → pick this repo. See SETUP.md.
+databases:
+  - name: ccc-db
+    databaseName: ccc
+    user: ccc
+    plan: basic-256mb        # paid plan: persistent, daily backups (free Postgres expires)
+    region: oregon
+    postgresMajorVersion: "16"
+
+envVarGroups:
+  - name: ccc-shared
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: APP_URL          # e.g. https://ccc-web.onrender.com or your custom domain
+        sync: false
+      - key: RESEND_API_KEY   # optional: email alerts and morning briefing
+        sync: false
+      - key: ALERT_FROM_EMAIL # optional: verified sender, e.g. "Command Center <alerts@yourdomain.com>"
+        sync: false
+      - key: ANTHROPIC_API_KEY # optional: assistant and tailoring suggestions
+        sync: false
+
+services:
+  - type: web
+    name: ccc-web
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npx prisma migrate deploy && npm run db:seed
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase: { name: ccc-db, property: connectionString }
+      - fromGroup: ccc-shared
+
+  - type: cron
+    name: ccc-daily
+    runtime: node
+    plan: starter
+    region: oregon
+    schedule: "0 13 * * *"   # 13:00 UTC = 6:00 AM Arizona (no daylight saving)
+    buildCommand: npm ci --include=dev && npx prisma generate
+    startCommand: npm run job:daily
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase: { name: ccc-db, property: connectionString }
+      - fromGroup: ccc-shared
