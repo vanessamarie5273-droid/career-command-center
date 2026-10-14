@@ -41,10 +41,11 @@ export async function dashboardMetrics(now = new Date()) {
     prisma.job.count({ where: { status: "OPEN", dismissed: false, category: "RELOCATION" } }),
     prisma.job.count({ where: { status: "OPEN", dismissed: false, category: "STRETCH" } }),
   ]);
+  const notAFit = await prisma.job.count({ where: { dismissed: true } });
   const tier1Unapplied = await prisma.job.count({ where: { AND: [MATCHING, { category: "MAIN" }, tierWhere("TIER1"), { applications: { none: { applied: true } } }] } });
   return {
     companies, matching, newToday, tier1, applied, interviewsScheduled, activeProcesses, offers, resumes, followUps,
-    companiesWithoutSuitable: companies - companiesWithMatches, recentlyClosed, relocation, stretch,
+    companiesWithoutSuitable: companies - companiesWithMatches, recentlyClosed, relocation, stretch, notAFit,
     priorityActions: tasksToday + followUps + Math.min(tier1Unapplied, 5),
   };
 }

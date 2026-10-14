@@ -15,12 +15,16 @@ export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInp
 
 export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   const and: Prisma.JobWhereInput[] = [];
-  if (p.status === "CLOSED") and.push({ status: "CLOSED" });
-  else and.push({ status: "OPEN" });
-  if (p.category && p.category !== "ALL") and.push({ category: p.category });
-  else if (!p.category) and.push({ category: { in: ["MAIN", "STRETCH"] } });
-  if (p.status !== "CLOSED" && p.category !== "DISMISSED") and.push({ dismissed: false });
-  if (p.category === "DISMISSED") { and.pop(); and.push({ dismissed: true }); }
+  if (p.category === "DISMISSED") {
+    // Every role marked "Not a fit", open or since closed, so the list matches the dashboard count.
+    and.push({ dismissed: true });
+  } else {
+    if (p.status === "CLOSED") and.push({ status: "CLOSED" });
+    else and.push({ status: "OPEN" });
+    if (p.category && p.category !== "ALL") and.push({ category: p.category });
+    else if (!p.category) and.push({ category: { in: ["MAIN", "STRETCH"] } });
+    if (p.status !== "CLOSED") and.push({ dismissed: false });
+  }
   if (p.tier && ["TIER1", "TIER2", "TIER3"].includes(p.tier)) and.push(tierWhere(p.tier as "TIER1"));
   if (p.company) and.push({ companyId: p.company });
   if (p.industry) and.push({ company: { category: p.industry } });

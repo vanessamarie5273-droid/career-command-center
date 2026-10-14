@@ -37,6 +37,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <Link href="/jobs?category=STRETCH" className={`chip px-3 py-1 ${p.category === "STRETCH" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Stretch roles</Link>
         <Link href="/jobs?category=RELOCATION" className={`chip px-3 py-1 ${p.category === "RELOCATION" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Relocation opportunities</Link>
         <Link href="/jobs?category=EXCLUDED" className={`chip px-3 py-1 ${p.category === "EXCLUDED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Excluded</Link>
+        <Link href="/jobs?category=DISMISSED" className={`chip px-3 py-1 ${p.category === "DISMISSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Not a fit</Link>
         <Link href="/jobs?status=CLOSED&category=ALL" className={`chip px-3 py-1 ${p.status === "CLOSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Closed (history)</Link>
       </div>
       <form className="card p-3 mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-9 gap-2 items-end" action="/jobs">

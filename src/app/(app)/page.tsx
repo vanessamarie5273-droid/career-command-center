@@ -6,6 +6,7 @@ import { StageBars, PipelineBars, IndustryBars, CompBars, WeeklyLine } from "@/c
 import { STAGES, ago, date, range } from "@/lib/format";
 import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import RefreshButton from "@/components/RefreshButton";
+import NotAFit from "@/components/NotAFit";
 
 export const metadata = { title: "Command Center" };
 
@@ -42,6 +43,7 @@ export default async function CommandCenter() {
         <Stat label="No suitable opening" value={m.companiesWithoutSuitable} href="/companies?openings=none" sub="companies to monitor" />
         <Stat label="Closed (7 days)" value={m.recentlyClosed} href="/alerts?kind=closed" />
         <Stat label="Priority actions today" value={m.priorityActions} accent />
+        <Stat label="Not a fit" value={m.notAFit} href="/jobs?category=DISMISSED" sub="removed from feeds" />
         <Stat label="Relocation / stretch" value={`${m.relocation} / ${m.stretch}`} href="/jobs?category=RELOCATION" sub="ranked separately" />
       </div>
 
@@ -53,6 +55,7 @@ export default async function CommandCenter() {
             <ul className="divide-y divide-slate-100">
               {priorities.map((j) => (
                 <li key={j.id} className="flex items-center gap-3 py-2.5">
+                  <NotAFit id={j.id} />
                   <Logo src={j.company.logoUrl} name={j.company.name} />
                   <div className="min-w-0 flex-1">
                     <Link href={`/jobs/${j.id}`} className="font-medium text-navy-950 hover:underline">{j.title}</Link>

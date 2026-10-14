@@ -23,7 +23,7 @@ export default function OverrideControl(p: { id: string; tier: string | null; sc
       <div className="flex flex-wrap gap-2">
         <button className="btn-primary" onClick={() => save()}>Save override</button>
         <button className="btn-ghost" onClick={() => save({ favorite: !p.favorite })}>{p.favorite ? "★ Unfavorite" : "☆ Favorite"}</button>
-        <button className="btn-ghost" onClick={() => save({ dismissed: !p.dismissed })}>{p.dismissed ? "Restore" : "Dismiss"}</button>
+        <button className="btn-ghost" onClick={() => save({ dismissed: !p.dismissed })}>{p.dismissed ? "Restore to feed" : "Not a fit"}</button>
       </div>
       {saved && <p className="text-xs text-emerald-700">{saved}</p>}
     </div>

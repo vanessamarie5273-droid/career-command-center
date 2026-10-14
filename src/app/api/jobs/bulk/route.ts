@@ -10,7 +10,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
     for (const id of b.ids) if ((await ensureApplication(prisma, id, u.sub)).created) created++;
     return { ok: true, created };
   }
-  const data = b.action === "favorite" ? { favorite: true } : b.action === "unfavorite" ? { favorite: false } : b.action === "dismiss" ? { dismissed: true } : { dismissed: false };
+  const data = b.action === "favorite" ? { favorite: true } : b.action === "unfavorite" ? { favorite: false } : b.action === "dismiss" ? { dismissed: true, dismissedAt: new Date() } : { dismissed: false, dismissedAt: null };
   const r = await prisma.job.updateMany({ where: { id: { in: b.ids } }, data });
   await prisma.auditLog.create({ data: { userId: u.sub, entity: "Job", entityId: b.ids.join(",").slice(0, 500), action: `bulk:${b.action}`, changes: { count: r.count } } });
   return { ok: true, count: r.count };
