@@ -18,8 +18,8 @@ The app works without Resend and Anthropic. Without them, briefings are still ge
    - `ccc-db`: Postgres 16 with daily backups.
    - `ccc-web`: the app. On each deploy it runs migrations and the company seed, then serves the app. Its health check is `/api/health`.
    - `ccc-daily`: runs `npm run job:daily` every day at 6:00 AM Arizona time. That job refreshes every company feed, rescores the jobs, and writes and emails the morning briefing.
-3. When Render asks for values in the `ccc-shared` group, set these:
-   - `APP_URL`: the app's address, such as `https://ccc-web.onrender.com`.
+3. Render asks for a few values. Every one can be left blank and added later under each service's **Environment** tab:
+   - `APP_URL` (on `ccc-daily`): the app's address, such as `https://ccc-web.onrender.com`, used for links in the morning email.
    - `RESEND_API_KEY` and `ALERT_FROM_EMAIL` (optional): the sender must be on a domain you have verified in Resend.
    - `ANTHROPIC_API_KEY` (optional).
    - `SESSION_SECRET` and `CRON_SECRET` are generated for you.

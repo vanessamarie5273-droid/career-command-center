@@ -33,7 +33,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date()): Promise
   if (followUps.length) actions.push(`Complete ${followUps.length} due follow-up${followUps.length > 1 ? "s" : ""}, starting with ${followUps[0].company.name}`);
   if (interviews.length) actions.push(`Prepare for ${interviews[0].company.name} interview on ${interviews[0].interviewAt!.toDateString()}`);
   if (lastRun && lastRun.errors > 0) actions.push(`${lastRun.errors} job feeds failed in the last refresh; review Settings & Integrations`);
-  const base = process.env.APP_URL || "";
+  const base = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "";
   return {
     generatedAt: now.toISOString(),
     lastRun: lastRun ? { at: lastRun.finishedAt?.toISOString() ?? null, status: lastRun.status, created: lastRun.created, closed: lastRun.closed, errors: lastRun.errors } : null,
@@ -50,7 +50,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date()): Promise
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 export function briefingHtml(b: BriefingContent) {
-  const base = process.env.APP_URL || "";
+  const base = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "";
   const li = (items: string[]) => (items.length ? `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>` : `<p style="color:#64748b">None</p>`);
   return `<div style="font-family:Inter,Arial,sans-serif;max-width:640px;color:#0f172a">
   <div style="background:#0b1730;color:#e6d39b;padding:16px 20px;font-size:18px;font-weight:600">Career Command Center · Morning Briefing</div>

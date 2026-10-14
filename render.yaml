@@ -15,14 +15,6 @@ envVarGroups:
         generateValue: true
       - key: CRON_SECRET
         generateValue: true
-      - key: APP_URL          # e.g. https://ccc-web.onrender.com or your custom domain
-        sync: false
-      - key: RESEND_API_KEY   # optional: email alerts and morning briefing
-        sync: false
-      - key: ALERT_FROM_EMAIL # optional: verified sender, e.g. "Command Center <alerts@yourdomain.com>"
-        sync: false
-      - key: ANTHROPIC_API_KEY # optional: assistant and tailoring suggestions
-        sync: false
 
 services:
   - type: web
@@ -40,6 +32,12 @@ services:
       - key: DATABASE_URL
         fromDatabase: { name: ccc-db, property: connectionString }
       - fromGroup: ccc-shared
+      - key: ANTHROPIC_API_KEY # optional: assistant and tailoring suggestions
+        sync: false
+      - key: RESEND_API_KEY    # optional: email alerts and briefing sent from the app
+        sync: false
+      - key: ALERT_FROM_EMAIL  # optional: verified sender, e.g. "Command Center <alerts@yourdomain.com>"
+        sync: false
 
   - type: cron
     name: ccc-daily
@@ -55,3 +53,9 @@ services:
       - key: DATABASE_URL
         fromDatabase: { name: ccc-db, property: connectionString }
       - fromGroup: ccc-shared
+      - key: APP_URL           # the web app's address, used for links in the morning email
+        sync: false
+      - key: RESEND_API_KEY    # optional: sends the morning briefing email
+        sync: false
+      - key: ALERT_FROM_EMAIL  # optional: verified sender
+        sync: false
