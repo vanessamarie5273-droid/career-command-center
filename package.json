@@ -14,7 +14,8 @@
     "user:create": "tsx scripts/create-user.ts",
     "job:ingest": "tsx scripts/ingest.ts",
     "job:briefing": "tsx scripts/briefing.ts",
-    "job:daily": "tsx scripts/daily.ts"
+    "job:daily": "tsx scripts/daily.ts",
+    "job:rescore": "tsx scripts/rescore.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",

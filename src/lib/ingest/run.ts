@@ -189,7 +189,7 @@ export async function rescoreAll(db: PrismaClient) {
   const jobs = await db.job.findMany({ include: { company: true } });
   for (const j of jobs) {
     const s = scoreJob({ ...j, company: j.company });
-    if (s.score !== j.score || s.tier !== j.tier) {
+    if (s.score !== j.score || s.tier !== j.tier || s.category !== j.category || (s.excludedReason ?? null) !== j.excludedReason) {
       await db.job.update({ where: { id: j.id }, data: { score: s.score, scoreBreakdown: s.breakdown, scoreReasons: s.reasons, confidence: s.confidence, tier: s.tier, category: s.category, excludedReason: s.excludedReason ?? null } });
       await db.jobEvent.create({ data: { jobId: j.id, kind: "rescored", detail: `${j.score ?? "–"} → ${s.score}` } });
     }

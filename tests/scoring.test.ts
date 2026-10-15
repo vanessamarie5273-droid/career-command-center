@@ -47,7 +47,7 @@ describe("scoring", () => {
     expect(r.excludedReason).toMatch(/clearance/);
   });
   it("on-site roles elsewhere go to the separate relocation category, never Tier 1", () => {
-    const r = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "New York, NY", oteMax: 400000, company: strong });
+    const r = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "Chicago, IL", oteMax: 400000, company: strong });
     expect(r.category).toBe("RELOCATION");
     expect(r.tier).not.toBe("TIER1");
   });
@@ -84,4 +84,27 @@ describe("normalisation", () => {
     expect(requiresClearance("No security clearance required")).toBe(false);
   });
   it("reads years of experience", () => expect(parseYearsRequired("10+ years of enterprise sales experience")).toBe(10));
+  describe("East Coast roles (West-based candidate)", () => {
+    const sae = (location: string, extra: object = {}) => scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location, company: strong, ...extra });
+    it("excludes on-site or hybrid East Coast roles", () => {
+      for (const loc of ["New York, NY", "Boston, MA; New York, NY", "Washington, DC", "Atlanta, GA (Hybrid)", "East Coast"]) {
+        const r = sae(loc);
+        expect(r.category, loc).toBe("EXCLUDED");
+        expect(r.excludedReason, loc).toMatch(/East Coast/);
+      }
+    });
+    it("keeps East Coast roles that are open to remote", () => {
+      expect(sae("Remote - New York", { isRemote: true }).category).toBe("MAIN");
+      expect(sae("New York, NY or Remote (US)", { isRemote: true }).category).toBe("MAIN");
+    });
+    it("excludes remote roles that require living on the East Coast", () => {
+      expect(sae("Remote - East Coast", { isRemote: true }).category).toBe("EXCLUDED");
+      expect(sae("Remote - US", { isRemote: true, descriptionText: desc + " Candidates must reside on the East Coast." }).category).toBe("EXCLUDED");
+    });
+    it("leaves West, Southwest and multi-region roles alone", () => {
+      expect(sae("Phoenix, AZ").category).toBe("MAIN");
+      expect(sae("Seattle, WA").category).toBe("RELOCATION");
+      expect(sae("New York, NY; San Francisco, CA").category).toBe("RELOCATION");
+    });
+  });
 });

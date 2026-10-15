@@ -6,6 +6,18 @@ import { classifyTitle, FAMILY_LABEL, type RoleFamily } from "./roles";
 import { PROFILE } from "./profile";
 import { parseLocation } from "./normalize";
 
+const EAST_COAST = ["ME", "NH", "VT", "MA", "RI", "CT", "NY", "NJ", "PA", "DE", "MD", "DC", "VA", "NC", "SC", "GA", "FL"];
+const EAST_REQUIRED = /\b(reside|live|located|based|residing|living)\s+(in|on|within)\s+(the\s+)?(east coast|eastern (time zone|us|united states|region)|est\b|et time zone)/i;
+
+/** "listed" when the posting's locations are all on the East Coast; "required" when it says you must live there. */
+export function eastCoastOnly(location: string | null | undefined, states: string[], text = ""): "listed" | "required" | null {
+  const l = (location || "").toLowerCase();
+  if (EAST_REQUIRED.test(text) || /east coast only|must be (in|on) (the )?east coast/i.test(`${l} ${text}`)) return "required";
+  if (/\beast coast\b|\beastern (time|region|us)\b|\bnortheast\b|\bmid-atlantic\b|\bsoutheast\b/.test(l)) return /remote/.test(l) ? "required" : "listed";
+  const st = /washington,?\s*d\.?c/.test(l) ? [...states.filter((s) => s !== "WA"), "DC"] : states;
+  return st.length > 0 && st.every((s) => EAST_COAST.includes(s)) ? "listed" : null;
+}
+
 export const WEIGHTS = {
   qualifications: 25,
   compensation: 20,
@@ -129,10 +141,18 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
 
   // 5. Location (10)
   const loc = parseLocation(j.location, { remoteFlag: j.isRemote, workplaceType: j.workArrangement, text });
-  let l: number;
+  let l = 0;
+  let eastReason: string | undefined;
   let category: ScoreResult["category"] = "MAIN";
   if (j.location) known++;
-  if (!loc.isUS) { l = 0; category = "EXCLUDED"; reasons.push({ criterion: "location", delta: "-", text: `Location outside the United States (${j.location})` }); }
+  const east = eastCoastOnly(j.location, loc.states, text);
+  if (east && !loc.azMetro) {
+    // Vanessa is West-based: East Coast roles fit only when the posting is open to remote without an East Coast residency requirement.
+    if (!loc.isRemote) { l = 0; category = "EXCLUDED"; eastReason = `${loc.arrangement === "Hybrid" ? "Hybrid" : "On-site"} on the East Coast (${j.location}) with no remote option`; }
+    else if (east === "required") { l = 0; category = "EXCLUDED"; eastReason = "Remote, but the posting requires living on the East Coast or in Eastern time"; }
+  }
+  if (eastReason) reasons.push({ criterion: "location", delta: "-", text: eastReason });
+  else if (!loc.isUS) { l = 0; category = "EXCLUDED"; reasons.push({ criterion: "location", delta: "-", text: `Location outside the United States (${j.location})` }); }
   else if (loc.azMetro) { l = 1; reasons.push({ criterion: "location", delta: "+", text: `Based in the Phoenix/Scottsdale area (${loc.arrangement})` }); }
   else if (loc.isRemote) {
     const restricted = loc.states.length > 0 && !loc.states.includes("AZ");
@@ -168,6 +188,7 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
   let excludedReason: string | undefined;
   if (j.requiresClearance) { category = "EXCLUDED"; excludedReason = "Requires an active security clearance"; reasons.push({ criterion: "qualifications", delta: "-", text: "Requires an active security clearance you do not hold" }); }
   if (!loc.isUS) excludedReason = "Outside the United States";
+  if (eastReason) excludedReason = eastReason;
   if (family === "NOT_RELEVANT") { category = "EXCLUDED"; excludedReason = "Not a sales or sales-leadership role"; }
   if (family === "SDR_IC") { category = "EXCLUDED"; excludedReason = "Entry-level SDR/BDR role, below your level"; }
   if (category === "MAIN" && stretch) category = "STRETCH";

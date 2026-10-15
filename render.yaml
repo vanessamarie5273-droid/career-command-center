@@ -24,7 +24,7 @@ services:
     region: oregon
     buildCommand: npm ci --include=dev && npm run build
     # If ADMIN_EMAIL and ADMIN_PASSWORD are set on this service, the login is created/reset on deploy.
-    preDeployCommand: npx prisma migrate deploy && npm run db:seed && (test -z "$ADMIN_EMAIL" || test -z "$ADMIN_PASSWORD" || npm run user:create)
+    preDeployCommand: npx prisma migrate deploy && npm run db:seed && npm run job:rescore && (test -z "$ADMIN_EMAIL" || test -z "$ADMIN_PASSWORD" || npm run user:create)
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
