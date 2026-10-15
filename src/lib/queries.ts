@@ -2,6 +2,9 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 
 export const MATCHING: Prisma.JobWhereInput = { status: "OPEN", dismissed: false, category: { in: ["MAIN", "STRETCH"] } };
+/** Roles the user removed from feeds, split by why. A null reason predates the split and means "Not a fit". */
+export const NOT_A_FIT: Prisma.JobWhereInput = { dismissed: true, OR: [{ dismissReason: null }, { dismissReason: { not: "duplicate" } }] };
+export const DUPLICATE: Prisma.JobWhereInput = { dismissed: true, dismissReason: "duplicate" };
 export const tierWhere = (t: "TIER1" | "TIER2" | "TIER3"): Prisma.JobWhereInput => ({ OR: [{ overrideTier: t }, { overrideTier: null, tier: t }] });
 export const ACTIVE_PROCESS = ["RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW"] as const;
 export const CLOSED_STAGES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
@@ -41,11 +44,11 @@ export async function dashboardMetrics(now = new Date()) {
     prisma.job.count({ where: { status: "OPEN", dismissed: false, category: "RELOCATION" } }),
     prisma.job.count({ where: { status: "OPEN", dismissed: false, category: "STRETCH" } }),
   ]);
-  const notAFit = await prisma.job.count({ where: { dismissed: true } });
+  const [notAFit, duplicates] = await Promise.all([prisma.job.count({ where: NOT_A_FIT }), prisma.job.count({ where: DUPLICATE })]);
   const tier1Unapplied = await prisma.job.count({ where: { AND: [MATCHING, { category: "MAIN" }, tierWhere("TIER1"), { applications: { none: { applied: true } } }] } });
   return {
     companies, matching, newToday, tier1, applied, interviewsScheduled, activeProcesses, offers, resumes, followUps,
-    companiesWithoutSuitable: companies - companiesWithMatches, recentlyClosed, relocation, stretch, notAFit,
+    companiesWithoutSuitable: companies - companiesWithMatches, recentlyClosed, relocation, stretch, notAFit, duplicates,
     priorityActions: tasksToday + followUps + Math.min(tier1Unapplied, 5),
   };
 }

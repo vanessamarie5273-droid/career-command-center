@@ -6,17 +6,26 @@ import { StageBars, PipelineBars, IndustryBars, CompBars, WeeklyLine } from "@/c
 import { STAGES, ago, date, range } from "@/lib/format";
 import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import RefreshButton from "@/components/RefreshButton";
-import NotAFit from "@/components/NotAFit";
+import JobMarks from "@/components/JobMarks";
+import { normalizeTitle } from "@/lib/dedupe";
 
 export const metadata = { title: "Command Center" };
 
 export default async function CommandCenter() {
   const now = new Date();
   const [m, charts, lastRun] = await Promise.all([dashboardMetrics(now), chartData(now), prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } })]);
-  const priorities = await prisma.job.findMany({
+  const ranked = await prisma.job.findMany({
     where: { AND: [MATCHING, { category: "MAIN" }, { applications: { none: { applied: true } } }, { OR: [tierWhere("TIER1"), tierWhere("TIER2")] }] },
-    include: { company: true }, orderBy: [{ overrideScore: { sort: "desc", nulls: "last" } }, { score: "desc" }, { firstSeenAt: "desc" }], take: 8,
+    include: { company: true }, orderBy: [{ overrideScore: { sort: "desc", nulls: "last" } }, { score: "desc" }, { firstSeenAt: "desc" }], take: 60,
   });
+  // One row per company + title: employers often post the same role once per city.
+  const groups = new Map<string, { job: (typeof ranked)[number]; others: number }>();
+  for (const j of ranked) {
+    const key = `${j.companyId}|${normalizeTitle(j.title)}`;
+    const g = groups.get(key);
+    if (g) g.others++; else groups.set(key, { job: j, others: 0 });
+  }
+  const priorities = [...groups.values()].slice(0, 8);
   const followUps = await prisma.application.findMany({ where: followUpWhere(now), include: { company: true }, orderBy: { nextActionDue: "asc" }, take: 6 });
   const tasks = await prisma.task.findMany({ where: { done: false, dueAt: { lte: new Date(now.getTime() + 86400_000) } }, include: { application: { include: { company: true } } }, orderBy: { dueAt: "asc" }, take: 6 });
   const stageData = STAGES.map(([k, l]) => ({ label: l, count: charts.stages.find((s) => s.stage === k)?.count ?? 0 }));
@@ -44,6 +53,7 @@ export default async function CommandCenter() {
         <Stat label="Closed (7 days)" value={m.recentlyClosed} href="/alerts?kind=closed" />
         <Stat label="Priority actions today" value={m.priorityActions} accent />
         <Stat label="Not a fit" value={m.notAFit} href="/jobs?category=DISMISSED" sub="removed from feeds" />
+        <Stat label="Duplicates" value={m.duplicates} href="/jobs?category=DUPLICATE" sub="removed from feeds" />
         <Stat label="Relocation / stretch" value={`${m.relocation} / ${m.stretch}`} href="/jobs?category=RELOCATION" sub="ranked separately" />
       </div>
 
@@ -53,12 +63,13 @@ export default async function CommandCenter() {
             <Empty>No verified Tier 1 or Tier 2 openings without an application. {lastRun ? "Lower-ranked roles are in Discover Jobs." : "Run the first job-feed refresh to populate this list."}</Empty>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {priorities.map((j) => (
+              {priorities.map(({ job: j, others }) => (
                 <li key={j.id} className="flex items-center gap-3 py-2.5">
-                  <NotAFit id={j.id} />
+                  <JobMarks id={j.id} />
                   <Logo src={j.company.logoUrl} name={j.company.name} />
                   <div className="min-w-0 flex-1">
                     <Link href={`/jobs/${j.id}`} className="font-medium text-navy-950 hover:underline">{j.title}</Link>
+                    {others > 0 && <Link href={`/jobs?company=${j.companyId}&q=${encodeURIComponent(j.title)}`} className="chip ml-2 bg-slate-100 text-slate-600 hover:bg-slate-200" title="The same role is posted in other locations">+{others} more {others === 1 ? "location" : "locations"}</Link>}
                     <div className="text-xs text-slate-500 truncate">{j.company.name} · {j.location || "Location not stated"}{range(j.oteMin, j.oteMax) ? ` · OTE ${range(j.oteMin, j.oteMax)}` : range(j.salaryMin, j.salaryMax) ? ` · ${range(j.salaryMin, j.salaryMax)}` : ""} · found {ago(j.firstSeenAt)}</div>
                   </div>
                   <TierBadge tier={effectiveTier(j)} overridden={!!j.overrideTier} />

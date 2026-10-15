@@ -35,6 +35,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
           <button disabled={busy} onClick={() => bulk("favorite")} className="btn bg-white/10 !py-1">★ Favorite</button>
           <button disabled={busy} onClick={() => bulk("unfavorite")} className="btn bg-white/10 !py-1">Unfavorite</button>
           <button disabled={busy} onClick={() => bulk("dismiss")} className="btn bg-white/10 !py-1">Not a fit</button>
+          <button disabled={busy} onClick={() => bulk("duplicate")} className="btn bg-white/10 !py-1">Duplicate</button>
           <button disabled={busy} onClick={() => bulk("restore")} className="btn bg-white/10 !py-1">Restore to feed</button>
           <button onClick={() => setSel(new Set())} className="ml-auto text-white/60 text-xs">Clear</button>
         </div>

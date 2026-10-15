@@ -9,6 +9,7 @@ const Patch = z.object({
   overrideNote: z.string().max(2000).nullable().optional(),
   favorite: z.boolean().optional(),
   dismissed: z.boolean().optional(),
+  dismissReason: z.enum(["not_fit", "duplicate"]).optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,7 +18,7 @@ export const PATCH = route<Ctx>("EDITOR", async (req, { params }, u) => {
   const { id } = await params;
   const b = Patch.parse(await req.json());
   const before = await prisma.job.findUniqueOrThrow({ where: { id } });
-  const job = await prisma.job.update({ where: { id }, data: { ...b, ...("dismissed" in b ? { dismissedAt: b.dismissed ? new Date() : null } : {}) } });
+  const job = await prisma.job.update({ where: { id }, data: { ...b, ...("dismissed" in b ? (b.dismissed ? { dismissedAt: new Date(), dismissReason: b.dismissReason ?? "not_fit" } : { dismissedAt: null, dismissReason: null }) : {}) } });
   const changes = diff(before as unknown as Record<string, unknown>, b);
   if (Object.keys(changes).length) {
     await prisma.auditLog.create({ data: { userId: u.sub, entity: "Job", entityId: id, action: "update", changes: JSON.parse(JSON.stringify(changes)) } });

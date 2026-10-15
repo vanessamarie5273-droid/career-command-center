@@ -224,6 +224,7 @@ model Job {
   overrideNote      String?
   dismissed         Boolean    @default(false) // "Not a fit": hidden from feeds and priorities
   dismissedAt       DateTime?
+  dismissReason     String?    // "not_fit" or "duplicate"
   favorite          Boolean    @default(false)
 
   sources           JobSource[]

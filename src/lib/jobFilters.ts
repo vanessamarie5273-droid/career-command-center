@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { tierWhere } from "./queries";
+import { tierWhere, NOT_A_FIT, DUPLICATE } from "./queries";
 
 export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; status?: string; view?: string };
 
@@ -17,7 +17,9 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   const and: Prisma.JobWhereInput[] = [];
   if (p.category === "DISMISSED") {
     // Every role marked "Not a fit", open or since closed, so the list matches the dashboard count.
-    and.push({ dismissed: true });
+    and.push(NOT_A_FIT);
+  } else if (p.category === "DUPLICATE") {
+    and.push(DUPLICATE);
   } else {
     if (p.status === "CLOSED") and.push({ status: "CLOSED" });
     else and.push({ status: "OPEN" });
