@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DeleteDocument from "@/components/DeleteDocument";
 import { prisma } from "@/lib/db";
 import { PageHeader, Card, Empty } from "@/components/ui";
 import UploadDocument from "@/components/UploadDocument";
@@ -31,7 +32,7 @@ export default async function Documents() {
                   <td>{used} application{used === 1 ? "" : "s"}</td>
                   <td>{d._count.submittedAs ? `${Math.round((progressed / d._count.submittedAs) * 100)}%` : "—"}</td>
                   <td className="whitespace-nowrap">{date(d.createdAt)}</td>
-                  <td className="whitespace-nowrap text-xs"><a className="link" href={`/api/documents/${d.id}/download`}>Original</a> · <a className="link" href={`/api/documents/${d.id}/export?format=docx`}>Word</a> · <a className="link" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a></td>
+                  <td className="whitespace-nowrap text-xs"><a className="link" href={`/api/documents/${d.id}/download`}>Original</a> · <a className="link" href={`/api/documents/${d.id}/export?format=docx`}>Word</a> · <a className="link" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a> · <DeleteDocument compact id={d.id} name={d.name} /></td>
                 </tr>
               );
             })}</tbody>

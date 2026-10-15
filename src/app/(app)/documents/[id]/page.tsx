@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import AutoField from "@/components/AutoField";
 import NewVersion from "@/components/NewVersion";
+import DeleteDocument from "@/components/DeleteDocument";
 import { date, STAGE_LABEL } from "@/lib/format";
 import type { AtsCheck } from "@/lib/resume";
 
@@ -17,7 +18,7 @@ export default async function DocPage({ params }: { params: Promise<{ id: string
   const used = [...d.submittedAs, ...d.coverFor];
   return (
     <>
-      <PageHeader title={d.name} sub={`${d.kind.replace("_", " ")} · ${d.version ?? ""} · added ${date(d.createdAt)}`} actions={<><a className="btn-ghost" href={`/api/documents/${d.id}/download`}>Download original</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=docx`}>Word</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a></>} />
+      <PageHeader title={d.name} sub={`${d.kind.replace("_", " ")} · ${d.version ?? ""} · added ${date(d.createdAt)}`} actions={<><a className="btn-ghost" href={`/api/documents/${d.id}/download`}>Download original</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=docx`}>Word</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a><DeleteDocument id={d.id} name={d.name} /></>} />
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <Card title="Extracted text"><pre className="max-h-[520px] overflow-auto whitespace-pre-wrap font-sans text-xs text-slate-700">{d.text || "No text could be extracted."}</pre></Card>
