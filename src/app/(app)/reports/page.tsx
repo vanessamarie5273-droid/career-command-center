@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { PageHeader, Card, Logo, Empty } from "@/components/ui";
 import { StageBars, IndustryBars, CompBars, WeeklyLine, PipelineBars } from "@/components/Charts";
 import { chartData, MATCHING } from "@/lib/queries";
+import { companyCap, withinCap } from "@/lib/companyCap";
 import { RANKINGS } from "@/lib/jobFilters";
 import { companyAttractiveness, effectiveScore } from "@/lib/scoring";
 import { STAGES, range } from "@/lib/format";
@@ -11,7 +12,8 @@ export const metadata = { title: "Reports & Analytics" };
 
 export default async function Reports() {
   const charts = await chartData();
-  const lists = await Promise.all(Object.entries(RANKINGS).map(async ([k, r]) => [k, r.label, await prisma.job.findMany({ where: { AND: [MATCHING, r.where] }, orderBy: r.orderBy, take: 8, include: { company: true } })] as const));
+  const cap = await companyCap(prisma);
+  const lists = await Promise.all(Object.entries(RANKINGS).map(async ([k, r]) => [k, r.label, await prisma.job.findMany({ where: { AND: [MATCHING, withinCap(cap.ids), r.where] }, orderBy: r.orderBy, take: 8, include: { company: true } })] as const));
   const companies = await prisma.company.findMany({ include: { jobs: { where: MATCHING, select: { id: true } } } });
   const bestCompanies = companies.map((c) => ({ ...c, a: companyAttractiveness(c) })).sort((a, b) => b.a - a.a).slice(0, 12);
   const apps = await prisma.application.findMany({ select: { stage: true, applied: true, stageHistory: { select: { to: true } } } });

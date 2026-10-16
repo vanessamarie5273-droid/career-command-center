@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { sendEmail } from "./email";
 import { effectiveScore, effectiveTier } from "./scoring";
+import { companyCap } from "./companyCap";
 
 const DAY = 86400000;
 const ACTIVE_STAGES = ["APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER"] as const;
@@ -20,8 +21,9 @@ export type BriefingContent = {
 export async function buildBriefing(db: PrismaClient, now = new Date()): Promise<BriefingContent> {
   const since = new Date(now.getTime() - DAY);
   const lastRun = await db.ingestionRun.findFirst({ where: { finishedAt: { not: null } }, orderBy: { startedAt: "desc" } });
-  const newJobs = await db.job.findMany({ where: { firstSeenAt: { gte: since }, status: "OPEN", category: { in: ["MAIN", "STRETCH"] }, dismissed: false }, include: { company: true }, orderBy: { score: "desc" }, take: 25 });
-  const openRanked = await db.job.findMany({ where: { status: "OPEN", category: "MAIN", dismissed: false }, include: { company: true, applications: true }, orderBy: { score: "desc" }, take: 200 });
+  const cap = await companyCap(db);
+  const newJobs = await db.job.findMany({ where: { id: { in: cap.ids }, firstSeenAt: { gte: since }, status: "OPEN", category: { in: ["MAIN", "STRETCH"] }, dismissed: false }, include: { company: true }, orderBy: { score: "desc" }, take: 25 });
+  const openRanked = await db.job.findMany({ where: { id: { in: cap.ids }, status: "OPEN", category: "MAIN", dismissed: false }, include: { company: true, applications: true }, orderBy: { score: "desc" }, take: 200 });
   const tier1 = openRanked.filter((j) => effectiveTier(j) === "TIER1").slice(0, 15);
   const closedJobs = await db.job.findMany({ where: { closedAt: { gte: since } }, include: { company: true }, take: 25 });
   const news = await db.companyNews.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 7 * DAY) } }, include: { company: true }, take: 15 });

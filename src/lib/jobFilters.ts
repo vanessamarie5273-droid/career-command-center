@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { tierWhere, NOT_A_FIT, DUPLICATE } from "./queries";
 
-export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; status?: string; view?: string };
+export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; status?: string; view?: string; all?: string };
 
 export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
   best: { label: "Best immediately available jobs", where: { category: "MAIN" }, orderBy: [{ score: "desc" }] },
@@ -12,6 +12,11 @@ export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInp
   leadership: { label: "Best career leadership opportunities", where: { category: { in: ["MAIN", "STRETCH"] }, seniority: { in: ["MANAGER", "DIRECTOR", "HEAD", "VP", "EXEC"] } }, orderBy: [{ score: "desc" }] },
   ai: { label: "Most promising emerging AI companies' roles", where: { category: { in: ["MAIN", "STRETCH"] }, company: { category: { in: ["Enterprise AI & Agents", "AI Infrastructure & Data", "Healthcare & Clinical AI"] }, ownership: { contains: "Private" } } }, orderBy: [{ company: { marketPositionScore: "desc" } }, { score: "desc" }] },
 };
+
+/** Whether the 3-per-company limit applies: the main feeds, not history or the screened-out lists. */
+export function capApplies(p: JobParams) {
+  return p.all !== "1" && p.status !== "CLOSED" && (!p.category || p.category === "MAIN" || p.category === "STRETCH");
+}
 
 export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   const and: Prisma.JobWhereInput[] = [];

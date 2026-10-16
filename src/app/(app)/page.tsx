@@ -8,14 +8,16 @@ import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import RefreshButton from "@/components/RefreshButton";
 import JobMarks from "@/components/JobMarks";
 import { normalizeTitle } from "@/lib/dedupe";
+import { companyCap, withinCap } from "@/lib/companyCap";
 
 export const metadata = { title: "Command Center" };
 
 export default async function CommandCenter() {
   const now = new Date();
-  const [m, charts, lastRun] = await Promise.all([dashboardMetrics(now), chartData(now), prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } })]);
+  const cap = await companyCap(prisma);
+  const [m, charts, lastRun] = await Promise.all([dashboardMetrics(now, cap.ids), chartData(now), prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } })]);
   const ranked = await prisma.job.findMany({
-    where: { AND: [MATCHING, { category: "MAIN" }, { applications: { none: { applied: true } } }, { OR: [tierWhere("TIER1"), tierWhere("TIER2")] }] },
+    where: { AND: [MATCHING, withinCap(cap.ids), { category: "MAIN" }, { applications: { none: { applied: true } } }, { OR: [tierWhere("TIER1"), tierWhere("TIER2")] }] },
     include: { company: true }, orderBy: [{ overrideScore: { sort: "desc", nulls: "last" } }, { score: "desc" }, { firstSeenAt: "desc" }], take: 60,
   });
   // One row per company + title: employers often post the same role once per city.

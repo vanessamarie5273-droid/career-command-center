@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import JobsTable from "@/components/JobsTable";
 import SavedFilters from "@/components/SavedFilters";
-import { jobOrder, jobWhere, RANKINGS, type JobParams } from "@/lib/jobFilters";
+import { capApplies, jobOrder, jobWhere, RANKINGS, type JobParams } from "@/lib/jobFilters";
+import { companyCap, PER_COMPANY, withinCap } from "@/lib/companyCap";
 import { FAMILY_LABEL } from "@/lib/roles";
 import { CATEGORIES } from "@/data/companies";
 import { effectiveScore, effectiveTier } from "@/lib/scoring";
@@ -14,7 +15,8 @@ const PER = 50;
 export default async function JobsPage({ searchParams }: { searchParams: Promise<JobParams> }) {
   const p = await searchParams;
   const page = Math.max(1, Number(p.page) || 1);
-  const where = jobWhere(p);
+  const cap = capApplies(p) ? await companyCap(prisma) : null;
+  const where = cap ? { AND: [jobWhere(p), withinCap(cap.ids)] } : jobWhere(p);
   const [total, jobs, companies] = await Promise.all([
     prisma.job.count({ where }),
     prisma.job.findMany({ where, orderBy: jobOrder(p), skip: (page - 1) * PER, take: PER, include: { company: { select: { id: true, name: true, logoUrl: true, category: true } }, applications: { select: { id: true, stage: true, applied: true } }, sources: { select: { provider: true } } } }),
@@ -54,6 +56,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div><label className="label">Sort</label><select name="sort" defaultValue={p.sort ?? ""} className="input"><option value="">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="posted">Posted date</option><option value="company">Company</option><option value="location">Location</option></select></div>
         <div className="flex gap-3 items-center text-sm"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
       </form>
+      {cap && cap.hidden > 0 && <p className="mb-2 text-xs text-slate-500">Showing up to {PER_COMPANY} roles per company, counting roles you already applied to. {cap.hidden} more {cap.hidden === 1 ? "role is" : "roles are"} held back. <Link className="link" href={qs({ all: "1", page: "" })}>Show all</Link></p>}
+      {p.all === "1" && <p className="mb-2 text-xs text-slate-500">Showing every role, without the {PER_COMPANY}-per-company limit. <Link className="link" href={qs({ all: "", page: "" })}>Back to the limited feed</Link></p>}
       <SavedFilters page="jobs" />
       <JobsTable rows={rows} />
       <div className="flex items-center justify-between mt-3 text-sm">

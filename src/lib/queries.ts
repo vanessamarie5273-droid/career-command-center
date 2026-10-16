@@ -25,13 +25,15 @@ export function followUpWhere(now = new Date()): Prisma.ApplicationWhereInput {
   };
 }
 
-export async function dashboardMetrics(now = new Date()) {
+/** capIds: the roles inside the 3-per-company limit; counts of matching roles use them so tiles match the feed. */
+export async function dashboardMetrics(now = new Date(), capIds?: string[]) {
+  const FEED: Prisma.JobWhereInput = capIds ? { AND: [MATCHING, { id: { in: capIds } }] } : MATCHING;
   const today = startOfTodayPhoenix(now);
   const [companies, matching, newToday, tier1, applied, interviewsScheduled, activeProcesses, offers, resumes, followUps, companiesWithMatches, recentlyClosed, tasksToday, relocation, stretch] = await Promise.all([
     prisma.company.count(),
-    prisma.job.count({ where: MATCHING }),
-    prisma.job.count({ where: { ...MATCHING, firstSeenAt: { gte: today } } }),
-    prisma.job.count({ where: { AND: [MATCHING, { category: "MAIN" }, tierWhere("TIER1")] } }),
+    prisma.job.count({ where: FEED }),
+    prisma.job.count({ where: { AND: [FEED, { firstSeenAt: { gte: today } }] } }),
+    prisma.job.count({ where: { AND: [FEED, { category: "MAIN" }, tierWhere("TIER1")] } }),
     prisma.application.count({ where: { applied: true } }),
     prisma.application.count({ where: { interviewAt: { gte: now } } }),
     prisma.application.count({ where: { stage: { in: [...ACTIVE_PROCESS] } } }),
@@ -45,7 +47,7 @@ export async function dashboardMetrics(now = new Date()) {
     prisma.job.count({ where: { status: "OPEN", dismissed: false, category: "STRETCH" } }),
   ]);
   const [notAFit, duplicates] = await Promise.all([prisma.job.count({ where: NOT_A_FIT }), prisma.job.count({ where: DUPLICATE })]);
-  const tier1Unapplied = await prisma.job.count({ where: { AND: [MATCHING, { category: "MAIN" }, tierWhere("TIER1"), { applications: { none: { applied: true } } }] } });
+  const tier1Unapplied = await prisma.job.count({ where: { AND: [FEED, { category: "MAIN" }, tierWhere("TIER1"), { applications: { none: { applied: true } } }] } });
   return {
     companies, matching, newToday, tier1, applied, interviewsScheduled, activeProcesses, offers, resumes, followUps,
     companiesWithoutSuitable: companies - companiesWithMatches, recentlyClosed, relocation, stretch, notAFit, duplicates,
