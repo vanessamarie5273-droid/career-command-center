@@ -47,7 +47,7 @@ export async function runTool(name: string, input: Record<string, unknown>): Pro
   switch (name) {
     case "search_jobs": {
       const and: Prisma.JobWhereInput[] = [input.include_closed ? {} : { status: "OPEN", dismissed: false }];
-      and.push(input.category ? { category: String(input.category) } : { category: { in: ["MAIN", "STRETCH"] } });
+      and.push(input.category ? { category: String(input.category) } : { category: { in: ["MAIN", "STRETCH", "RELOCATION"] } });
       if (input.tier) and.push(tierWhere(input.tier as "TIER1"));
       if (input.remote_only) and.push({ isRemote: true });
       if (input.min_published_pay) and.push({ OR: [{ oteMax: { gte: Number(input.min_published_pay) } }, { salaryMax: { gte: Number(input.min_published_pay) } }] });

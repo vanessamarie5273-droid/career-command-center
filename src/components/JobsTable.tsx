@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Logo from "./Logo";
+import JobMarks from "./JobMarks";
 
 type Row = {
   id: string; title: string; company: { id: string; name: string; logoUrl: string | null; category: string }; location: string | null; arrangement: string | null;
@@ -31,7 +32,8 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
       {!compact && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-navy-950 px-4 py-2 text-sm text-white">
           <span>{sel.size} selected</span>
-          <button disabled={busy} onClick={() => bulk("pipeline")} className="btn bg-gold-500 text-navy-950 !py-1">Add to pipeline</button>
+          <button disabled={busy} onClick={() => bulk("applied")} className="btn bg-gold-500 text-navy-950 !py-1">Mark applied</button>
+          <button disabled={busy} onClick={() => bulk("pipeline")} className="btn bg-white/10 !py-1">Add to pipeline</button>
           <button disabled={busy} onClick={() => bulk("favorite")} className="btn bg-white/10 !py-1">★ Favorite</button>
           <button disabled={busy} onClick={() => bulk("unfavorite")} className="btn bg-white/10 !py-1">Unfavorite</button>
           <button disabled={busy} onClick={() => bulk("dismiss")} className="btn bg-white/10 !py-1">Not a fit</button>
@@ -44,7 +46,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
         <table className="tbl">
           <thead><tr>
             {!compact && <th className="w-8"><input type="checkbox" aria-label="Select all" checked={sel.size === rows.length} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((x) => x.id)) : new Set())} /></th>}
-            <th>Score</th><th>Role</th><th>Company</th><th>Location</th><th>Published pay</th><th>Posted</th><th>Verified</th><th>Pipeline</th><th></th>
+            <th>Score</th>{!compact && <th>Mark</th>}<th>Role</th><th>Company</th><th>Location</th><th>Published pay</th><th>Posted</th><th>Verified</th><th>Pipeline</th><th></th>
           </tr></thead>
           <tbody>
             {rows.map((x) => (
@@ -54,9 +56,10 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
                   <span className={`inline-flex min-w-[2.2rem] justify-center rounded-md px-1.5 py-0.5 font-semibold tabular-nums ring-1 ${(x.score ?? 0) >= 72 ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20" : (x.score ?? 0) >= 60 ? "bg-navy-500/5 text-navy-700 ring-navy-500/20" : "bg-slate-50 text-slate-600 ring-slate-300/40"}`} title={`AI score ${x.aiScore ?? "—"}${x.overridden ? " (overridden)" : ""} · confidence ${x.confidence ?? "—"}`}>{x.score ?? "—"}</span>
                   <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{x.tier ? x.tier.replace("TIER", "Tier ") : ""}{x.overridden ? " ✎" : ""}</div>
                 </td>
+                {!compact && <td>{x.status === "OPEN" && !x.application?.applied && <JobMarks id={x.id} />}</td>}
                 <td className="min-w-[240px]">
                   <Link href={`/jobs/${x.id}`} className="font-medium text-navy-950 hover:underline">{x.favorite && <span className="text-gold-500 mr-1">★</span>}{x.title}</Link>
-                  <div className="text-xs text-slate-500">{x.category === "STRETCH" ? "Stretch · " : x.category === "RELOCATION" ? "Relocation · " : ""}{x.excludedReason ?? x.sources.join(", ").toLowerCase()}</div>
+                  <div className="text-xs text-slate-500">{x.category === "STRETCH" && <span className="chip mr-1 bg-violet-50 text-violet-700">Stretch</span>}{x.category === "RELOCATION" && <span className="chip mr-1 bg-amber-50 text-amber-800" title="On-site or hybrid outside Arizona">Relocation</span>}{x.excludedReason ?? x.sources.join(", ").toLowerCase()}</div>
                 </td>
                 <td className="whitespace-nowrap"><Link href={`/companies/${x.company.id}`} className="inline-flex items-center gap-2 hover:underline"><Logo src={x.company.logoUrl} name={x.company.name} size={20} />{x.company.name}</Link></td>
                 <td className="min-w-[150px] text-slate-600">{x.location || "—"}<div className="text-xs text-slate-400">{x.arrangement}</div></td>

@@ -1,21 +1,21 @@
 import type { Prisma } from "@prisma/client";
-import { tierWhere, NOT_A_FIT, DUPLICATE } from "./queries";
+import { tierWhere, NOT_A_FIT, DUPLICATE, FEED_CATEGORIES, NOT_APPLIED } from "./queries";
 
 export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; status?: string; view?: string; all?: string };
 
 export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
-  best: { label: "Best immediately available jobs", where: { category: "MAIN" }, orderBy: [{ score: "desc" }] },
-  cash: { label: "Highest expected cash compensation (published)", where: { category: { in: ["MAIN", "STRETCH"] }, OR: [{ oteMax: { not: null } }, { salaryMax: { not: null } }] }, orderBy: [{ oteMax: { sort: "desc", nulls: "last" } }, { salaryMax: { sort: "desc", nulls: "last" } }] },
-  equity: { label: "Highest potential equity upside", where: { category: { in: ["MAIN", "STRETCH"] } }, orderBy: [{ company: { equityUpsideScore: "desc" } }, { score: "desc" }] },
-  quals: { label: "Strongest qualifications match", where: { category: { in: ["MAIN", "STRETCH"] } }, orderBy: [{ score: "desc" }] },
-  remote: { label: "Best remote opportunities", where: { category: "MAIN", isRemote: true }, orderBy: [{ score: "desc" }] },
-  leadership: { label: "Best career leadership opportunities", where: { category: { in: ["MAIN", "STRETCH"] }, seniority: { in: ["MANAGER", "DIRECTOR", "HEAD", "VP", "EXEC"] } }, orderBy: [{ score: "desc" }] },
-  ai: { label: "Most promising emerging AI companies' roles", where: { category: { in: ["MAIN", "STRETCH"] }, company: { category: { in: ["Enterprise AI & Agents", "AI Infrastructure & Data", "Healthcare & Clinical AI"] }, ownership: { contains: "Private" } } }, orderBy: [{ company: { marketPositionScore: "desc" } }, { score: "desc" }] },
+  best: { label: "Best immediately available jobs", where: {}, orderBy: [{ score: "desc" }] },
+  cash: { label: "Highest expected cash compensation (published)", where: { OR: [{ oteMax: { not: null } }, { salaryMax: { not: null } }] }, orderBy: [{ oteMax: { sort: "desc", nulls: "last" } }, { salaryMax: { sort: "desc", nulls: "last" } }] },
+  equity: { label: "Highest potential equity upside", where: {}, orderBy: [{ company: { equityUpsideScore: "desc" } }, { score: "desc" }] },
+  quals: { label: "Strongest qualifications match", where: {}, orderBy: [{ score: "desc" }] },
+  remote: { label: "Best remote opportunities", where: { isRemote: true }, orderBy: [{ score: "desc" }] },
+  leadership: { label: "Best career leadership opportunities", where: { seniority: { in: ["MANAGER", "DIRECTOR", "HEAD", "VP", "EXEC"] } }, orderBy: [{ score: "desc" }] },
+  ai: { label: "Most promising emerging AI companies' roles", where: { company: { category: { in: ["Enterprise AI & Agents", "AI Infrastructure & Data", "Healthcare & Clinical AI"] }, ownership: { contains: "Private" } } }, orderBy: [{ company: { marketPositionScore: "desc" } }, { score: "desc" }] },
 };
 
 /** Whether the 3-per-company limit applies: the main feeds, not history or the screened-out lists. */
 export function capApplies(p: JobParams) {
-  return p.all !== "1" && p.status !== "CLOSED" && (!p.category || p.category === "MAIN" || p.category === "STRETCH");
+  return p.all !== "1" && p.status !== "CLOSED" && (!p.category || FEED_CATEGORIES.includes(p.category));
 }
 
 export function jobWhere(p: JobParams): Prisma.JobWhereInput {
@@ -29,8 +29,9 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
     if (p.status === "CLOSED") and.push({ status: "CLOSED" });
     else and.push({ status: "OPEN" });
     if (p.category && p.category !== "ALL") and.push({ category: p.category });
-    else if (!p.category) and.push({ category: { in: ["MAIN", "STRETCH"] } });
+    else if (!p.category) and.push({ category: { in: FEED_CATEGORIES } });
     if (p.status !== "CLOSED") and.push({ dismissed: false });
+    if (p.status !== "CLOSED" && (!p.category || FEED_CATEGORIES.includes(p.category))) and.push(NOT_APPLIED);
   }
   if (p.tier && ["TIER1", "TIER2", "TIER3"].includes(p.tier)) and.push(tierWhere(p.tier as "TIER1"));
   if (p.company) and.push({ companyId: p.company });

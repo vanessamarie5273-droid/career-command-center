@@ -7,7 +7,7 @@ import { capApplies, jobOrder, jobWhere, RANKINGS, type JobParams } from "@/lib/
 import { companyCap, PER_COMPANY, withinCap } from "@/lib/companyCap";
 import { FAMILY_LABEL } from "@/lib/roles";
 import { CATEGORIES } from "@/data/companies";
-import { effectiveScore, effectiveTier } from "@/lib/scoring";
+import { JOB_ROW_INCLUDE, toRow } from "@/lib/jobRows";
 
 export const metadata = { title: "Discover Jobs" };
 const PER = 50;
@@ -19,25 +19,18 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const where = cap ? { AND: [jobWhere(p), withinCap(cap.ids)] } : jobWhere(p);
   const [total, jobs, companies] = await Promise.all([
     prisma.job.count({ where }),
-    prisma.job.findMany({ where, orderBy: jobOrder(p), skip: (page - 1) * PER, take: PER, include: { company: { select: { id: true, name: true, logoUrl: true, category: true } }, applications: { select: { id: true, stage: true, applied: true } }, sources: { select: { provider: true } } } }),
+    prisma.job.findMany({ where, orderBy: jobOrder(p), skip: (page - 1) * PER, take: PER, include: JOB_ROW_INCLUDE }),
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const qs = (o: Partial<JobParams>) => { const u = new URLSearchParams(Object.entries({ ...p, ...o }).filter(([, v]) => v) as [string, string][]); return `/jobs?${u}`; };
-  const rows = jobs.map((j) => ({
-    id: j.id, title: j.title, company: j.company, location: j.location, arrangement: j.workArrangement, postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(),
-    lastVerifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl, score: effectiveScore(j), aiScore: j.score, tier: effectiveTier(j), overridden: !!(j.overrideTier || j.overrideScore), confidence: j.confidence,
-    salaryMin: j.salaryMin, salaryMax: j.salaryMax, oteMin: j.oteMin, oteMax: j.oteMax, category: j.category, status: j.status, favorite: j.favorite,
-    family: j.roleFamily, sources: [...new Set(j.sources.map((s) => s.provider))], application: j.applications[0] ?? null, excludedReason: j.excludedReason,
-  }));
+  const rows = jobs.map(toRow);
 
   return (
     <>
       <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "verified open"} roles from first-party employer job boards. Every link opens the employer's own posting.`} actions={<Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link>} />
       <div className="flex flex-wrap gap-1.5 mb-3">
-        <Link href="/jobs" className={`chip px-3 py-1 ${!p.view && !p.category ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Main rankings</Link>
+        <Link href="/jobs" className={`chip px-3 py-1 ${!p.view && !p.category ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Your feed</Link>
         {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} className={`chip px-3 py-1 ${p.view === k ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>{r.label}</Link>)}
-        <Link href="/jobs?category=STRETCH" className={`chip px-3 py-1 ${p.category === "STRETCH" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Stretch roles</Link>
-        <Link href="/jobs?category=RELOCATION" className={`chip px-3 py-1 ${p.category === "RELOCATION" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Relocation opportunities</Link>
         <Link href="/jobs?category=EXCLUDED" className={`chip px-3 py-1 ${p.category === "EXCLUDED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Excluded</Link>
         <Link href="/jobs?category=DISMISSED" className={`chip px-3 py-1 ${p.category === "DISMISSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Not a fit</Link>
         <Link href="/jobs?category=DUPLICATE" className={`chip px-3 py-1 ${p.category === "DUPLICATE" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Duplicates</Link>

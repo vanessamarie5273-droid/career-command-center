@@ -2,9 +2,11 @@
 // so roles already applied to use up slots, and the same title in several cities counts once.
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { normalizeTitle } from "./dedupe";
+import { FEED_CATEGORIES } from "./queries";
 
 export const PER_COMPANY = 3;
-const MATCHING: Prisma.JobWhereInput = { status: "OPEN", dismissed: false, category: { in: ["MAIN", "STRETCH"] } };
+// Applied roles are read too: they leave the feed but still use up their company's slots.
+const OPEN_ROLES: Prisma.JobWhereInput = { status: "OPEN", dismissed: false, category: { in: FEED_CATEGORIES } };
 
 type Row = { id: string; companyId: string; title: string; score: number | null; overrideScore: number | null; firstSeenAt: Date };
 
@@ -35,7 +37,7 @@ export function selectWithinCap(rows: Row[], appliedByCompany: Map<string, numbe
 
 export async function companyCap(db: PrismaClient) {
   const [rows, apps] = await Promise.all([
-    db.job.findMany({ where: MATCHING, select: { id: true, companyId: true, title: true, score: true, overrideScore: true, firstSeenAt: true } }),
+    db.job.findMany({ where: OPEN_ROLES, select: { id: true, companyId: true, title: true, score: true, overrideScore: true, firstSeenAt: true } }),
     db.application.findMany({ where: { applied: true, stage: { not: "WITHDRAWN" } }, select: { companyId: true, jobId: true } }),
   ]);
   const appliedByCompany = new Map<string, number>();

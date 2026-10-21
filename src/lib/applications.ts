@@ -43,7 +43,7 @@ export async function ensureApplication(db: PrismaClient, jobId: string, userId:
   if (existing) return { app: existing, created: false };
   const app = await db.application.create({
     data: {
-      companyId: job.companyId, jobId, title: job.title, stage, jdSnapshot: job.descriptionText, jdSnapshotAt: new Date(),
+      companyId: job.companyId, jobId, title: job.title, stage, ...(POST_APPLY.includes(stage) ? { applied: true, appliedAt: new Date() } : {}), jdSnapshot: job.descriptionText, jdSnapshotAt: new Date(),
       baseSalary: job.salaryMax ?? undefined, ote: job.oteMax ?? undefined, compSource: job.compFactType ? "Published in job posting" : undefined, compFactType: job.compFactType ?? undefined,
       stageHistory: { create: { to: stage } },
     },

@@ -158,7 +158,7 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   // Alerts for newly discovered high-scoring roles
   const user = await db.user.findFirst({ orderBy: { createdAt: "asc" } });
   const minScore = user?.alertMinScore ?? 80;
-  const fresh = await db.job.findMany({ where: { firstSeenAt: { gte: run.startedAt }, status: "OPEN", category: { in: ["MAIN", "STRETCH"] }, score: { gte: minScore } }, include: { company: true } });
+  const fresh = await db.job.findMany({ where: { firstSeenAt: { gte: run.startedAt }, status: "OPEN", category: { in: ["MAIN", "STRETCH", "RELOCATION"] }, score: { gte: minScore } }, include: { company: true } });
   for (const j of fresh) if (!before.has(j.id)) await db.alert.create({ data: { kind: "new_high_score_job", title: `New ${j.score}-point match: ${j.title} at ${j.company.name}`, body: j.location ?? undefined, link: `/jobs/${j.id}` } });
   const errored = outcomes.filter((o) => o.status === "error");
   if (errored.length) await db.alert.create({ data: { kind: "integration_error", title: `${errored.length} job feed${errored.length > 1 ? "s" : ""} failed to refresh`, body: errored.slice(0, 8).map((o) => `${o.company}: ${o.error}`).join("\n"), link: "/settings" } });

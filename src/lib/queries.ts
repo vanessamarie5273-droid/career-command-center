@@ -1,7 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 
-export const MATCHING: Prisma.JobWhereInput = { status: "OPEN", dismissed: false, category: { in: ["MAIN", "STRETCH"] } };
+/** One feed: stretch and relocation roles sit alongside the rest and carry a label instead of a separate list. */
+export const FEED_CATEGORIES = ["MAIN", "STRETCH", "RELOCATION"];
+/** Roles with an application marked applied leave the feed and live under My Applications. */
+export const NOT_APPLIED: Prisma.JobWhereInput = { applications: { none: { applied: true } } };
+export const MATCHING: Prisma.JobWhereInput = { status: "OPEN", dismissed: false, category: { in: FEED_CATEGORIES }, ...NOT_APPLIED };
 /** Roles the user removed from feeds, split by why. A null reason predates the split and means "Not a fit". */
 export const NOT_A_FIT: Prisma.JobWhereInput = { dismissed: true, OR: [{ dismissReason: null }, { dismissReason: { not: "duplicate" } }] };
 export const DUPLICATE: Prisma.JobWhereInput = { dismissed: true, dismissReason: "duplicate" };
@@ -33,7 +37,7 @@ export async function dashboardMetrics(now = new Date(), capIds?: string[]) {
     prisma.company.count(),
     prisma.job.count({ where: FEED }),
     prisma.job.count({ where: { AND: [FEED, { firstSeenAt: { gte: today } }] } }),
-    prisma.job.count({ where: { AND: [FEED, { category: "MAIN" }, tierWhere("TIER1")] } }),
+    prisma.job.count({ where: { AND: [FEED, tierWhere("TIER1")] } }),
     prisma.application.count({ where: { applied: true } }),
     prisma.application.count({ where: { interviewAt: { gte: now } } }),
     prisma.application.count({ where: { stage: { in: [...ACTIVE_PROCESS] } } }),
@@ -47,7 +51,7 @@ export async function dashboardMetrics(now = new Date(), capIds?: string[]) {
     prisma.job.count({ where: { status: "OPEN", dismissed: false, category: "STRETCH" } }),
   ]);
   const [notAFit, duplicates] = await Promise.all([prisma.job.count({ where: NOT_A_FIT }), prisma.job.count({ where: DUPLICATE })]);
-  const tier1Unapplied = await prisma.job.count({ where: { AND: [FEED, { category: "MAIN" }, tierWhere("TIER1"), { applications: { none: { applied: true } } }] } });
+  const tier1Unapplied = await prisma.job.count({ where: { AND: [FEED, tierWhere("TIER1")] } });
   return {
     companies, matching, newToday, tier1, applied, interviewsScheduled, activeProcesses, offers, resumes, followUps,
     companiesWithoutSuitable: companies - companiesWithMatches, recentlyClosed, relocation, stretch, notAFit, duplicates,
