@@ -310,6 +310,7 @@ model Application {
   touches            OutreachTouch[]
   documents          Document[] @relation("AppDocs")
   stageHistory       StageChange[]
+  preps              InterviewPrep[]
 
   @@unique([companyId, jobId])
   @@index([stage])
@@ -500,4 +501,20 @@ model Kit {
   createdAt     DateTime @default(now())
 
   @@index([jobId, createdAt])
+}
+
+// Interview prep for one application: a prep sheet, a mock interview (turn by turn) or a post-interview follow-up.
+model InterviewPrep {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind          String      // prep / mock / followup
+  persona       String      // recruiter / hiring_manager / executive / peer / hr
+  input         String?     // her notes, for a follow-up
+  output        String?     // prep sheet or follow-up email
+  messages      Json?       // mock interview turns [{ role, content }]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([applicationId, createdAt])
 }

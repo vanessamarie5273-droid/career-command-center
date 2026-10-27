@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { route } from "@/lib/api";
+import { aiError, aiNotConfigured, route } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { assistantConfigured, MODEL } from "@/lib/assistant";
 import { atsReport } from "@/lib/resume";
@@ -16,7 +15,7 @@ export const GET = route("VIEWER", async (req) => {
 
 // Builds the kit for one job from a base resume (the chosen one, or the newest), saves the resume and letter to the library.
 export const POST = route("EDITOR", async (req, _c, u) => {
-  if (!assistantConfigured()) return Response.json({ error: "The Application Kit needs ANTHROPIC_API_KEY. Add it under the web service's Environment tab." }, { status: 503 });
+  if (!assistantConfigured()) return aiNotConfigured("The Application Kit");
   const b = z.object({ jobId: z.string(), documentId: z.string().optional() }).parse(await req.json());
   const job = await prisma.job.findUniqueOrThrow({ where: { id: b.jobId }, include: { company: { include: { news: { orderBy: { createdAt: "desc" }, take: 5 } } }, applications: true } });
   const base = b.documentId
@@ -32,11 +31,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   };
   let parts;
   try { parts = await generateKit(input); }
-  catch (e) {
-    if (e instanceof Anthropic.AuthenticationError) return Response.json({ error: "Anthropic rejected the API key. Check ANTHROPIC_API_KEY on the web service." }, { status: 503 });
-    if (e instanceof Anthropic.RateLimitError) return Response.json({ error: "Anthropic is rate-limiting requests. Try again in a minute." }, { status: 503 });
-    throw e;
-  }
+  catch (e) { return aiError(e); }
   const checks = checkKit(parts, { resumeText: base.text, contextText: kitContext(input) });
 
   const app = job.applications[0];

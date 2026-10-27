@@ -27,7 +27,7 @@ export type KitInput = {
   company: { name: string; category: string; maturity: string | null; description: string | null; keyProducts: string | null; customers: string | null; buyerPersonas: string | null; risks: string | null; news: string[] };
 };
 
-const SYSTEM = `You write job-search material for Vanessa, a senior enterprise sales executive.
+export const SYSTEM = `You write job-search material for Vanessa, a senior enterprise sales executive.
 
 FACT RULES (absolute):
 - Anything about her (employers, titles, dates, numbers, scope, credentials, achievements) must come from RESUME or PROFILE FACTS. Never invent, round up or combine figures. If a requirement is not evidenced, do not claim it.
@@ -103,17 +103,20 @@ export function kitContext(i: KitInput) {
   ].filter(Boolean).join("\n");
 }
 
-async function writePart(client: Anthropic, part: KitPart, context: string) {
+/** One Claude call: a fixed instruction block, then the shared context (cached), then the conversation. */
+export async function writeOver(client: Anthropic, instructions: string, context: string, messages: Anthropic.Beta.BetaMessageParam[], effort: "low" | "medium" | "high", what: string) {
   const res = await client.beta.messages.create({
-    model: MODEL, max_tokens: 16000, output_config: { effort: EFFORT[part] },
-    system: [{ type: "text", text: SYSTEM }, { type: "text", text: context, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: TASK[part] }],
+    model: MODEL, max_tokens: 16000, output_config: { effort },
+    system: [{ type: "text", text: instructions }, { type: "text", text: context, cache_control: { type: "ephemeral" } }],
+    messages,
     // Server-side refusal fallback ("default" routing), as in the assistant.
     betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
   });
-  if (res.stop_reason === "refusal") throw new Error(`The model declined to write the ${KIT_LABEL[part].toLowerCase()}.`);
+  if (res.stop_reason === "refusal") throw new Error(`The model declined to write the ${what}.`);
   return res.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
 }
+
+const writePart = (client: Anthropic, part: KitPart, context: string) => writeOver(client, SYSTEM, context, [{ role: "user", content: TASK[part] }], EFFORT[part], KIT_LABEL[part].toLowerCase());
 
 export async function generateKit(input: KitInput): Promise<KitParts> {
   const client = new Anthropic();

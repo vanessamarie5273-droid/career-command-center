@@ -1,6 +1,6 @@
 # Career Command Center
 
-A private career intelligence and opportunity platform: 146 researched target companies, live openings from employers' own job boards, explainable fit scoring, a 14-stage application CRM, a resume library with ATS checks and exports, a one-click Application Kit per job (tailored resume, Why Me letter, point of view with a 30-60-90 plan, hiring-team notes and form answers, all fact-checked against your resume), contacts, compensation scenarios, alerts with a daily briefing, and an assistant that answers from the database.
+A private career intelligence and opportunity platform: 146 researched target companies, live openings from employers' own job boards, explainable fit scoring, a 14-stage application CRM, a resume library with ATS checks and exports, a one-click Application Kit per job (tailored resume, Why Me letter, point of view with a 30-60-90 plan, hiring-team notes and form answers, all fact-checked against your resume), interview prep by interviewer with mock interviews and follow-up emails, contacts, compensation scenarios, alerts with a daily briefing, and an assistant that answers from the database.
 
 - Stack: Next.js 15, TypeScript, Prisma, PostgreSQL.
 - Setup and deployment: [SETUP.md](SETUP.md).
