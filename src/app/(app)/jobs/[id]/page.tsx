@@ -9,12 +9,15 @@ import { isSpecificJobUrl } from "@/lib/links";
 import OverrideControl from "@/components/OverrideControl";
 import AddToPipeline from "@/components/AddToPipeline";
 import ResumeMatch from "@/components/ResumeMatch";
+import ApplicationKit, { type KitRow } from "@/components/ApplicationKit";
+import { assistantConfigured } from "@/lib/assistant";
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const j = await prisma.job.findUnique({ where: { id }, include: { company: true, sources: true, events: { orderBy: { at: "desc" }, take: 30 }, applications: true } });
   if (!j) notFound();
-  const resumes = await prisma.document.findMany({ where: { kind: "resume" }, select: { id: true, name: true, version: true }, orderBy: { createdAt: "desc" } });
+  const resumes = await prisma.document.findMany({ where: { kind: "resume" }, select: { id: true, name: true, version: true, isTailored: true }, orderBy: { createdAt: "desc" } });
+  const kits = await prisma.kit.findMany({ where: { jobId: id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, parts: true, checks: true, resumeDocId: true, letterDocId: true } });
   const breakdown = (j.scoreBreakdown ?? {}) as Record<Criterion, number>;
   const reasons = (j.scoreReasons ?? []) as Reason[];
   const app = j.applications[0];
@@ -69,6 +72,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               </div>
             </Card>
           )}
+          <ApplicationKit jobId={j.id} resumes={resumes.filter((r) => !r.isTailored)} kits={JSON.parse(JSON.stringify(kits)) as KitRow[]} configured={assistantConfigured()} />
           <ResumeMatch jobId={j.id} resumes={resumes} />
           <Card title="Job description (as published)">
             {j.description ? <div className="prose-sm max-w-none text-sm leading-relaxed text-slate-700 [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h2]:mt-4 [&_h3]:mt-3 [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2" dangerouslySetInnerHTML={{ __html: sanitize(j.description) }} /> : <pre className="whitespace-pre-wrap font-sans text-sm">{j.descriptionText || "No description captured."}</pre>}

@@ -230,6 +230,7 @@ model Job {
   sources           JobSource[]
   events            JobEvent[]
   applications      Application[]
+  kits              Kit[]
   manual            Boolean    @default(false)
 
   @@index([companyId, status])
@@ -482,4 +483,21 @@ model Profile {
   homeBase    String
   preferences Json
   updatedAt   DateTime @updatedAt
+}
+
+// Application Kit: everything generated for one job in one run (tailored resume, Why Me letter,
+// point of view, buying-committee notes, form answers) plus the language and fact checks.
+model Kit {
+  id            String   @id @default(cuid())
+  jobId         String
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  baseResumeId  String?
+  resumeDocId   String?  // tailored resume saved to the library
+  letterDocId   String?  // cover letter saved to the library
+  parts         Json     // { resume, letter, pov, committee, answers }
+  checks        Json     // per-part issues from checkKit()
+  model         String
+  createdAt     DateTime @default(now())
+
+  @@index([jobId, createdAt])
 }

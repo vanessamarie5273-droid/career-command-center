@@ -26,7 +26,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       <div className="mb-5 flex flex-wrap items-start gap-4">
         <Logo src={a.company.logoUrl} name={a.company.name} size={44} />
         <div className="flex-1 min-w-[240px]">
-          <div className="text-sm text-slate-500"><Link className="link" href={`/companies/${a.company.id}`}>{a.company.name}</Link>{a.job && <> · <Link className="link" href={`/jobs/${a.job.id}`}>job record</Link></>}</div>
+          <div className="text-sm text-slate-500"><Link className="link" href={`/companies/${a.company.id}`}>{a.company.name}</Link>{a.job && <> · <Link className="link" href={`/jobs/${a.job.id}`}>job record</Link> · <Link className="link" href={`/jobs/${a.job.id}#kit`}>Application Kit</Link></>}</div>
           <AutoField endpoint={ep} field="title" value={a.title} className="mt-1 max-w-xl [&_input]:text-xl [&_input]:font-semibold [&_input]:border-transparent [&_input]:px-0 [&_input:hover]:border-slate-300" />
           {a.job && <div className="mt-1 flex items-center gap-2"><TierBadge tier={effectiveTier(a.job)} /><ScorePill score={effectiveScore(a.job)} confidence={a.job.confidence} />{a.job.status === "CLOSED" && <span className="chip bg-red-50 text-red-700">Posting closed {date(a.job.closedAt)}</span>}</div>}
         </div>
