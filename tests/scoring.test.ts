@@ -46,8 +46,8 @@ describe("scoring", () => {
     expect(r.category).toBe("EXCLUDED");
     expect(r.excludedReason).toMatch(/clearance/);
   });
-  it("on-site roles elsewhere go to the separate relocation category, never Tier 1", () => {
-    const r = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "Chicago, IL", oteMax: 400000, company: strong });
+  it("on-site West Coast roles outside Arizona are labelled relocation, never Tier 1", () => {
+    const r = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "San Francisco, CA", oteMax: 400000, company: strong });
     expect(r.category).toBe("RELOCATION");
     expect(r.tier).not.toBe("TIER1");
   });
@@ -105,6 +105,38 @@ describe("normalisation", () => {
       expect(sae("Phoenix, AZ").category).toBe("MAIN");
       expect(sae("Seattle, WA").category).toBe("RELOCATION");
       expect(sae("New York, NY; San Francisco, CA").category).toBe("RELOCATION");
+    });
+  });
+  describe("West Coast, age and role rules", () => {
+    const sae = (location: string, extra: object = {}) => scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location, company: strong, ...extra });
+    it("excludes on-site or hybrid roles outside the West Coast and Arizona", () => {
+      for (const loc of ["Chicago, IL", "Denver, CO", "Austin, TX (Hybrid)", "Boston"]) {
+        const r = sae(loc);
+        expect(r.category, loc).toBe("EXCLUDED");
+        expect(r.excludedReason, loc).toMatch(/outside the West Coast|East Coast/);
+      }
+    });
+    it("keeps the same roles when they are open to remote", () => {
+      expect(sae("Chicago, IL or Remote (US)", { isRemote: true }).category).toBe("MAIN");
+    });
+    it("keeps West Coast and Arizona roles", () => {
+      for (const loc of ["Seattle, WA", "Portland, OR", "Los Angeles, CA", "Scottsdale, AZ", "Chicago, IL; San Francisco, CA"]) expect(sae(loc).category, loc).not.toBe("EXCLUDED");
+    });
+    it("excludes postings older than 30 days", () => {
+      const now = new Date("2026-10-27T12:00:00Z");
+      const old = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "Remote - US", isRemote: true, postedAt: new Date("2026-09-20T12:00:00Z"), company: strong }, now);
+      expect(old.category).toBe("EXCLUDED");
+      expect(old.excludedReason).toMatch(/37 days ago/);
+      const fresh = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "Remote - US", isRemote: true, postedAt: new Date("2026-10-10T12:00:00Z"), company: strong }, now);
+      expect(fresh.category).toBe("MAIN");
+      const unseen = scoreJob({ title: "Strategic Account Executive", descriptionText: desc, location: "Remote - US", isRemote: true, firstSeenAt: new Date("2026-09-01T12:00:00Z"), company: strong }, now);
+      expect(unseen.excludedReason).toMatch(/First found/);
+    });
+    it("excludes commercial operations and growth or marketing planning roles", () => {
+      for (const t of ["Director, Commercial Operations", "Senior Manager, Growth Marketing", "Marketing Planning Manager", "Head of Commercial Excellence"]) {
+        expect(scoreJob({ title: t, location: "Remote - US", isRemote: true, company: strong }).category, t).toBe("EXCLUDED");
+      }
+      expect(scoreJob({ title: "Enterprise Account Executive, Commercial", location: "Remote - US", isRemote: true, company: strong }).category).not.toBe("EXCLUDED");
     });
   });
 });

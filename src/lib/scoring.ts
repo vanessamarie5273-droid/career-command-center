@@ -6,6 +6,10 @@ import { classifyTitle, FAMILY_LABEL, type RoleFamily } from "./roles";
 import { PROFILE } from "./profile";
 import { parseLocation } from "./normalize";
 
+/** States where an on-site or hybrid role works for Vanessa: the West Coast plus her Arizona home base. */
+export const WEST_OK = ["WA", "OR", "CA", "AZ"];
+/** Postings older than this leave the feed. */
+export const MAX_AGE_DAYS = 30;
 const EAST_COAST = ["ME", "NH", "VT", "MA", "RI", "CT", "NY", "NJ", "PA", "DE", "MD", "DC", "VA", "NC", "SC", "GA", "FL"];
 const EAST_REQUIRED = /\b(reside|live|located|based|residing|living)\s+(in|on|within)\s+(the\s+)?(east coast|eastern (time zone|us|united states|region)|est\b|et time zone)/i;
 
@@ -46,6 +50,7 @@ export type ScoreInput = {
   isRemote?: boolean;
   workArrangement?: string | null;
   postedAt?: Date | null;
+  firstSeenAt?: Date | null;
   salaryMin?: number | null; salaryMax?: number | null; oteMin?: number | null; oteMax?: number | null;
   equityMentioned?: boolean;
   requiresClearance?: boolean;
@@ -151,6 +156,10 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
     if (!loc.isRemote) { l = 0; category = "EXCLUDED"; eastReason = `${loc.arrangement === "Hybrid" ? "Hybrid" : "On-site"} on the East Coast (${j.location}) with no remote option`; }
     else if (east === "required") { l = 0; category = "EXCLUDED"; eastReason = "Remote, but the posting requires living on the East Coast or in Eastern time"; }
   }
+  if (!eastReason && !loc.isRemote && loc.states.length > 0 && !loc.states.some((st) => WEST_OK.includes(st))) {
+    // Vanessa works on-site or hybrid only on the West Coast or at home in Arizona; anywhere else must offer remote.
+    l = 0; category = "EXCLUDED"; eastReason = `${loc.arrangement === "Hybrid" ? "Hybrid" : "On-site"} outside the West Coast (${j.location}) with no remote option`;
+  }
   if (eastReason) reasons.push({ criterion: "location", delta: "-", text: eastReason });
   else if (!loc.isUS) { l = 0; category = "EXCLUDED"; reasons.push({ criterion: "location", delta: "-", text: `Location outside the United States (${j.location})` }); }
   else if (loc.azMetro) { l = 1; reasons.push({ criterion: "location", delta: "+", text: `Based in the Phoenix/Scottsdale area (${loc.arrangement})` }); }
@@ -191,6 +200,13 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
   if (eastReason) excludedReason = eastReason;
   if (family === "NOT_RELEVANT") { category = "EXCLUDED"; excludedReason = "Not a sales or sales-leadership role"; }
   if (family === "SDR_IC") { category = "EXCLUDED"; excludedReason = "Entry-level SDR/BDR role, below your level"; }
+  const listedAt = j.postedAt ?? j.firstSeenAt;
+  const age = listedAt ? Math.floor((now.getTime() - listedAt.getTime()) / 86400000) : null;
+  if (age != null && age > MAX_AGE_DAYS && category !== "EXCLUDED") {
+    category = "EXCLUDED";
+    excludedReason = `${j.postedAt ? "Posted" : "First found"} ${age} days ago, over the ${MAX_AGE_DAYS}-day limit`;
+    reasons.push({ criterion: "momentum", delta: "-", text: excludedReason });
+  }
   if (category === "MAIN" && stretch) category = "STRETCH";
 
   const confidence = known >= 4 ? "High" : known >= 2 ? "Medium" : "Low";

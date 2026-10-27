@@ -11,6 +11,13 @@ const STATE_NAMES: Record<string, string> = {
 };
 const STATE_CODES = new Set(Object.values(STATE_NAMES));
 const US_CITIES = ["new york", "san francisco", "seattle", "austin", "boston", "chicago", "los angeles", "denver", "atlanta", "dallas", "phoenix", "scottsdale", "miami", "washington", "palo alto", "mountain view", "san jose", "salt lake", "las vegas", "nyc", "sf bay", "bay area", "san diego", "houston", "reston", "arlington", "raleigh", "nashville", "minneapolis", "philadelphia", "portland", "charlotte", "detroit", "pittsburgh", "tempe"];
+// The state each listed city sits in, so "Boston" or "NYC" alone still places a role.
+const CITY_STATE: Record<string, string> = {
+  "new york": "NY", nyc: "NY", "san francisco": "CA", "sf bay": "CA", "bay area": "CA", seattle: "WA", austin: "TX", boston: "MA", chicago: "IL",
+  "los angeles": "CA", denver: "CO", atlanta: "GA", dallas: "TX", phoenix: "AZ", scottsdale: "AZ", tempe: "AZ", miami: "FL", "palo alto": "CA",
+  "mountain view": "CA", "san jose": "CA", "san diego": "CA", "salt lake": "UT", "las vegas": "NV", houston: "TX", reston: "VA", arlington: "VA",
+  raleigh: "NC", nashville: "TN", minneapolis: "MN", philadelphia: "PA", portland: "OR", charlotte: "NC", detroit: "MI", pittsburgh: "PA",
+};
 const NON_US = ["canada", "toronto", "vancouver", "montreal", "london", "uk", "united kingdom", "ireland", "dublin", "germany", "berlin", "munich", "france", "paris", "netherlands", "amsterdam", "spain", "madrid", "barcelona", "italy", "milan", "india", "bangalore", "bengaluru", "hyderabad", "mumbai", "pune", "singapore", "japan", "tokyo", "australia", "sydney", "melbourne", "brazil", "são paulo", "sao paulo", "mexico", "israel", "tel aviv", "poland", "warsaw", "sweden", "stockholm", "switzerland", "zurich", "korea", "seoul", "emea", "apac", "latam", "anz", "dach", "nordics", "benelux", "uae", "dubai", "saudi", "riyadh", "south africa", "new zealand", "belgium", "denmark", "copenhagen", "norway", "finland", "portugal", "lisbon", "czech", "romania", "argentina", "colombia", "chile", "philippines", "indonesia", "malaysia", "thailand", "vietnam", "hong kong", "china", "taiwan", "costa rica"];
 
 export function htmlToText(html: string | null | undefined): string {
@@ -41,6 +48,8 @@ export function parseLocation(loc: string | null | undefined, extra: { remoteFla
   const states = new Set<string>();
   for (const [name, code] of Object.entries(STATE_NAMES)) if (new RegExp(`\\b${name}\\b`).test(l)) states.add(code);
   for (const m of (loc || "").matchAll(/(?:,|\s|^)([A-Z]{2})(?=\b|$)/g)) if (STATE_CODES.has(m[1])) states.add(m[1]);
+  for (const [city, code] of Object.entries(CITY_STATE)) if (new RegExp(`\\b${city}\\b`).test(l)) states.add(code);
+  if (/washington,?\s*d\.?c\b/.test(l)) { states.delete("WA"); states.add("DC"); }
   const wt = (extra.workplaceType || "").toLowerCase();
   const isRemote = !!extra.remoteFlag || /remote|anywhere|distributed|work from home|wfh/.test(l) || wt === "remote";
   const hybrid = /hybrid/.test(l) || wt === "hybrid";

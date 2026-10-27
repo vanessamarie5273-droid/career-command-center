@@ -36,7 +36,7 @@ describe("Not a fit and Duplicate", () => {
     const c = await makeCompany(db, { atsToken: "dupes" });
     const f = mockFetch({ "boards-api.greenhouse.io": greenhouseBoard([
       { id: 401, title: "Enterprise Account Executive", location: "Phoenix, AZ" },
-      { id: 402, title: "Enterprise Account Executive", location: "Denver, CO" },
+      { id: 402, title: "Enterprise Account Executive", location: "Seattle, WA" },
     ]) });
     await ingestCompany(db, c, f, new Date());
     const [a, b] = await db.job.findMany({ where: { companyId: c.id }, orderBy: { location: "asc" } });

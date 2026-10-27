@@ -16,7 +16,7 @@ describe("One feed", () => {
     const c = await makeCompany(db, { atsToken: "onefeed" });
     await ingestCompany(db, c, mockFetch({ "boards-api.greenhouse.io": greenhouseBoard([
       { id: 501, title: "Enterprise Account Executive", location: "Remote - US" },
-      { id: 502, title: "Strategic Account Executive", location: "Chicago, IL" },
+      { id: 502, title: "Strategic Account Executive", location: "Seattle, WA" },
     ]) }), new Date());
     const jobs = await db.job.findMany({ where: { AND: [jobWhere({}), { companyId: c.id }] } });
     expect(jobs.map((j) => j.category).sort()).toEqual(["MAIN", "RELOCATION"]);
