@@ -133,9 +133,10 @@ describe("normalisation", () => {
       expect(unseen.excludedReason).toMatch(/First found/);
     });
     it("excludes commercial operations and growth or marketing planning roles", () => {
-      for (const t of ["Director, Commercial Operations", "Senior Manager, Growth Marketing", "Marketing Planning Manager", "Head of Commercial Excellence"]) {
+      for (const t of ["Director, Commercial Operations", "Senior Manager, Growth Marketing", "Marketing Planning Manager", "Head of Commercial Excellence", "Revenue Accounting Manager", "Director, Revenue Accounting", "Senior Manager, Revenue Recognition"]) {
         expect(scoreJob({ title: t, location: "Remote - US", isRemote: true, company: strong }).category, t).toBe("EXCLUDED");
       }
+      expect(scoreJob({ title: "Strategic Account Executive, Billing Platform", location: "Remote - US", isRemote: true, company: strong }).category).not.toBe("EXCLUDED");
       expect(scoreJob({ title: "Enterprise Account Executive, Commercial", location: "Remote - US", isRemote: true, company: strong }).category).not.toBe("EXCLUDED");
     });
   });

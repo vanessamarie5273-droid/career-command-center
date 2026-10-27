@@ -9,6 +9,10 @@ export type Seniority = "IC" | "SENIOR_IC" | "MANAGER" | "DIRECTOR" | "HEAD" | "
 
 const NOT_SALES = /\b(engineer(ing)?|developer|scientist|researcher|designer|counsel|attorney|lawyer|paralegal|accountant|payroll|recruit(er|ing)|talent|people partner|hr\b|support (engineer|specialist)|technician|nurse|physician|clinician|pharmacist|analyst(?! relations)|operations (analyst|specialist)|data entry|intern|internship|apprentice|solutions? (engineer|architect|consultant)|sales engineer|pre-?sales|customer success (manager|associate)|implementation|onboarding|deal desk|revenue operations|commercial (operations|ops|excellence)|growth marketing|marketing (planning|operations|ops|strategy)|demand gen(eration)?|sales operations|rev ?ops|enablement (specialist|manager)|marketing (manager|specialist)|product marketing|content|copywriter|writer|editor|social media|event|executive assistant|administrative|office manager|facilities|it (support|specialist)|security (engineer|analyst)|procurement (specialist|manager)|buyer|bookkeeper|controller|tax|treasury|audit)\b/i;
 
+// Finance roles that match on "revenue". Checked apart from NOT_SALES so an Account Executive selling billing or accounting software still counts.
+const FINANCE_ROLE = /\b(accounting|revenue (recognition|assurance|cycle|integrity)|billing|collections|fp ?& ?a|financial (planning|reporting|analysis))\b/i;
+const SELLING_ROLE = /\b(account executive|sales|account director|account manager|business development|client director|client partner)\b/i;
+
 export function classifyTitle(title: string): { family: RoleFamily; seniority: Seniority; adjacent: boolean; stretch: boolean } {
   const t = title.toLowerCase().replace(/[,|()\-–—/]+/g, " ").replace(/\s+/g, " ");
   const seniority: Seniority =
@@ -21,7 +25,7 @@ export function classifyTitle(title: string): { family: RoleFamily; seniority: S
     : "IC";
 
   const sales = /\b(sales|account executive|\bae\b|account director|account manager|business development|bdr|sdr|revenue|go to market|gtm|commercial|partnerships?|alliances|territory|client partner|client director|customer director|enterprise (growth|accounts?)|new business|market development|growth)\b/.test(t);
-  if (!sales || (NOT_SALES.test(t) && !/\b(sales|business development|account) (director|leader|vp|vice|head)\b/.test(t) && !/\b(director|head|vp|vice president) (of )?(sales|business development|sales development)\b/.test(t))) {
+  if (!sales || (FINANCE_ROLE.test(t) && !SELLING_ROLE.test(t)) || (NOT_SALES.test(t) && !/\b(sales|business development|account) (director|leader|vp|vice|head)\b/.test(t) && !/\b(director|head|vp|vice president) (of )?(sales|business development|sales development)\b/.test(t))) {
     return { family: "NOT_RELEVANT", seniority, adjacent: false, stretch: false };
   }
 
