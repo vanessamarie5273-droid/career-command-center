@@ -7,6 +7,7 @@ const NAV = [
   { href: "/", label: "Command Center", icon: "M3 12l9-8 9 8v8a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
   { href: "/jobs", label: "Discover Jobs", icon: "M10 4h4a2 2 0 012 2v1h3a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h3V6a2 2 0 012-2zm0 3h4V6h-4z" },
   { href: "/companies", label: "Company Intelligence", icon: "M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M8 8h3M8 12h3M8 16h3" },
+  { href: "/apply", label: "Ready to Apply", icon: "M5 12l5 5L20 7" },
   { href: "/applications", label: "My Applications", icon: "M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z" },
   { href: "/contacts", label: "Network & Contacts", icon: "M16 11a4 4 0 10-8 0M4 20a8 8 0 0116 0M19 8a3 3 0 010 6" },
   { href: "/documents", label: "Resume Library", icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" },
