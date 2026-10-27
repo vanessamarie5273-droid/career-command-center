@@ -41,13 +41,19 @@ describe("Application Kit checks", () => {
     expect(checks.letter.map((i) => i.text)).toEqual(["$2M"]);
   });
 
+  it("passes her own example letter, figures included", async () => {
+    const { LETTER_EXAMPLE } = await import("@/lib/letterStyle");
+    const resume = "Closed $8.5M; Winners Circle 2025. $15.6M closed revenue, 576 opportunities worth $80.6M. 25% increase in pipeline, 30% lift in conversion.";
+    expect(checkKit({ ...clean, letter: LETTER_EXAMPLE }, { resumeText: resume, contextText: ctx }).letter).toEqual([]);
+  });
+
   it("ignores list numbers and the 30-60-90 plan", () => {
     expect(unsupportedFigures("1. First 30 days\n2. Days 31-60\n3. Days 61-90", RESUME)).toEqual([]);
   });
 
   it("flags long sentences and an over-long letter", () => {
-    const long = `${"word ".repeat(40)}end.`;
-    const checks = checkKit({ ...clean, letter: `${long} ${"more ".repeat(260)}` }, { resumeText: RESUME, contextText: ctx });
+    const long = `${"word ".repeat(45)}end.`;
+    const checks = checkKit({ ...clean, letter: `${long} ${"more ".repeat(420)}` }, { resumeText: RESUME, contextText: ctx });
     expect(checks.letter.filter((i) => i.kind === "length")).toHaveLength(2);
   });
 });

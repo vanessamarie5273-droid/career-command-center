@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { MODEL } from "./assistant";
 import { PROFILE } from "./profile";
 import { positioning } from "./positioning";
+import { LETTER_EXAMPLE } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
 
 export { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts };
@@ -45,12 +46,17 @@ const TASK: Record<KitPart, string> = {
 - Open with a SUMMARY of two or three sentences aimed at the core problem this role exists to solve.
 - Lead each bullet with a result. Use the posting's own terms where her experience genuinely matches them.
 - Use plain ATS-safe headings in ALL CAPS: SUMMARY, EXPERIENCE, EDUCATION, SKILLS (and any others already in the resume).`,
-  letter: `Write a cover letter under 250 words. Address it "Hiring team," unless the posting names a person.
-Three short paragraphs, in order:
-1. What you need: their most important business problem, in their terms, from the posting and company context.
-2. Why I'm built for it: two or three specific results from her facts that map directly to that problem.
-3. Why now: what they gain by acting, and what a slow or safe hire costs them.
-Close by proposing a concrete next step, such as walking the hiring manager through her 30-60-90 day plan. Do not open with her name, the job title or "I am writing to". Sign with her name as it appears on the resume.`,
+  letter: `Write a cover letter in Vanessa's own voice. LETTER EXAMPLE below is one she wrote for another company: match its structure, paragraph rhythm, warmth, length (350 to 420 words) and sign-off. Never reuse its company-specific lines.
+Open with "Dear {company} Hiring Team,". Then five paragraphs, in order:
+1. What interests her most about this role: the company's market moment and the business problem the role exists to solve, in their terms, from the posting and company context.
+2. Her SAP track record mapped to that problem: revenue, recognition, how she runs a deal, and one specific proof story from her facts.
+3. Building and scaling new sales motions (the North America Digital Hub) with its numbers, framed for what this role needs.
+4. Why the combination fits this role: name the role's real responsibilities from the posting, and what she enjoys about that work.
+5. Close: tie her experience to the company's growth as the role's focus becomes a bigger priority for their industry, and ask for the conversation.
+Sign off "Kindest Regards," then her name as it appears on the resume.
+
+LETTER EXAMPLE:
+${LETTER_EXAMPLE}`,
   pov: `Write a one-page point of view she can send to the hiring manager or bring to the interview. Under 450 words. Sections:
 THE PROBLEM: the highest-stakes problem this role exists to solve, stated as an inference from the posting and company context.
 MY POSITION: what the role must achieve in year one, and one assumption about the role worth challenging, framed constructively.
@@ -163,12 +169,13 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
     const sources = p === "resume" || p === "letter" ? herFacts : `${herFacts}\n${src.contextText}`;
     for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: p === "resume" || p === "letter" ? "Not in your resume or profile. Verify it or remove it." : "Not in your resume, profile, the posting or the company record. Verify it or remove it." });
     if (p !== "resume") {
-      const long = sentences(text).filter((s) => s.split(/\s+/).length > 30);
-      if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over 30 words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
+      const max = p === "letter" ? 40 : 30; // her own letters run longer sentences than the notes
+      const long = sentences(text).filter((s) => s.split(/\s+/).length > max);
+      if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over ${max} words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
     }
     if (p === "letter") {
       const words = text.split(/\s+/).filter(Boolean).length;
-      if (words > 280) issues.push({ kind: "length", text: `${words} words`, detail: "Keep the letter under 250 words." });
+      if (words > 450) issues.push({ kind: "length", text: `${words} words`, detail: "Your letters run about 400 words; this one is longer." });
     }
     out[p] = issues;
   }
