@@ -28,6 +28,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
     },
   });
   if (!c) notFound();
+  // Each kit's resume and letter stay here with the company rather than in the Resume Library.
+  const kits = await prisma.kit.findMany({ where: { job: { companyId: c.id } }, orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true, resumeDocId: true, letterDocId: true, job: { select: { id: true, title: true, applications: { select: { id: true }, take: 1 } } } } });
   const other = await prisma.job.count({ where: { companyId: c.id, status: "OPEN", OR: [{ category: { in: ["RELOCATION", "EXCLUDED"] } }, { dismissed: true }] } });
   const ep = `/api/companies/${c.id}`;
   const attract = companyAttractiveness(c);
@@ -59,6 +61,18 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           <Card title="Available opportunities" action={<span className="text-xs text-slate-500">{c.jobs.length} verified suitable · {c.totalOpenings ?? "?"} total openings at company{other ? ` · ${other} relocation/excluded` : ""}</span>}>
             {rows.length ? <JobsTable rows={rows} compact /> : <Empty>No verified suitable opening right now. {c.totalOpenings ? `The company has ${c.totalOpenings} openings in other functions; it is hiring, but not for a role that fits you.` : ""} It stays on your monitor list and you will be alerted when one appears.</Empty>}
           </Card>
+          {kits.length > 0 && (
+            <Card title="Application materials" action={<span className="text-xs text-slate-500">From your Application Kits</span>}>
+              <ul className="divide-y divide-slate-100 text-sm">{kits.map((k) => (
+                <li key={k.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                  <span className="flex-1 min-w-[200px]"><Link className="font-medium hover:underline" href={`/jobs/${k.job.id}#kit`}>{k.job.title}</Link><span className="text-xs text-slate-400"> · built {dateTime(k.createdAt)}</span>{k.job.applications[0] && <> · <Link className="link text-xs" href={`/applications/${k.job.applications[0].id}`}>application</Link></>}</span>
+                  {([["Resume", k.resumeDocId], ["Cover letter", k.letterDocId]] as const).map(([label, docId]) => docId && (
+                    <span key={label} className="whitespace-nowrap text-xs"><Link className="link" href={`/documents/${docId}`}>{label}</Link>: <a className="link" href={`/api/documents/${docId}/export?format=docx`}>Word</a> · <a className="link" href={`/api/documents/${docId}/export?format=pdf`}>PDF</a></span>
+                  ))}
+                </li>
+              ))}</ul>
+            </Card>
+          )}
           <Card title="Company overview" action={<span className="flex items-center gap-2"><FactTag type={c.profileFactType} /><span className="text-xs text-slate-500">{c.profileVerifiedAt ? `verified ${date(c.profileVerifiedAt)}` : "not yet verified"}</span></span>}>
             <div className="grid sm:grid-cols-2 gap-3">
               <AutoField endpoint={ep} field="description" type="textarea" label="Business & positioning" value={c.description} className="sm:col-span-2" />

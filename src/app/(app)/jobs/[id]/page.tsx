@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { kitDocIds, libraryOnly } from "@/lib/kitDocs";
 import { Card, FactTag, Logo, TierBadge, ScorePill } from "@/components/ui";
 import { CRITERION_LABEL, WEIGHTS, effectiveScore, effectiveTier, type Criterion, type Reason } from "@/lib/scoring";
 import { FAMILY_LABEL, type RoleFamily } from "@/lib/roles";
@@ -73,7 +74,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             </Card>
           )}
           <ApplicationKit jobId={j.id} resumes={resumes.filter((r) => !r.isTailored)} kits={JSON.parse(JSON.stringify(kits)) as KitRow[]} configured={assistantConfigured()} />
-          <ResumeMatch jobId={j.id} resumes={resumes} />
+          <ResumeMatch jobId={j.id} resumes={libraryOnly(resumes, await kitDocIds(prisma), kits.map((k) => k.resumeDocId))} />
           <Card title="Job description (as published)">
             {j.description ? <div className="prose-sm max-w-none text-sm leading-relaxed text-slate-700 [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h2]:mt-4 [&_h3]:mt-3 [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2" dangerouslySetInnerHTML={{ __html: sanitize(j.description) }} /> : <pre className="whitespace-pre-wrap font-sans text-sm">{j.descriptionText || "No description captured."}</pre>}
           </Card>
