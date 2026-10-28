@@ -3,7 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL } from "./assistant";
 import { positioning } from "./positioning";
-import { LETTER_ACCOMPLISHMENTS, LETTER_TEMPLATE } from "./letterStyle";
+import { LETTER_ACCOMPLISHMENTS, LETTER_GUIDE, LETTER_PRINCIPLE, LETTER_TEMPLATE, letterBody } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
 
 export { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts };
@@ -45,11 +45,15 @@ const TASK: Record<KitPart, string> = {
 - Open with a SUMMARY of two or three sentences aimed at the core problem this role exists to solve.
 - Lead each bullet with a result. Use the posting's own terms where her experience genuinely matches them.
 - Use plain ATS-safe headings in ALL CAPS: SUMMARY, EXPERIENCE, EDUCATION, SKILLS (and any others already in the resume).`,
-  letter: `Write her cover letter by filling in LETTER TEMPLATE below. Keep every sentence outside the brackets word for word, including the greeting, the SAP paragraph and the sign-off. Replace each bracketed part with specific text for this company and role, drawn from the posting and company context; never leave brackets in the letter.
-- [Include a relevant accomplishment based on the position.]: replace it with whichever ACCOMPLISHMENT below fits this role best, word for word.
-- The bracketed parts of the opening paragraph name what genuinely matters about this role and company, not generic praise.
-- The closing names two or three of her qualifications that match the posting, and a specific business objective of theirs.
-Output only the finished letter.
+  letter: `Write her cover letter by filling in LETTER TEMPLATE below, following her PARAGRAPH GUIDE. Keep the greeting and the sign-off exactly as written. The body is exactly four paragraphs, in this order, and each one does a different job:
+${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name}. Purpose: ${g.purpose}. What to change: ${g.change}.`).join("\n")}
+Her principle: ${LETTER_PRINCIPLE}
+
+- Paragraph 1: replace its bracketed parts with what genuinely matters about this role and company (what the role offers, how the company is different, the market opportunity, and what she would contribute), drawn from the posting and company context. No generic praise, and leave her qualifications for paragraph 2.
+- Paragraph 2: open with "Throughout my nine years at SAP," and keep it about her qualifications and breadth. Start from the template's paragraph, then reorder and reword so the experience most relevant to this role comes first: for example, lead with new customer acquisition for a new-logo role, with account expansion for an expansion role, or with the product areas the posting names. Use only facts already in the template paragraph or RESUME, keep Winners Circle 2025, and do not add results or dollar figures; those belong in paragraph 3.
+- Paragraph 3: replace "[Include a relevant accomplishment based on the position.]" with whichever ACCOMPLISHMENT below fits this role best, word for word.
+- Paragraph 4: name two strengths of hers that match the posting and the specific contribution she would make to a business objective of theirs. Do not restate the accomplishment.
+- Never leave brackets in the letter. Output only the finished letter.
 
 LETTER TEMPLATE:
 ${LETTER_TEMPLATE}
@@ -175,7 +179,12 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
       if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over ${max} words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
     }
     if (p === "letter" && /\[[^\]]+\]/.test(text)) issues.push({ kind: "language", text: text.match(/\[[^\]]+\]/)![0], detail: "A template placeholder was left in. Fill it in before sending." });
-    if (p === "letter" && text && !text.includes("Throughout my nine years at SAP")) issues.push({ kind: "language", text: "SAP paragraph changed", detail: "Your fixed SAP paragraph is missing or reworded. Restore it from your template." });
+    if (p === "letter" && text) {
+      const body = letterBody(text);
+      if (body.length !== LETTER_GUIDE.length) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: `Your guide uses four: ${LETTER_GUIDE.map((g) => g.name.toLowerCase()).join(", ")}.` });
+      if (!body[1]?.startsWith("Throughout my nine years at SAP")) issues.push({ kind: "structure", text: "Why I'm qualified", detail: "Paragraph 2 should open with \"Throughout my nine years at SAP\". Restore it from your template." });
+      if (!Object.values(LETTER_ACCOMPLISHMENTS).some((a) => text.includes(a))) issues.push({ kind: "structure", text: "Proof of impact", detail: "Neither of your accomplishment paragraphs is in the letter word for word. Use the customer recovery or the GTM leadership one." });
+    }
     if (p === "letter") {
       const words = text.split(/\s+/).filter(Boolean).length;
       if (words > 450) issues.push({ kind: "length", text: `${words} words`, detail: "Your template runs about 330 words; this one is much longer." });

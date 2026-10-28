@@ -1,4 +1,4 @@
-// Vanessa's cover letter template (Oct 28, 2026). Kit letters fill it in; bracketed parts are the only parts that change.
+// Vanessa's cover letter template (Oct 28, 2026). Kit letters fill it in, following LETTER_GUIDE for what each paragraph does.
 export const LETTER_TEMPLATE = `Dear [Company Name] Hiring Team,
 
 I am interested in the [Position Title] because it offers the opportunity to [specific aspect of the role that interests you]. What particularly attracts me to [Company Name] is [unique capability, market opportunity, or competitive advantage]. I see an opportunity to leverage my experience to [specific contribution aligned with the company's objectives].
@@ -17,3 +17,18 @@ export const LETTER_ACCOMPLISHMENTS = {
   "Customer expansion (account, renewal, expansion or customer-success roles)": "Most recently, I led the recovery of a strategic customer account at significant risk of churn. I aligned technical experts, implementation partners, and executive leadership to resolve critical implementation challenges, restore customer confidence, and establish a path to go-live. The effort also drove a $1.58M licensing expansion.",
   "Sales leadership / GTM (leadership, new-motion, sales development or go-to-market roles)": "I collaborated with global leadership to establish SAP's North America Digital Hub, developing a model that moved sales development beyond prospecting into active co-selling with Account Executives. Our team generated $80.6M in pipeline and $15.6M in closed revenue, increasing pipeline creation by 25% and conversion to closed revenue by 30%.",
 };
+
+// Her guide to the four body paragraphs. Each paragraph does a different job.
+export const LETTER_GUIDE = [
+  { name: "Why the company", purpose: "Establish genuine interest and business understanding", change: "Role, company differentiation, market opportunity" },
+  { name: "Why I'm qualified", purpose: "Establish credibility and technical breadth", change: "Emphasize the experience most relevant to the role" },
+  { name: "Proof of impact", purpose: "Demonstrate results rather than simply stating capabilities", change: "Select the customer recovery or GTM leadership accomplishment" },
+  { name: "Closing", purpose: "Connect my experience to the company's priorities", change: "Two relevant strengths and the contribution I would make" },
+];
+
+export const LETTER_PRINCIPLE = "Each paragraph should do something different. The opening establishes why I want the position, the second establishes my qualifications, the third proves my ability to deliver results, and the closing connects my experience to the company's needs.";
+
+/** The body paragraphs of a letter: everything between the greeting and the sign-off. */
+export function letterBody(text: string) {
+  return text.split(/\n\s*\n/).map((x) => x.trim()).filter((x) => x && !/^Dear\b/.test(x) && !/^Kindest Regards/i.test(x));
+}

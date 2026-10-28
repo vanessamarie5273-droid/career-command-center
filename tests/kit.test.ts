@@ -6,6 +6,7 @@ vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { crea
 
 import { checkKit, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
 import { exportAll, restoreAll } from "@/lib/backup";
+import { LETTER_ACCOMPLISHMENTS, LETTER_TEMPLATE } from "@/lib/letterStyle";
 import { testDb, makeCompany } from "./setup-db";
 
 const RESUME = "VANESSA MORALES\nvanessa@example.com\nEXPERIENCE\nSAP, Nov 2024 – Present\n- Closed $8.5M in new and expansion revenue; earned Winners Circle 2025.\n- Expanded the account with a $1.58M TCV licensing upsell.\n- Led the team to $15.6M in closed revenue and $80.6M in pipeline; 25% increase in pipeline creation, 30% increase in conversion.";
@@ -16,7 +17,9 @@ const input: KitInput = {
 };
 const ctx = kitContext(input);
 const clean = Object.fromEntries(KIT_PARTS.map((p) => [p, "Your posting points to stalled pipeline. I closed $8.5M and earned Winners Circle 2025."])) as Record<(typeof KIT_PARTS)[number], string>;
-clean.letter = `Throughout my nine years at SAP, I have worked across new customer acquisition. ${clean.letter}`;
+const [recovery, digitalHub] = Object.values(LETTER_ACCOMPLISHMENTS);
+const filled = LETTER_TEMPLATE.replace("[Include a relevant accomplishment based on the position.]", recovery).replace(/\[[^\]]+\]/g, "Acme");
+clean.letter = filled;
 
 describe("Application Kit checks", () => {
   it("passes text that uses only her figures and plain language", () => {
@@ -42,17 +45,21 @@ describe("Application Kit checks", () => {
     expect(checks.letter.map((i) => i.text)).toEqual(["$2M"]);
   });
 
-  it("passes her template once it is filled in, and flags a placeholder left behind", async () => {
-    const { LETTER_TEMPLATE, LETTER_ACCOMPLISHMENTS } = await import("@/lib/letterStyle");
-    const filled = LETTER_TEMPLATE.replace("[Include a relevant accomplishment based on the position.]", Object.values(LETTER_ACCOMPLISHMENTS)[0]).replace(/\[[^\]]+\]/g, "Acme");
-    expect(checkKit({ ...clean, letter: filled }, { resumeText: RESUME, contextText: ctx }).letter).toEqual([]);
+  it("passes her template once it is filled in, and flags a placeholder left behind", () => {
+    expect(checkKit(clean, { resumeText: RESUME, contextText: ctx }).letter).toEqual([]);
     const left = checkKit({ ...clean, letter: LETTER_TEMPLATE }, { resumeText: RESUME, contextText: ctx }).letter;
     expect(left.map((i) => i.text)).toContain("[Company Name]");
   });
 
-  it("flags a letter that rewrote her fixed SAP paragraph", () => {
-    const checks = checkKit({ ...clean, letter: "Dear Acme Hiring Team,\n\nAt SAP I sold software.\n\nKindest Regards,\nVanessa Morales" }, { resumeText: RESUME, contextText: ctx });
-    expect(checks.letter.map((i) => i.text)).toContain("SAP paragraph changed");
+  it("lets paragraph 2 lead with the experience that fits the role", () => {
+    const sap = filled.split("\n\n")[2];
+    const tailored = filled.replace(sap, "Throughout my nine years at SAP, I have focused on strategic account expansion, growing relationships with C-level executives across Cloud ERP and Business AI, and earned SAP Winners Circle in 2025.").replace(recovery, digitalHub);
+    expect(checkKit({ ...clean, letter: tailored }, { resumeText: RESUME, contextText: ctx }).letter).toEqual([]);
+  });
+
+  it("flags a letter that drops a paragraph, its SAP opening or her accomplishment", () => {
+    const checks = checkKit({ ...clean, letter: "Dear Acme Hiring Team,\n\nI want this role.\n\nAt SAP I sold software.\n\nI would welcome a conversation.\n\nKindest Regards,\nVanessa Morales" }, { resumeText: RESUME, contextText: ctx });
+    expect(checks.letter.filter((i) => i.kind === "structure").map((i) => i.text)).toEqual(["3 paragraphs", "Why I'm qualified", "Proof of impact"]);
   });
 
   it("ignores list numbers and the 30-60-90 plan", () => {
