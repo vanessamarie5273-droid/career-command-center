@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, StatusDot } from "@/components/ui";
+import RefreshButton from "@/components/RefreshButton";
+import { ago } from "@/lib/format";
 import JobsTable from "@/components/JobsTable";
 import SavedFilters from "@/components/SavedFilters";
 import { capApplies, jobOrder, jobWhere, RANKINGS, type JobParams } from "@/lib/jobFilters";
@@ -17,17 +19,19 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const page = Math.max(1, Number(p.page) || 1);
   const cap = capApplies(p) ? await companyCap(prisma) : null;
   const where = cap ? { AND: [jobWhere(p), withinCap(cap.ids)] } : jobWhere(p);
-  const [total, jobs, companies] = await Promise.all([
+  const [total, jobs, companies, lastRun] = await Promise.all([
     prisma.job.count({ where }),
     prisma.job.findMany({ where, orderBy: jobOrder(p), skip: (page - 1) * PER, take: PER, include: JOB_ROW_INCLUDE }),
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } }),
   ]);
   const qs = (o: Partial<JobParams>) => { const u = new URLSearchParams(Object.entries({ ...p, ...o }).filter(([, v]) => v) as [string, string][]); return `/jobs?${u}`; };
   const rows = jobs.map(toRow);
 
   return (
     <>
-      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "verified open"} roles from first-party employer job boards. Every link opens the employer's own posting.`} actions={<Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link>} />
+      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "verified open"} roles from first-party employer job boards. Every link opens the employer's own posting.`} actions={<><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>} />
+      <p className="-mt-2 mb-3 flex items-center gap-2 text-xs text-slate-500"><StatusDot status={lastRun?.status} />Job feeds last refreshed {lastRun?.finishedAt ? `${ago(lastRun.finishedAt)} (${lastRun.status}, ${lastRun.created} new, ${lastRun.closed} closed, ${lastRun.errors} feed errors)` : lastRun ? "— refresh in progress" : "— never. Run the first refresh to load live openings."}</p>
       <div className="flex flex-wrap gap-1.5 mb-3">
         <Link href="/jobs" className={`chip px-3 py-1 ${!p.view && !p.category ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Your feed</Link>
         {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} className={`chip px-3 py-1 ${p.view === k ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>{r.label}</Link>)}

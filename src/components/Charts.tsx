@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 // Validated pair (dataviz validator, light surface): series-1 navy-blue, series-2 gold.
@@ -8,16 +9,19 @@ const AXIS = { fontSize: 11, fill: "#64748b" };
 const GRID = <CartesianGrid stroke="#e2e8f0" strokeDasharray="0" vertical={false} />;
 const TT = { contentStyle: { borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(15,23,42,.08)" }, cursor: { fill: "rgba(59,91,219,0.06)" } };
 
-export function StageBars({ data }: { data: { label: string; count: number }[] }) {
+/** With `href` on each row, clicking a bar opens the applications behind it. */
+export function StageBars({ data }: { data: { label: string; count: number; href?: string }[] }) {
+  const router = useRouter();
   if (!data.some((d) => d.count)) return <EmptyChart text="No applications yet. Add one from any job or company." />;
+  const open = (row: unknown) => { const href = (row as { payload?: { href?: string } })?.payload?.href; if (href) router.push(href); };
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={Math.max(160, data.length * 26 + 40)}>
       <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }} barCategoryGap={4}>
         <CartesianGrid stroke="#e2e8f0" horizontal={false} />
         <XAxis type="number" allowDecimals={false} tick={AXIS} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="label" width={150} tick={AXIS} axisLine={false} tickLine={false} />
+        <YAxis type="category" dataKey="label" width={170} interval={0} tick={AXIS} axisLine={false} tickLine={false} />
         <Tooltip {...TT} />
-        <Bar dataKey="count" name="Applications" fill={S1} radius={[0, 4, 4, 0]} maxBarSize={14} label={{ position: "right", fontSize: 11, fill: "#334155" }} />
+        <Bar dataKey="count" name="Applications" fill={S1} radius={[0, 4, 4, 0]} maxBarSize={14} label={{ position: "right", fontSize: 11, fill: "#334155" }} onClick={open} cursor={data.some((d) => d.href) ? "pointer" : undefined} />
       </BarChart>
     </ResponsiveContainer>
   );
