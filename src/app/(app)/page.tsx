@@ -1,83 +1,86 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { chartData, dashboardMetrics, followUpWhere } from "@/lib/queries";
-import { Card, Stat, PageHeader, Empty, StatusDot } from "@/components/ui";
-import { StageBars, PipelineBars, IndustryBars, CompBars, WeeklyLine } from "@/components/Charts";
-import { STAGES, ago, date } from "@/lib/format";
-import RefreshButton from "@/components/RefreshButton";
-import JobsTable from "@/components/JobsTable";
-import { jobOrder, jobWhere } from "@/lib/jobFilters";
-import { JOB_ROW_INCLUDE, toRow } from "@/lib/jobRows";
-import { companyCap, withinCap } from "@/lib/companyCap";
+import { applicationSearch, pipelineDashboard, QUIET_DAYS, SEARCH_BY, type SearchBy } from "@/lib/pipeline";
+import { Card, Stat, PageHeader, Empty } from "@/components/ui";
+import { StageBars, WeeklyLine } from "@/components/Charts";
+import ApplicationSearch from "@/components/ApplicationSearch";
+import ApplicationsTable from "@/components/ApplicationsTable";
+import { STAGES, STAGE_LABEL, ago, date, dateTime } from "@/lib/format";
 
 export const metadata = { title: "Command Center" };
-const FEED_ROWS = 50;
+const table = (q: string) => `/applications?view=table${q ? `&${q}` : ""}`;
 
-export default async function CommandCenter() {
-  const now = new Date();
-  const cap = await companyCap(prisma);
-  const [m, charts, lastRun] = await Promise.all([dashboardMetrics(now, cap.ids), chartData(now), prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } })]);
-  const feedWhere = { AND: [jobWhere({}), withinCap(cap.ids)] };
-  const [feedTotal, feedJobs] = await Promise.all([
-    prisma.job.count({ where: feedWhere }),
-    prisma.job.findMany({ where: feedWhere, orderBy: jobOrder({}), take: FEED_ROWS, include: JOB_ROW_INCLUDE }),
+export default async function CommandCenter({ searchParams }: { searchParams: Promise<{ by?: string; q?: string }> }) {
+  const p = await searchParams;
+  const by: SearchBy = p.by && p.by in SEARCH_BY ? (p.by as SearchBy) : "company";
+  const q = p.q?.trim() ?? "";
+  const search = applicationSearch(by, q);
+  const [d, found] = await Promise.all([
+    pipelineDashboard(prisma),
+    search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: "desc" }, { updatedAt: "desc" }], take: 50 }) : null,
   ]);
-  const followUps = await prisma.application.findMany({ where: followUpWhere(now), include: { company: true }, orderBy: { nextActionDue: "asc" }, take: 6 });
-  const tasks = await prisma.task.findMany({ where: { done: false, dueAt: { lte: new Date(now.getTime() + 86400_000) } }, include: { application: { include: { company: true } } }, orderBy: { dueAt: "asc" }, take: 6 });
-  const stageData = STAGES.map(([k, l]) => ({ label: l, count: charts.stages.find((s) => s.stage === k)?.count ?? 0 }));
+  const t = d.tiles;
+  // Stages in pipeline order, leaving out the ones with nothing in them.
+  const stageData = STAGES.map(([k, l]) => ({ label: l, count: d.stages.find((s) => s.stage === k)?.count ?? 0, href: table(`stage=${k}`) })).filter((s) => s.count);
+  const looked = by === "date" ? date(`${q}T12:00:00-07:00`) : `“${q}”`;
 
   return (
     <>
-      <PageHeader
-        title="Command Center"
-        sub={<span className="inline-flex items-center gap-2"><StatusDot status={lastRun?.status} />Job feeds last refreshed {lastRun?.finishedAt ? `${ago(lastRun.finishedAt)} (${lastRun.status}, ${lastRun.created} new, ${lastRun.closed} closed, ${lastRun.errors} feed errors)` : lastRun ? "— refresh in progress" : "— never. Run the first refresh to load live openings."}</span>}
-        actions={<><RefreshButton /><Link href="/assistant" className="btn-ghost">Ask the assistant</Link></>}
-      />
+      <PageHeader title="Command Center" sub="Your applications at a glance. Click any number, bar or name to open the applications behind it and move them along." actions={<Link href="/applications" className="btn-ghost">All applications →</Link>} />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3 mb-6">
-        <Stat label="Companies monitored" value={m.companies} href="/companies" />
-        <Stat label="Active matching roles" value={m.matching} href="/jobs" />
-        <Stat label="New today" value={m.newToday} href="/jobs?sort=new" />
-        <Stat label="Tier 1 roles" value={m.tier1} href="/jobs?tier=TIER1" accent />
-        <Stat label="Applied" value={m.applied} href="/applications?view=table&applied=1" />
-        <Stat label="Interviews scheduled" value={m.interviewsScheduled} href="/applications?view=table&interviews=1" />
-        <Stat label="Active processes" value={m.activeProcesses} href="/applications" />
-        <Stat label="Offers" value={m.offers} href="/applications?view=table&stage=OFFER" />
-        <Stat label="Resumes" value={m.resumes} href="/documents" sub="unique files" />
-        <Stat label="Awaiting follow-up" value={m.followUps} href="/applications?view=table&followup=1" />
-        <Stat label="No suitable opening" value={m.companiesWithoutSuitable} href="/companies?openings=none" sub="companies to monitor" />
-        <Stat label="Closed (7 days)" value={m.recentlyClosed} href="/alerts?kind=closed" />
-        <Stat label="Not a fit" value={m.notAFit} href="/jobs?category=DISMISSED" sub="removed from feeds" />
-        <Stat label="Duplicates" value={m.duplicates} href="/jobs?category=DUPLICATE" sub="removed from feeds" />
-      </div>
-
-      <Card title="Your job feed" className="mb-4" action={<Link href="/jobs" className="link text-xs">{feedTotal > FEED_ROWS ? `All ${feedTotal} roles, with filters →` : "Filters and sorting →"}</Link>}>
-        <p className="mb-2 text-xs text-slate-500">One list, ranked by match score, with tier, stretch and relocation shown on each role. Up to 3 roles per company. Check Applied, Not a fit or Duplicate and the role leaves the feed.</p>
-        {feedJobs.length === 0 ? <Empty>{lastRun ? "No open matching roles right now." : "Run the first job-feed refresh to load live openings."}</Empty> : <JobsTable rows={feedJobs.map(toRow)} />}
+      <Card title="Find an application" className="mb-4">
+        <ApplicationSearch by={by} q={q} />
+        {found && (
+          <div className="mt-4">
+            <div className="mb-2 text-xs text-slate-500">{found.length === 50 ? "First 50" : found.length} application{found.length === 1 ? "" : "s"} for {SEARCH_BY[by].toLowerCase()} {looked}. Change the stage, next action or due date right here, or open one for everything else.</div>
+            {found.length ? <ApplicationsTable apps={found} /> : <Empty>No application matches. {by === "date" ? "Only applications marked applied have a date applied." : "Try part of the name."}</Empty>}
+          </div>
+        )}
       </Card>
 
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3 mb-4">
+        <Stat label="Active processes" value={t.active} href={table("active=1")} sub="recruiter to final round" accent />
+        <Stat label="Applied" value={t.applied} href={table("applied=1")} />
+        <Stat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} sub="of applications sent" />
+        <Stat label="Interviews scheduled" value={t.interviews} href={table("interviews=1")} />
+        <Stat label="Offers" value={t.offers} href={table("stage=OFFER")} />
+        <Stat label="Follow-ups due" value={t.followUps} href={table("followup=1")} />
+        <Stat label="Ready to apply" value={t.readyToApply} href="/apply" sub="kits not yet sent" />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
-        <Card title="Follow-ups & tasks due" className="lg:col-span-3">
-          {followUps.length + tasks.length === 0 ? <Empty>Nothing due. Follow-ups appear when a next-action date arrives or an application sits 7 days without one.</Empty> : (
+        <Card title="Pipeline by stage" className="lg:col-span-2" action={<span className="text-xs text-slate-500">Click a bar to see those applications</span>}><StageBars data={stageData} /></Card>
+        <Card title="Follow-ups & tasks due">
+          {d.followUps.length + d.dueTasks.length === 0 ? <Empty>Nothing due. Follow-ups appear when a next-action date arrives or an application sits 7 days without one.</Empty> : (
             <ul className="space-y-2.5 text-sm">
-              {followUps.map((a) => (
-                <li key={a.id}><Link href={`/applications/${a.id}`} className="font-medium hover:underline">{a.company.name}: {a.title}</Link><div className="text-xs text-slate-500">{a.nextAction || "Follow up on application"} · {a.nextActionDue ? `due ${date(a.nextActionDue)}` : `applied ${date(a.appliedAt)}`}</div></li>
-              ))}
-              {tasks.map((t) => (
-                <li key={t.id}><span className="font-medium">{t.title}</span><div className="text-xs text-slate-500">{t.application ? `${t.application.company.name} · ` : ""}due {date(t.dueAt)}</div></li>
-              ))}
+              {d.followUps.map((a) => <li key={a.id}><Link href={`/applications/${a.id}`} className="font-medium hover:underline">{a.company.name}: {a.title}</Link><div className="text-xs text-slate-500">{a.nextAction || "Follow up on application"} · {a.nextActionDue ? `due ${date(a.nextActionDue)}` : `applied ${date(a.appliedAt)}`}</div></li>)}
+              {d.dueTasks.map((x) => <li key={x.id}>{x.application ? <Link href={`/applications/${x.application.id}`} className="font-medium hover:underline">{x.title}</Link> : <span className="font-medium">{x.title}</span>}<div className="text-xs text-slate-500">{x.application ? `${x.application.company.name} · ` : ""}due {date(x.dueAt)}</div></li>)}
             </ul>
           )}
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <Card title="Applications by stage"><StageBars data={stageData} /></Card>
-        <Card title="Opportunity pipeline (open matching roles by tier)"><PipelineBars data={charts.pipeline} /></Card>
-        <Card title="Compensation ranges" action={<span className="text-xs text-slate-500">{charts.compKnown} of {charts.compTotal} roles publish pay</span>}><CompBars data={charts.comp} /></Card>
-        <Card title="Weekly application activity"><WeeklyLine data={charts.weeks} /></Card>
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+        <Card title="Weekly activity" className="lg:col-span-2" action={<span className="text-xs text-slate-500">Applications sent and stage moves, last 12 weeks</span>}><WeeklyLine data={d.weeks} /></Card>
+        <Card title="Upcoming interviews">
+          {d.upcoming.length === 0 ? <Empty>No interviews on the calendar. Add the date on an application and it shows here.</Empty> : (
+            <ul className="space-y-2.5 text-sm">{d.upcoming.map((a) => <li key={a.id}><Link href={`/applications/${a.id}#interview`} className="font-medium hover:underline">{a.company.name}: {a.title}</Link><div className="text-xs text-slate-500">{dateTime(a.interviewAt)} · {STAGE_LABEL[a.stage]}</div></li>)}</ul>
+          )}
+        </Card>
       </div>
-      <Card title="Industry distribution"><IndustryBars data={charts.industries} /></Card>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card title="Going quiet" action={<span className="text-xs text-slate-500">Applied, still open, no update in {QUIET_DAYS} days</span>}>
+          {d.quiet.length === 0 ? <Empty>Every open application has moved in the last {QUIET_DAYS} days.</Empty> : (
+            <ul className="space-y-2.5 text-sm">{d.quiet.map((a) => <li key={a.id}><Link href={`/applications/${a.id}`} className="font-medium hover:underline">{a.company.name}: {a.title}</Link><div className="text-xs text-slate-500">{STAGE_LABEL[a.stage]} · last update {ago(a.updatedAt)}{a.appliedAt ? ` · applied ${date(a.appliedAt)}` : ""}</div></li>)}</ul>
+          )}
+        </Card>
+        <Card title="Recent moves" action={<span className="text-xs text-slate-500">Last 7 days</span>}>
+          {d.moves.length === 0 ? <Empty>No stage changes this week.</Empty> : (
+            <ul className="space-y-2.5 text-sm">{d.moves.map((m) => <li key={m.id}><Link href={`/applications/${m.applicationId}`} className="font-medium hover:underline">{m.application.company.name}: {m.application.title}</Link><div className="text-xs text-slate-500">{m.from ? `${STAGE_LABEL[m.from]} → ` : ""}{STAGE_LABEL[m.to]} · {ago(m.at)}</div></li>)}</ul>
+          )}
+        </Card>
+      </div>
     </>
   );
 }
