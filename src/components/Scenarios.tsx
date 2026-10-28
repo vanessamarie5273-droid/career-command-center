@@ -15,7 +15,7 @@ export default function Scenarios({ apps }: { apps: A[] }) {
         <label className="label">Quota attainment: {attain}%<input type="range" min={50} max={160} step={5} value={attain} onChange={(e) => setAttain(Number(e.target.value))} className="w-full" /></label>
         <label className="label">Private-equity outcome: {equityMult === 0 ? "worth nothing" : `${equityMult}× your estimate`}<input type="range" min={0} max={3} step={0.5} value={equityMult} onChange={(e) => setEquityMult(Number(e.target.value))} className="w-full" /></label>
       </div>
-      <p className="text-xs text-slate-500">Your historical average is 128% attainment. Public RSUs use your estimate as-is; private equity scales with the outcome slider. These are scenarios, not forecasts.</p>
+      <p className="text-xs text-slate-500">Public RSUs use your estimate as-is; private equity scales with the outcome slider. These are scenarios, not forecasts.</p>
       <table className="tbl"><thead><tr><th>Opportunity</th><th>Year-1 cash</th><th>4-year total</th><th>Source</th></tr></thead>
         <tbody>{usable.map((a) => {
           const base = a.base ?? (a.ote ? a.ote / 2 : 0);

@@ -8,14 +8,15 @@ import { checkKit, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type 
 import { exportAll, restoreAll } from "@/lib/backup";
 import { testDb, makeCompany } from "./setup-db";
 
-const RESUME = "VANESSA MORALES\nvanessa@example.com\nEXPERIENCE\nSAP, 2016 – 2025\n- $12.8M cumulative closed revenue\n- 128% average attainment\n- Mentored 50+ sales development professionals";
+const RESUME = "VANESSA MORALES\nvanessa@example.com\nEXPERIENCE\nSAP, Nov 2024 – Present\n- Closed $8.5M in new and expansion revenue; earned Winners Circle 2025.\n- Expanded the account with a $1.58M TCV licensing upsell.\n- Led the team to $15.6M in closed revenue and $80.6M in pipeline; 25% increase in pipeline creation, 30% increase in conversion.";
 const input: KitInput = {
   resumeText: RESUME,
   job: { title: "Strategic Account Executive", location: "Remote, US", descriptionText: "Own a $2M quota across Fortune 500 accounts. 8+ years required.", requiredQuals: null, preferredQuals: null },
   company: { name: "Acme AI", category: "Enterprise AI & Agents", maturity: "High-growth private", description: "Agents for finance teams.", keyProducts: null, customers: null, buyerPersonas: "CFO", risks: null, news: ["Raised Series C"] },
 };
 const ctx = kitContext(input);
-const clean = Object.fromEntries(KIT_PARTS.map((p) => [p, "Your posting points to stalled pipeline. I closed $12.8M and hit 128% attainment."])) as Record<(typeof KIT_PARTS)[number], string>;
+const clean = Object.fromEntries(KIT_PARTS.map((p) => [p, "Your posting points to stalled pipeline. I closed $8.5M and earned Winners Circle 2025."])) as Record<(typeof KIT_PARTS)[number], string>;
+clean.letter = `Throughout my nine years at SAP, I have worked across new customer acquisition. ${clean.letter}`;
 
 describe("Application Kit checks", () => {
   it("passes text that uses only her figures and plain language", () => {
@@ -24,27 +25,34 @@ describe("Application Kit checks", () => {
   });
 
   it("flags language her brief rules out", () => {
-    const checks = checkKit({ ...clean, letter: "I am passionate about sales and grateful for the opportunity to join. I was responsible for pipeline." }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, letter: "Throughout my nine years at SAP. I am passionate about sales and grateful for the opportunity to join. I was responsible for pipeline." }, { resumeText: RESUME, contextText: ctx });
     const found = checks.letter.filter((i) => i.kind === "language").map((i) => i.text.toLowerCase());
     expect(found).toEqual(expect.arrayContaining(["passionate", "grateful", "opportunity to join", "responsible for"]));
   });
 
   it("flags figures that are not in her resume or profile", () => {
-    const checks = checkKit({ ...clean, resume: "Closed $40M in new logos at 150% of plan. $12.8M closed." }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, resume: "Closed $40M in new logos at 150% of plan. $8.5M closed." }, { resumeText: RESUME, contextText: ctx });
     expect(checks.resume.filter((i) => i.kind === "figure").map((i) => i.text)).toEqual(["$40M", "150%"]);
   });
 
   it("lets the point of view quote the posting, but not the resume or letter", () => {
     const quoting = "You carry a $2M quota per seller.";
-    const checks = checkKit({ ...clean, pov: quoting, letter: quoting }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, pov: quoting, letter: `${clean.letter} ${quoting}` }, { resumeText: RESUME, contextText: ctx });
     expect(checks.pov).toEqual([]);
     expect(checks.letter.map((i) => i.text)).toEqual(["$2M"]);
   });
 
-  it("passes her own example letter, figures included", async () => {
-    const { LETTER_EXAMPLE } = await import("@/lib/letterStyle");
-    const resume = "Closed $8.5M; Winners Circle 2025. $15.6M closed revenue, 576 opportunities worth $80.6M. 25% increase in pipeline, 30% lift in conversion.";
-    expect(checkKit({ ...clean, letter: LETTER_EXAMPLE }, { resumeText: resume, contextText: ctx }).letter).toEqual([]);
+  it("passes her template once it is filled in, and flags a placeholder left behind", async () => {
+    const { LETTER_TEMPLATE, LETTER_ACCOMPLISHMENTS } = await import("@/lib/letterStyle");
+    const filled = LETTER_TEMPLATE.replace("[Include a relevant accomplishment based on the position.]", Object.values(LETTER_ACCOMPLISHMENTS)[0]).replace(/\[[^\]]+\]/g, "Acme");
+    expect(checkKit({ ...clean, letter: filled }, { resumeText: RESUME, contextText: ctx }).letter).toEqual([]);
+    const left = checkKit({ ...clean, letter: LETTER_TEMPLATE }, { resumeText: RESUME, contextText: ctx }).letter;
+    expect(left.map((i) => i.text)).toContain("[Company Name]");
+  });
+
+  it("flags a letter that rewrote her fixed SAP paragraph", () => {
+    const checks = checkKit({ ...clean, letter: "Dear Acme Hiring Team,\n\nAt SAP I sold software.\n\nKindest Regards,\nVanessa Morales" }, { resumeText: RESUME, contextText: ctx });
+    expect(checks.letter.map((i) => i.text)).toContain("SAP paragraph changed");
   });
 
   it("ignores list numbers and the 30-60-90 plan", () => {
@@ -53,7 +61,7 @@ describe("Application Kit checks", () => {
 
   it("flags long sentences and an over-long letter", () => {
     const long = `${"word ".repeat(45)}end.`;
-    const checks = checkKit({ ...clean, letter: `${long} ${"more ".repeat(420)}` }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, letter: `${clean.letter} ${long} ${"more ".repeat(420)}` }, { resumeText: RESUME, contextText: ctx });
     expect(checks.letter.filter((i) => i.kind === "length")).toHaveLength(2);
   });
 });
@@ -66,7 +74,8 @@ describe("Application Kit generation", () => {
     expect(create).toHaveBeenCalledTimes(5);
     const systems = create.mock.calls.map((c) => JSON.stringify((c[0] as unknown as { system: unknown }).system));
     expect(new Set(systems).size).toBe(1);
-    expect(systems[0]).toContain("$12.8M cumulative closed revenue");
+    expect(systems[0]).toContain("Closed $8.5M in new and expansion revenue");
+    expect(systems[0]).not.toContain("PROFILE FACTS");
     expect(systems[0]).toContain("Own a $2M quota");
     expect(systems[0]).toContain("ephemeral");
   });

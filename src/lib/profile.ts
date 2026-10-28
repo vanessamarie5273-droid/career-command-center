@@ -3,21 +3,20 @@
 
 export const PROFILE = {
   summary:
-    "Senior enterprise technology sales executive with ~9 years at SAP. Strategic enterprise sales across U.S. public sector, healthcare, regulated industries and commercial markets. Built and led SAP's North America Digital Hub with global leadership; developed and mentored 50+ sales development professionals. Established go-to-market strategy, TAM, ICP, sales development methodology, territory plans and revenue performance frameworks. $12.8M cumulative closed revenue, $28M+ self-sourced pipeline, 128% average attainment. Complex enterprise software, executive engagement (CFO, CIO, CEO, procurement), financial transformation, cloud, AI, cross-functional deal execution. Background in healthcare and clinical operations.",
+    "Senior Enterprise Account Executive with 9+ years at SAP driving new business and install-base expansion across SLED, Healthcare, Life Sciences and Nonprofit. Closed $8.5M in new and expansion revenue and earned SAP Winners Circle 2025. Launched SAP's North America Digital Hub sales development team with global leadership: $15.6M closed revenue and $80.6M pipeline from 576 qualified opportunities, with a 25% increase in pipeline creation and a 30% increase in conversion. Cloud ERP, HCM, Procurement, Supply Chain, Data and Analytics, Business AI. C-suite engagement, public procurement and RFPs, multi-stakeholder deals. Background in nursing (BSN).",
   yearsExperience: 9,
   homeBase: "Scottsdale / Phoenix, AZ",
+  // Mirrors her 2026 resume. Generated material is fact-checked against the resume itself, not this list.
   facts: [
-    "~9 years at SAP in enterprise technology sales",
-    "Built and led SAP's North America Digital Hub in partnership with global leadership",
-    "Developed and mentored 50+ sales development professionals",
-    "$12.8M cumulative closed revenue across career roles",
-    "$28M+ self-sourced pipeline",
-    "128% average sales attainment",
-    "Established GTM strategy, TAM, ICP, sales development methodology, territory plans and revenue performance frameworks",
-    "Engages CFOs, CIOs, CEOs and procurement leadership",
-    "Background in healthcare and clinical operations",
-    "Helped recover an at-risk customer relationship that resulted in a $1.58M licensing expansion",
-    "Technical fluency across cloud ERP, data and analytics, and business AI",
+    "9+ years at SAP in enterprise technology sales (SLED, Healthcare, Life Sciences, Nonprofit)",
+    "Closed $8.5M in new and expansion revenue; SAP Winners Circle 2025",
+    "Led a cross-functional rescue of an at-risk implementation that retained the customer and expanded the account with a $1.58M TCV licensing upsell",
+    "Launched SAP's North America Digital Hub sales development team with global leadership",
+    "Led the Digital Hub team to $15.6M in closed revenue and $80.6M in pipeline from 576 qualified opportunities",
+    "25% increase in pipeline creation and 30% increase in conversion to closed revenue",
+    "Self-sourced and closed $1.2M in net-new revenue as a Senior Sales Development Executive",
+    "Engages C-suite sponsors and navigates public procurement, RFPs and multi-stakeholder buying committees",
+    "Bachelor of Science in Nursing (BSN), University of Arizona",
   ],
   targetRoles: [
     "Strategic Account Executive",

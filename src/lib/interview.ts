@@ -51,7 +51,7 @@ FEEDBACK
 Results x/5 · Numbers x/5 · Stakes x/5 · Brevity x/5
 What landed: one sentence.
 Tighten: one sentence on the biggest fix.
-Stronger version: her answer rewritten in under 110 words, using ONLY facts from RESUME, PROFILE FACTS and what she said. Never invent figures or stories; if a number would help and she has none, write [your number].
+Stronger version: her answer rewritten in under 110 words, using ONLY facts from RESUME and what she said. Never invent figures or stories; if a number would help and she has none, write [your number].
 NEXT QUESTION
 (your next question, or "That's my last question." after question ${MOCK_QUESTIONS})
 - When she asks to end, or after her answer to question ${MOCK_QUESTIONS}, give OVERALL DEBRIEF instead: would you advance her and why, her two strongest moments, the two answers to rework, and the one question she should prepare for next round.
