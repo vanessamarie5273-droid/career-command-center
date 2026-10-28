@@ -6,6 +6,8 @@ import AutoField from "@/components/AutoField";
 import { STAGES, STAGE_LABEL, date, dateTime } from "@/lib/format";
 import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import { TaskList, NoteForm, TouchForm, AttachDocument, DeleteApplication } from "@/components/CrmWidgets";
+import InterviewPrep, { type PrepRow } from "@/components/InterviewPrep";
+import { assistantConfigured } from "@/lib/assistant";
 
 export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,9 +16,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     include: { company: { include: { contacts: true } }, job: true, tasks: { orderBy: [{ done: "asc" }, { dueAt: "asc" }] }, activities: { orderBy: { at: "desc" } }, touches: { include: { contact: true }, orderBy: { sentAt: "desc" } }, documents: { select: { id: true, name: true, kind: true, version: true } }, stageHistory: { orderBy: { at: "desc" } } },
   });
   if (!a) notFound();
-  const [docs, audit] = await Promise.all([
+  const [docs, audit, preps] = await Promise.all([
     prisma.document.findMany({ select: { id: true, name: true, kind: true, version: true }, orderBy: { createdAt: "desc" } }),
     prisma.auditLog.findMany({ where: { entity: "Application", entityId: id }, orderBy: { at: "desc" }, take: 40 }),
+    prisma.interviewPrep.findMany({ where: { applicationId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
   const ep = `/api/applications/${a.id}`;
   const resumes: [string, string][] = [["", "— none —"], ...docs.filter((d) => d.kind === "resume").map((d) => [d.id, `${d.name}${d.version ? ` (${d.version})` : ""}`] as [string, string])];
@@ -26,7 +29,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       <div className="mb-5 flex flex-wrap items-start gap-4">
         <Logo src={a.company.logoUrl} name={a.company.name} size={44} />
         <div className="flex-1 min-w-[240px]">
-          <div className="text-sm text-slate-500"><Link className="link" href={`/companies/${a.company.id}`}>{a.company.name}</Link>{a.job && <> · <Link className="link" href={`/jobs/${a.job.id}`}>job record</Link></>}</div>
+          <div className="text-sm text-slate-500"><Link className="link" href={`/companies/${a.company.id}`}>{a.company.name}</Link>{a.job && <> · <Link className="link" href={`/jobs/${a.job.id}`}>job record</Link> · <Link className="link" href={`/jobs/${a.job.id}#kit`}>Application Kit</Link></>}</div>
           <AutoField endpoint={ep} field="title" value={a.title} className="mt-1 max-w-xl [&_input]:text-xl [&_input]:font-semibold [&_input]:border-transparent [&_input]:px-0 [&_input:hover]:border-slate-300" />
           {a.job && <div className="mt-1 flex items-center gap-2"><TierBadge tier={effectiveTier(a.job)} /><ScorePill score={effectiveScore(a.job)} confidence={a.job.confidence} />{a.job.status === "CLOSED" && <span className="chip bg-red-50 text-red-700">Posting closed {date(a.job.closedAt)}</span>}</div>}
         </div>
@@ -71,6 +74,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
               <TouchForm applicationId={a.id} contacts={a.company.contacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName ?? ""}`.trim() }))} />
             </div>
           </Card>
+          <InterviewPrep applicationId={a.id} preps={JSON.parse(JSON.stringify(preps)) as PrepRow[]} configured={assistantConfigured()} />
           <Card title="Interview notes"><AutoField endpoint={ep} field="interviewNotes" type="textarea" rows={6} value={a.interviewNotes} placeholder="Who you met, questions asked, signals, next steps" /></Card>
           <Card title="Notes & activity">
             <NoteForm applicationId={a.id} />

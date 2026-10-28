@@ -16,6 +16,8 @@ export const PROFILE = {
     "Established GTM strategy, TAM, ICP, sales development methodology, territory plans and revenue performance frameworks",
     "Engages CFOs, CIOs, CEOs and procurement leadership",
     "Background in healthcare and clinical operations",
+    "Helped recover an at-risk customer relationship that resulted in a $1.58M licensing expansion",
+    "Technical fluency across cloud ERP, data and analytics, and business AI",
   ],
   targetRoles: [
     "Strategic Account Executive",

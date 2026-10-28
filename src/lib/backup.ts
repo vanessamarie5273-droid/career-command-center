@@ -4,9 +4,9 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 export const BACKUP_VERSION = 1;
 
 // Dependency order for inserts (reverse for deletes).
-const ORDER = ["user", "profile", "company", "leader", "companyNews", "job", "jobSource", "jobEvent", "document", "contact", "application", "stageChange", "task", "activity", "outreachTouch", "alert", "briefing", "ingestionRun", "integrationStatus", "auditLog", "savedFilter"] as const;
+const ORDER = ["user", "profile", "company", "leader", "companyNews", "job", "jobSource", "jobEvent", "document", "kit", "contact", "application", "interviewPrep", "stageChange", "task", "activity", "outreachTouch", "alert", "briefing", "ingestionRun", "integrationStatus", "auditLog", "savedFilter"] as const;
 type Table = (typeof ORDER)[number];
-const JSON_FIELDS: Partial<Record<Table, string[]>> = { job: ["scoreBreakdown", "scoreReasons"], document: ["atsReport"], ingestionRun: ["log"], auditLog: ["changes"] };
+const JSON_FIELDS: Partial<Record<Table, string[]>> = { job: ["scoreBreakdown", "scoreReasons"], document: ["atsReport"], kit: ["parts", "checks"], interviewPrep: ["messages"], ingestionRun: ["log"], auditLog: ["changes"] };
 
 type Delegate = { findMany: (a?: object) => Promise<Record<string, unknown>[]>; createMany: (a: { data: object[]; skipDuplicates?: boolean }) => Promise<{ count: number }>; deleteMany: (a?: object) => Promise<{ count: number }> };
 const d = (db: PrismaClient | Prisma.TransactionClient, t: Table) => (db as unknown as Record<Table, Delegate>)[t];

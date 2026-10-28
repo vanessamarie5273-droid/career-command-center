@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthError, requireUser } from "./auth";
@@ -19,3 +20,12 @@ export function route<C = unknown>(level: Level, fn: (req: Request, ctx: C, user
     }
   };
 }
+
+/** Plain-language responses for the Anthropic errors she can fix herself; anything else goes to route()'s handler. */
+export function aiError(e: unknown) {
+  if (e instanceof Anthropic.AuthenticationError) return NextResponse.json({ error: "Anthropic rejected the API key. Check ANTHROPIC_API_KEY on the web service." }, { status: 503 });
+  if (e instanceof Anthropic.RateLimitError) return NextResponse.json({ error: "Anthropic is rate-limiting requests. Try again in a minute." }, { status: 503 });
+  throw e;
+}
+
+export const aiNotConfigured = (feature: string) => NextResponse.json({ error: `${feature} needs ANTHROPIC_API_KEY. Add it under the web service's Environment tab.` }, { status: 503 });

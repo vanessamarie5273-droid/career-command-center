@@ -7,7 +7,7 @@
 | GitHub | Holds the private source repository that Render deploys from | Free |
 | Render (render.com) | Hosts the web app, the Postgres database and the daily job | About $7 web + $7 database + $1 cron per month on the plans in `render.yaml` |
 | Resend (resend.com), optional | Sends email alerts and the 6:00 AM briefing | Free tier is enough |
-| Anthropic Console (console.anthropic.com), optional | Powers the assistant and the tailoring suggestions | Pay per use |
+| Anthropic Console (console.anthropic.com), optional | Powers the assistant, the tailoring suggestions and the Application Kit | Pay per use (a kit is five Claude calls) |
 
 The app works without Resend and Anthropic. Without them, briefings are still generated and shown in the app, and the assistant page says it is not configured.
 
