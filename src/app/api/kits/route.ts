@@ -13,7 +13,7 @@ export const GET = route("VIEWER", async (req) => {
   return { items: await prisma.kit.findMany({ where: { jobId }, orderBy: { createdAt: "desc" }, take: 10 }) };
 });
 
-// Builds the kit for one job from a base resume (the chosen one, or the newest), saves the resume and letter to the library.
+// Builds the kit for one job from a base resume (the chosen one, or the newest), saves the resume and letter with the job (they show on its company and application, not in the Resume Library).
 export const POST = route("EDITOR", async (req, _c, u) => {
   if (!assistantConfigured()) return aiNotConfigured("The Application Kit");
   const b = z.object({ jobId: z.string(), documentId: z.string().optional() }).parse(await req.json());

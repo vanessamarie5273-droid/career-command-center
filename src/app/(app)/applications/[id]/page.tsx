@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { kitDocIds, libraryOnly } from "@/lib/kitDocs";
 import { Card, FactTag, Logo, ScorePill, TierBadge } from "@/components/ui";
 import AutoField from "@/components/AutoField";
 import { STAGES, STAGE_LABEL, date, dateTime } from "@/lib/format";
@@ -16,11 +17,15 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     include: { company: { include: { contacts: true } }, job: true, tasks: { orderBy: [{ done: "asc" }, { dueAt: "asc" }] }, activities: { orderBy: { at: "desc" } }, touches: { include: { contact: true }, orderBy: { sentAt: "desc" } }, documents: { select: { id: true, name: true, kind: true, version: true } }, stageHistory: { orderBy: { at: "desc" } } },
   });
   if (!a) notFound();
-  const [docs, audit, preps] = await Promise.all([
+  const [all, kitDocs, jobDocs, audit, preps] = await Promise.all([
     prisma.document.findMany({ select: { id: true, name: true, kind: true, version: true }, orderBy: { createdAt: "desc" } }),
+    kitDocIds(prisma),
+    a.jobId ? kitDocIds(prisma, { jobId: a.jobId }) : new Set<string>(),
     prisma.auditLog.findMany({ where: { entity: "Application", entityId: id }, orderBy: { at: "desc" }, take: 40 }),
     prisma.interviewPrep.findMany({ where: { applicationId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
+  // Your library plus this job's kit documents; other companies' kit documents stay out of the lists.
+  const docs = libraryOnly(all, kitDocs, [...jobDocs, a.resumeId, a.coverLetterId]);
   const ep = `/api/applications/${a.id}`;
   const resumes: [string, string][] = [["", "— none —"], ...docs.filter((d) => d.kind === "resume").map((d) => [d.id, `${d.name}${d.version ? ` (${d.version})` : ""}`] as [string, string])];
   const covers: [string, string][] = [["", "— none —"], ...docs.filter((d) => d.kind === "cover_letter").map((d) => [d.id, d.name] as [string, string])];

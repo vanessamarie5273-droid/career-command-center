@@ -66,7 +66,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
               <button className="btn-ghost" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
               <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=docx`}>Word</a>
               <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=pdf`}>PDF</a>
-              {libraryId && <Link className="btn-ghost" href={`/documents/${libraryId}`}>Edit in Resume Library →</Link>}
+              {libraryId && <Link className="btn-ghost" href={`/documents/${libraryId}`}>Edit and download →</Link>}
             </div>
           </div>
         )}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import DeleteDocument from "@/components/DeleteDocument";
 import { prisma } from "@/lib/db";
+import { kitDocIds, libraryOnly } from "@/lib/kitDocs";
 import { PageHeader, Card, Empty } from "@/components/ui";
 import UploadDocument from "@/components/UploadDocument";
 import { date } from "@/lib/format";
@@ -9,12 +10,14 @@ export const metadata = { title: "Resume Library" };
 const KIND_LABEL: Record<string, string> = { resume: "Resumes", cover_letter: "Cover letters", recommendation: "Letters of recommendation", bio: "Executive biographies", references: "References", other: "Other materials" };
 
 export default async function Documents() {
-  const docs = await prisma.document.findMany({ select: { id: true, name: true, kind: true, version: true, industry: true, roleType: true, fileName: true, size: true, createdAt: true, isTailored: true, sha256: true, atsReport: true, _count: { select: { submittedAs: true, coverFor: true, applications: true } }, submittedAs: { select: { stage: true } } }, orderBy: [{ kind: "asc" }, { name: "asc" }, { createdAt: "desc" }] });
+  const all = await prisma.document.findMany({ select: { id: true, name: true, kind: true, version: true, industry: true, roleType: true, fileName: true, size: true, createdAt: true, isTailored: true, sha256: true, atsReport: true, _count: { select: { submittedAs: true, coverFor: true, applications: true } }, submittedAs: { select: { stage: true } } }, orderBy: [{ kind: "asc" }, { name: "asc" }, { createdAt: "desc" }] });
+  // Kit resumes and letters live on their company and application pages.
+  const docs = libraryOnly(all, await kitDocIds(prisma));
   const unique = new Set(docs.filter((d) => d.kind === "resume").map((d) => d.sha256)).size;
   const groups = Object.keys(KIND_LABEL).map((k) => [k, docs.filter((d) => d.kind === k)] as const).filter(([, v]) => v.length);
   return (
     <>
-      <PageHeader title="Resume Library" sub={`${unique} unique resume${unique === 1 ? "" : "s"} · ${docs.length} documents. Files are stored privately in your database; text is extracted for ATS checks and job matching.`} />
+      <PageHeader title="Resume Library" sub={`${unique} unique resume${unique === 1 ? "" : "s"} · ${docs.length} documents. Files are stored privately in your database; text is extracted for ATS checks and job matching. Resumes and letters from an Application Kit stay with their company and application.`} />
       <Card title="Upload" className="mb-4"><UploadDocument /></Card>
       {groups.length === 0 ? <Empty>No documents yet. Upload your resume to enable ATS checks, job matching and submission tracking.</Empty> : groups.map(([k, list]) => (
         <Card key={k} title={KIND_LABEL[k]} className="mb-4">
