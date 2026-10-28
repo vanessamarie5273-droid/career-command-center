@@ -177,7 +177,7 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
   const ls = LEADERSHIP_SCOPE[seniority] ?? 0.3;
   const sdrLeader = family === "SDR_LEADER";
   const lsAdj = sdrLeader ? Math.max(ls, 0.85) : ls;
-  reasons.push({ criterion: "leadership", delta: lsAdj >= 0.8 ? "+" : lsAdj >= 0.5 ? "=" : "-", text: sdrLeader ? "Sales development leadership, matching your record building SAP's NA Digital Hub and mentoring 50+ reps" : `Seniority: ${seniority.replace("_", " ").toLowerCase()}` });
+  reasons.push({ criterion: "leadership", delta: lsAdj >= 0.8 ? "+" : lsAdj >= 0.5 ? "=" : "-", text: sdrLeader ? "Sales development leadership, matching your record launching and leading SAP's NA Digital Hub sales development team" : `Seniority: ${seniority.replace("_", " ").toLowerCase()}` });
   b.leadership = lsAdj * WEIGHTS.leadership;
 
   // 7. Hiring momentum (5)

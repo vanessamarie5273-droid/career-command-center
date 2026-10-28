@@ -48,7 +48,7 @@ export function NewContact({ companies }: { companies: { id: string; name: strin
 }
 
 export function OutreachDraft({ contactId, name, company, title, role }: { contactId: string; name: string; company: string; title: string; role?: string }) {
-  const base = `Hi ${name},\n\nI'm a senior enterprise sales executive with about nine years at SAP, where I built and led the North America Digital Hub and averaged 128% of quota across complex enterprise deals. ${company} stands out to me${role ? `, and the ${role} opening looks like a strong match for that experience` : ""}.\n\nWould you be open to a brief conversation about how your team is growing${title && /recruit|talent/i.test(title) ? " and what you look for in candidates" : ""}?\n\nThank you,\nVanessa`;
+  const base = `Hi ${name},\n\nI'm a senior enterprise sales executive with about nine years at SAP, where I launched the North America Digital Hub sales development team and earned Winners Circle in 2025. ${company} stands out to me${role ? `, and the ${role} opening looks like a strong match for that experience` : ""}.\n\nWould you be open to a brief conversation about how your team is growing${title && /recruit|talent/i.test(title) ? " and what you look for in candidates" : ""}?\n\nThank you,\nVanessa`;
   const [text, setText] = useState(base);
   const [busy, setBusy] = useState(false);
   async function ai() {

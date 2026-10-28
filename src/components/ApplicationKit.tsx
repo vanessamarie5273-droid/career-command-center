@@ -6,7 +6,7 @@ import { dateTime } from "@/lib/format";
 
 export type KitRow = { id: string; createdAt: string; parts: KitParts; checks: KitChecks; resumeDocId: string | null; letterDocId: string | null };
 
-const KIND_LABEL = { language: "Language", figure: "Unverified figure", length: "Length" } as const;
+const KIND_LABEL = { language: "Language", figure: "Unverified figure", length: "Length", structure: "Structure" } as const;
 
 export default function ApplicationKit({ jobId, resumes, kits: initial, configured }: { jobId: string; resumes: { id: string; name: string; version: string | null }[]; kits: KitRow[]; configured: boolean }) {
   const [kits, setKits] = useState(initial);

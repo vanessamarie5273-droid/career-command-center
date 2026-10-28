@@ -2,9 +2,8 @@
 // Generated text may only use facts from her resume and stated profile; checkKit() flags anything that slips through.
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL } from "./assistant";
-import { PROFILE } from "./profile";
 import { positioning } from "./positioning";
-import { LETTER_EXAMPLE } from "./letterStyle";
+import { LETTER_ACCOMPLISHMENTS, LETTER_GUIDE, LETTER_PRINCIPLE, LETTER_TEMPLATE, letterBody } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
 
 export { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts };
@@ -30,7 +29,7 @@ export type KitInput = {
 export const SYSTEM = `You write job-search material for Vanessa, a senior enterprise sales executive.
 
 FACT RULES (absolute):
-- Anything about her (employers, titles, dates, numbers, scope, credentials, achievements) must come from RESUME or PROFILE FACTS. Never invent, round up or combine figures. If a requirement is not evidenced, do not claim it.
+- Anything about her (employers, titles, dates, numbers, scope, credentials, achievements) must come from RESUME. Never invent, round up or combine figures. If a requirement is not evidenced, do not claim it.
 - Facts about the company come only from COMPANY and JOB POSTING. When you infer their likely problem, phrase it as an inference ("The posting points to..."), never as known fact. Never invent company figures, customers or people.
 - Company profiles are AI-compiled and unverified; lean on the posting first.
 
@@ -46,17 +45,21 @@ const TASK: Record<KitPart, string> = {
 - Open with a SUMMARY of two or three sentences aimed at the core problem this role exists to solve.
 - Lead each bullet with a result. Use the posting's own terms where her experience genuinely matches them.
 - Use plain ATS-safe headings in ALL CAPS: SUMMARY, EXPERIENCE, EDUCATION, SKILLS (and any others already in the resume).`,
-  letter: `Write a cover letter in Vanessa's own voice. LETTER EXAMPLE below is one she wrote for another company: match its structure, paragraph rhythm, warmth, length (350 to 420 words) and sign-off. Never reuse its company-specific lines.
-Open with "Dear {company} Hiring Team,". Then five paragraphs, in order:
-1. What interests her most about this role: the company's market moment and the business problem the role exists to solve, in their terms, from the posting and company context.
-2. Her SAP track record mapped to that problem: revenue, recognition, how she runs a deal, and one specific proof story from her facts.
-3. Building and scaling new sales motions (the North America Digital Hub) with its numbers, framed for what this role needs.
-4. Why the combination fits this role: name the role's real responsibilities from the posting, and what she enjoys about that work.
-5. Close: tie her experience to the company's growth as the role's focus becomes a bigger priority for their industry, and ask for the conversation.
-Sign off "Kindest Regards," then her name as it appears on the resume.
+  letter: `Write her cover letter by filling in LETTER TEMPLATE below, following her PARAGRAPH GUIDE. Keep the greeting and the sign-off exactly as written. The body is exactly four paragraphs, in this order, and each one does a different job:
+${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name}. Purpose: ${g.purpose}. What to change: ${g.change}.`).join("\n")}
+Her principle: ${LETTER_PRINCIPLE}
 
-LETTER EXAMPLE:
-${LETTER_EXAMPLE}`,
+- Paragraph 1: replace its bracketed parts with what genuinely matters about this role and company (what the role offers, how the company is different, the market opportunity, and what she would contribute), drawn from the posting and company context. No generic praise, and leave her qualifications for paragraph 2.
+- Paragraph 2: open with "Throughout my nine years at SAP," and keep it about her qualifications and breadth. Start from the template's paragraph, then reorder and reword so the experience most relevant to this role comes first: for example, lead with new customer acquisition for a new-logo role, with account expansion for an expansion role, or with the product areas the posting names. Use only facts already in the template paragraph or RESUME, keep Winners Circle 2025, and do not add results or dollar figures; those belong in paragraph 3.
+- Paragraph 3: replace "[Include a relevant accomplishment based on the position.]" with whichever ACCOMPLISHMENT below fits this role best, word for word.
+- Paragraph 4: name two strengths of hers that match the posting and the specific contribution she would make to a business objective of theirs. Do not restate the accomplishment.
+- Never leave brackets in the letter. Output only the finished letter.
+
+LETTER TEMPLATE:
+${LETTER_TEMPLATE}
+
+ACCOMPLISHMENTS:
+${Object.entries(LETTER_ACCOMPLISHMENTS).map(([k, v]) => `${k}:\n${v}`).join("\n\n")}`,
   pov: `Write a one-page point of view she can send to the hiring manager or bring to the interview. Under 450 words. Sections:
 THE PROBLEM: the highest-stakes problem this role exists to solve, stated as an inference from the posting and company context.
 MY POSITION: what the role must achieve in year one, and one assumption about the role worth challenging, framed constructively.
@@ -87,7 +90,6 @@ const block = (label: string, v: string | null | undefined) => (v && v.trim() ? 
 export function kitContext(i: KitInput) {
   return [
     `RESUME:\n${i.resumeText.trim()}\n`,
-    `PROFILE FACTS (her own statements):\n${PROFILE.facts.map((f) => `- ${f}`).join("\n")}\n`,
     `JOB POSTING: ${i.job.title} at ${i.company.name}${i.job.location ? ` (${i.job.location})` : ""}`,
     block("Required qualifications", i.job.requiredQuals),
     block("Preferred qualifications", i.job.preferredQuals),
@@ -159,7 +161,7 @@ export function unsupportedFigures(text: string, sources: string) {
 const sentences = (t: string) => t.replace(/\n-\s/g, "\n").split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
 
 export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; contextText: string }): KitChecks {
-  const herFacts = `${src.resumeText}\n${PROFILE.facts.join("\n")}`;
+  const herFacts = src.resumeText;
   const out = {} as KitChecks;
   for (const p of KIT_PARTS) {
     const text = parts[p] ?? "";
@@ -168,17 +170,24 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
       const m = text.match(re);
       if (m) issues.push({ kind: "language", text: m[0], detail });
     }
-    // Resume and letter speak about her, so their figures must come from her resume or profile; other parts may quote the posting.
+    // Resume and letter speak about her, so their figures must come from her resume; other parts may quote the posting.
     const sources = p === "resume" || p === "letter" ? herFacts : `${herFacts}\n${src.contextText}`;
-    for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: p === "resume" || p === "letter" ? "Not in your resume or profile. Verify it or remove it." : "Not in your resume, profile, the posting or the company record. Verify it or remove it." });
+    for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: p === "resume" || p === "letter" ? "Not in your resume. Verify it or remove it." : "Not in your resume, the posting or the company record. Verify it or remove it." });
     if (p !== "resume") {
       const max = p === "letter" ? 40 : 30; // her own letters run longer sentences than the notes
       const long = sentences(text).filter((s) => s.split(/\s+/).length > max);
       if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over ${max} words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
     }
+    if (p === "letter" && /\[[^\]]+\]/.test(text)) issues.push({ kind: "language", text: text.match(/\[[^\]]+\]/)![0], detail: "A template placeholder was left in. Fill it in before sending." });
+    if (p === "letter" && text) {
+      const body = letterBody(text);
+      if (body.length !== LETTER_GUIDE.length) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: `Your guide uses four: ${LETTER_GUIDE.map((g) => g.name.toLowerCase()).join(", ")}.` });
+      if (!body[1]?.startsWith("Throughout my nine years at SAP")) issues.push({ kind: "structure", text: "Why I'm qualified", detail: "Paragraph 2 should open with \"Throughout my nine years at SAP\". Restore it from your template." });
+      if (!Object.values(LETTER_ACCOMPLISHMENTS).some((a) => text.includes(a))) issues.push({ kind: "structure", text: "Proof of impact", detail: "Neither of your accomplishment paragraphs is in the letter word for word. Use the customer recovery or the GTM leadership one." });
+    }
     if (p === "letter") {
       const words = text.split(/\s+/).filter(Boolean).length;
-      if (words > 450) issues.push({ kind: "length", text: `${words} words`, detail: "Your letters run about 400 words; this one is longer." });
+      if (words > 450) issues.push({ kind: "length", text: `${words} words`, detail: "Your template runs about 330 words; this one is much longer." });
     }
     out[p] = issues;
   }
