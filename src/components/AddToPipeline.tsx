@@ -9,7 +9,7 @@ export default function AddToPipeline({ jobId }: { jobId: string }) {
     setBusy(true);
     const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
     const j = await res.json();
-    if (res.ok) r.push(`/applications/${j.id}`); else { setBusy(false); alert(j.error); }
+    if (res.ok) r.push("/apply"); else { setBusy(false); alert(j.error); }
   }
-  return <button onClick={go} disabled={busy} className="btn-ghost">{busy ? "Adding…" : "+ Save to my applications"}</button>;
+  return <button onClick={go} disabled={busy} className="btn-ghost">{busy ? "Adding…" : "+ Save to Ready to Apply"}</button>;
 }

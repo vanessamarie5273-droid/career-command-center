@@ -11,11 +11,12 @@ export function ago(d: Date | string | null | undefined) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
+// Stages she works with. Researching, Prioritized and Resume in Preparation were folded into Ready to Apply (2026-10-29).
 export const STAGES = [
-  ["RESEARCHING", "Researching"], ["PRIORITIZED", "Prioritized"], ["RESUME_PREP", "Resume in Preparation"], ["READY_TO_APPLY", "Ready to Apply"],
+  ["READY_TO_APPLY", "Ready to Apply"],
   ["APPLIED", "Applied"], ["RECRUITER_CONTACT", "Recruiter Contact"], ["HIRING_MANAGER", "Hiring Manager Engagement"], ["INTERVIEWING", "Interviewing"],
   ["FINAL_INTERVIEW", "Final Interview"], ["OFFER", "Offer"], ["ACCEPTED", "Accepted"], ["REJECTED", "Rejected"], ["WITHDRAWN", "Withdrawn"], ["ON_HOLD", "On Hold"],
 ] as const;
 export type StageKey = (typeof STAGES)[number][0];
-export const STAGE_LABEL = Object.fromEntries(STAGES) as Record<StageKey, string>;
+export const STAGE_LABEL = { RESEARCHING: "Ready to Apply", PRIORITIZED: "Ready to Apply", RESUME_PREP: "Ready to Apply", ...Object.fromEntries(STAGES) } as Record<StageKey | "RESEARCHING" | "PRIORITIZED" | "RESUME_PREP", string>;
 export const TIER_LABEL: Record<string, string> = { TIER1: "Tier 1 · Pursue Immediately", TIER2: "Tier 2 · Strategic Target", TIER3: "Tier 3 · Monitor" };

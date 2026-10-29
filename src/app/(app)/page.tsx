@@ -45,7 +45,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
         <Stat label="Interviews scheduled" value={t.interviews} href={table("interviews=1")} />
         <Stat label="Offers" value={t.offers} href={table("stage=OFFER")} />
         <Stat label="Follow-ups due" value={t.followUps} href={table("followup=1")} />
-        <Stat label="Ready to apply" value={t.readyToApply} href="/apply" sub="kits not yet sent" />
+        <Stat label="Ready to apply" value={t.readyToApply} href="/apply" sub="saved, not yet sent" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-4">

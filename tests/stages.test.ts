@@ -55,7 +55,7 @@ describe("application persistence", () => {
     const saved = await db.application.findUniqueOrThrow({ where: { id: a1.app.id }, include: { stageHistory: true } });
     expect(saved.applied).toBe(true);
     expect(saved.appliedAt).not.toBeNull();
-    expect(saved.stageHistory.map((h) => h.to)).toEqual(expect.arrayContaining(["PRIORITIZED", "APPLIED"]));
+    expect(saved.stageHistory.map((h) => h.to)).toEqual(expect.arrayContaining(["READY_TO_APPLY", "APPLIED"]));
     expect(await db.auditLog.count({ where: { entityId: a1.app.id } })).toBeGreaterThanOrEqual(2);
   });
 

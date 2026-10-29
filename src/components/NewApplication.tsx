@@ -8,7 +8,7 @@ export default function NewApplication({ companies, companyId }: { companies?: {
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));
-    const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId: companyId ?? f.companyId, title: f.title, stage: "RESEARCHING" }) });
+    const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId: companyId ?? f.companyId, title: f.title, stage: "READY_TO_APPLY" }) });
     const j = await res.json();
     if (res.ok) r.push(`/applications/${j.id}`);
   }

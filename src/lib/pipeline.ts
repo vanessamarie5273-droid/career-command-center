@@ -1,6 +1,6 @@
 // The Command Center dashboard: her applications only (jobs live in Discover Jobs), plus application search.
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { ACTIVE_PROCESS, CLOSED_STAGES, followUpWhere } from "./queries";
+import { ACTIVE_PROCESS, CLOSED_STAGES, followUpWhere, READY_TO_APPLY } from "./queries";
 
 export { SEARCH_BY, type SearchBy } from "./searchBy";
 
@@ -25,7 +25,7 @@ export function applicationSearch(by: string | undefined, q: string | undefined)
 export async function pipelineDashboard(db: PrismaClient, now = new Date()) {
   const quietSince = new Date(now.getTime() - QUIET_DAYS * 86400_000);
   const weekAgo = new Date(now.getTime() - 7 * 86400_000);
-  const [stages, applied, movedOn, active, interviews, offers, followUps, kits, dueTasks, upcoming, quiet, moves] = await Promise.all([
+  const [stages, applied, movedOn, active, interviews, offers, followUps, ready, dueTasks, upcoming, quiet, moves] = await Promise.all([
     db.application.groupBy({ by: ["stage"], _count: true }),
     db.application.count({ where: { applied: true } }),
     db.application.count({ where: { applied: true, OR: [{ stage: { in: [...PAST_APPLIED] } }, { stageHistory: { some: { to: { in: [...PAST_APPLIED] } } } }] } }),
@@ -33,7 +33,7 @@ export async function pipelineDashboard(db: PrismaClient, now = new Date()) {
     db.application.count({ where: { interviewAt: { gte: now } } }),
     db.application.count({ where: { OR: [{ stage: { in: ["OFFER", "ACCEPTED"] } }, { stageHistory: { some: { to: "OFFER" } } }] } }),
     db.application.findMany({ where: followUpWhere(now), include: { company: { select: { name: true } } }, orderBy: { nextActionDue: "asc" }, take: 8 }),
-    db.kit.findMany({ where: { job: { applications: { none: { applied: true } } } }, distinct: ["jobId"], select: { jobId: true } }),
+    db.application.count({ where: READY_TO_APPLY }),
     db.task.findMany({ where: { done: false, dueAt: { lte: new Date(now.getTime() + 86400_000) } }, include: { application: { include: { company: { select: { name: true } } } } }, orderBy: { dueAt: "asc" }, take: 8 }),
     db.application.findMany({ where: { interviewAt: { gte: now } }, include: { company: { select: { name: true } } }, orderBy: { interviewAt: "asc" }, take: 6 }),
     db.application.findMany({ where: { AND: [OPEN, { applied: true }, { updatedAt: { lt: quietSince } }] }, include: { company: { select: { name: true } } }, orderBy: { updatedAt: "asc" }, take: 6 }),
@@ -51,7 +51,7 @@ export async function pipelineDashboard(db: PrismaClient, now = new Date()) {
   }
   return {
     stages: stages.map((s) => ({ stage: s.stage, count: s._count })),
-    tiles: { active, applied, responseRate: applied ? Math.round((movedOn / applied) * 100) : null, interviews, offers, followUps: await db.application.count({ where: followUpWhere(now) }), readyToApply: kits.length },
+    tiles: { active, applied, responseRate: applied ? Math.round((movedOn / applied) * 100) : null, interviews, offers, followUps: await db.application.count({ where: followUpWhere(now) }), readyToApply: ready },
     followUps, dueTasks, upcoming, quiet, moves, weeks,
   };
 }
