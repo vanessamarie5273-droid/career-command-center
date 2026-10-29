@@ -4,7 +4,8 @@ import { aiError, aiNotConfigured, route } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { assistantConfigured, MODEL } from "@/lib/assistant";
 import { atsReport } from "@/lib/resume";
-import { checkKit, generateKit, kitContext, type KitInput } from "@/lib/kit";
+import { checkKit, generateKit, kitContext } from "@/lib/kit";
+import { kitInput } from "@/lib/kitEdit";
 
 export const maxDuration = 300;
 
@@ -24,11 +25,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   if (!base?.text || base.text.trim().split(/\s+/).length < 100) return Response.json({ error: "Upload a text-based resume to the Resume Library first. The kit only uses facts from it." }, { status: 400 });
 
   const c = job.company;
-  const input: KitInput = {
-    resumeText: base.text,
-    job: { title: job.title, location: job.location, descriptionText: job.descriptionText, requiredQuals: job.requiredQuals, preferredQuals: job.preferredQuals },
-    company: { name: c.name, category: c.category, maturity: c.maturity, description: c.description, keyProducts: c.keyProducts, customers: c.customers, buyerPersonas: c.buyerPersonas, risks: c.risks, news: c.news.map((n) => n.headline) },
-  };
+  const input = kitInput(job, base.text);
   let parts;
   try { parts = await generateKit(input); }
   catch (e) { return aiError(e); }

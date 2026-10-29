@@ -12,17 +12,21 @@ export default async function DocPage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const d = await prisma.document.findUnique({ where: { id }, select: { id: true, name: true, kind: true, version: true, industry: true, roleType: true, text: true, atsReport: true, createdAt: true, parentId: true, submittedAs: { include: { company: true } }, coverFor: { include: { company: true } } } });
   if (!d) notFound();
+  const kit = await prisma.kit.findFirst({ where: { OR: [{ resumeDocId: id }, { letterDocId: id }, ...(d.parentId ? [{ resumeDocId: d.parentId }, { letterDocId: d.parentId }] : [])] }, select: { jobId: true, job: { select: { title: true, company: { select: { name: true } } } } } });
   const versions = await prisma.document.findMany({ where: { OR: [{ name: d.name, kind: d.kind }, { parentId: d.id }, ...(d.parentId ? [{ id: d.parentId }] : [])] }, select: { id: true, name: true, version: true, createdAt: true }, orderBy: { createdAt: "asc" } });
   const ats = d.atsReport as { score: number; checks: AtsCheck[]; words: number } | null;
   const ep = `/api/documents/${d.id}`;
   const used = [...d.submittedAs, ...d.coverFor];
   return (
     <>
+      {kit && <Link className="link text-sm" href={`/jobs/${kit.jobId}#kit`}>← Back to the Application Kit for {kit.job.company.name}: {kit.job.title}</Link>}
       <PageHeader title={d.name} sub={`${d.kind.replace("_", " ")} · ${d.version ?? ""} · added ${date(d.createdAt)}`} actions={<><a className="btn-ghost" href={`/api/documents/${d.id}/download`}>Download original</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=docx`}>Word</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a><DeleteDocument id={d.id} name={d.name} /></>} />
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <Card title="Extracted text"><pre className="max-h-[520px] overflow-auto whitespace-pre-wrap font-sans text-xs text-slate-700">{d.text || "No text could be extracted."}</pre></Card>
-          <Card title="Create a tailored version"><NewVersion parentId={d.id} name={d.name} text={d.text ?? ""} /></Card>
+          {kit
+            ? <Card title="Make changes"><p className="text-sm text-slate-600">This document belongs to an Application Kit. To change it, open the kit, pick its tab and click Edit. Your changes save into the kit and into the Word and PDF downloads.</p><Link className="btn-primary mt-3" href={`/jobs/${kit.jobId}#kit`}>Edit in the Application Kit</Link></Card>
+            : <Card title="Create a tailored version"><NewVersion parentId={d.id} name={d.name} text={d.text ?? ""} /></Card>}
         </div>
         <div className="space-y-4">
           <Card title="Classification">

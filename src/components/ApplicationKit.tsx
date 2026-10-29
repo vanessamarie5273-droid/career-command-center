@@ -16,7 +16,9 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null); // the text being edited, null when not editing
   const kit = kits.find((k) => k.id === kitId);
+  const pick = (p: KitPart) => { setTab(p); setDraft(null); };
 
   async function build() {
     setBusy(true); setErr(null);
@@ -24,7 +26,16 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
     const j = await res.json().catch(() => ({ error: "Kit build failed" }));
     setBusy(false);
     if (!res.ok) return setErr(j.error ?? "Kit build failed");
-    setKits([j, ...kits]); setKitId(j.id); setTab("resume");
+    setKits([j, ...kits]); setKitId(j.id); pick("resume");
+  }
+  async function save() {
+    if (!kit || draft == null) return;
+    setBusy(true); setErr(null);
+    const res = await fetch(`/api/kits/${kit.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ part: tab, text: draft }) });
+    const j = await res.json().catch(() => ({ error: "Save failed" }));
+    setBusy(false);
+    if (!res.ok) return setErr(j.error ?? "Save failed");
+    setKits(kits.map((k) => (k.id === j.id ? { ...k, parts: j.parts, checks: j.checks } : k))); setDraft(null);
   }
   async function copy() {
     if (!kit) return;
@@ -33,7 +44,6 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
   }
 
   const issues = kit?.checks[tab] ?? [];
-  const libraryId = tab === "resume" ? kit?.resumeDocId : tab === "letter" ? kit?.letterDocId : null;
   return (
     <section id="kit" className="card scroll-mt-4 border-gold-500/50">
       <div className="card-h"><h2 className="card-t">Application Kit</h2>{kit && <span className="text-xs text-slate-500">Built {dateTime(kit.createdAt)}</span>}</div>
@@ -43,7 +53,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
           <div className="flex flex-wrap items-center gap-2">
             <select className="input max-w-xs" value={docId} onChange={(e) => setDocId(e.target.value)}><option value="">Base resume: newest original</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.name}{r.version ? ` (${r.version})` : ""}</option>)}</select>
             <button className="btn-gold" disabled={busy} onClick={build}>{busy ? "Building… about a minute" : kit ? "Build a new kit" : "Build my kit"}</button>
-            {kits.length > 1 && <select className="input max-w-[220px]" value={kitId} onChange={(e) => setKitId(e.target.value)}>{kits.map((k, i) => <option key={k.id} value={k.id}>{i === 0 ? "Latest" : "Earlier"} kit · {dateTime(k.createdAt)}</option>)}</select>}
+            {kits.length > 1 && <select className="input max-w-[220px]" value={kitId} onChange={(e) => { setKitId(e.target.value); setDraft(null); }}>{kits.map((k, i) => <option key={k.id} value={k.id}>{i === 0 ? "Latest" : "Earlier"} kit · {dateTime(k.createdAt)}</option>)}</select>}
           </div>
         )}
         {err && <p className="text-red-700">{err}</p>}
@@ -51,7 +61,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1 border-b border-slate-200">
               {KIT_PARTS.map((p) => (
-                <button key={p} onClick={() => setTab(p)} className={`-mb-px border-b-2 px-3 py-1.5 text-xs font-medium ${tab === p ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
+                <button key={p} onClick={() => pick(p)} className={`-mb-px border-b-2 px-3 py-1.5 text-xs font-medium ${tab === p ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
                   {KIT_LABEL[p]}{kit.checks[p]?.length ? <span className="ml-1 chip bg-amber-50 text-amber-800">{kit.checks[p].length}</span> : null}
                 </button>
               ))}
@@ -61,12 +71,26 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
                 {issues.map((x, i) => <li key={i}><span className="chip mr-1 bg-white text-amber-800">{KIND_LABEL[x.kind]}</span><b>{x.text}</b>: {x.detail}</li>)}
               </ul>
             ) : <p className="text-xs text-emerald-700">✓ Passes the language and fact checks.</p>}
-            <pre className="max-h-[560px] overflow-auto rounded-lg bg-slate-50 p-4 text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{kit.parts[tab]}</pre>
+            {draft == null ? (
+              <pre className="max-h-[560px] overflow-auto rounded-lg bg-slate-50 p-4 text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{kit.parts[tab]}</pre>
+            ) : (
+              <textarea className="input min-h-[420px] text-[13px] leading-relaxed" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={`Edit ${KIT_LABEL[tab]}`} />
+            )}
             <div className="flex flex-wrap gap-2">
-              <button className="btn-ghost" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
-              <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=docx`}>Word</a>
-              <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=pdf`}>PDF</a>
-              {libraryId && <Link className="btn-ghost" href={`/documents/${libraryId}`}>Edit and download →</Link>}
+              {draft == null ? (
+                <>
+                  <button className="btn-primary" onClick={() => setDraft(kit.parts[tab])}>Edit</button>
+                  <button className="btn-ghost" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+                  <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=docx`}>Word</a>
+                  <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=pdf`}>PDF</a>
+                </>
+              ) : (
+                <>
+                  <button className="btn-primary" disabled={busy || !draft.trim()} onClick={save}>{busy ? "Saving and checking…" : "Save changes"}</button>
+                  <button className="btn-ghost" disabled={busy} onClick={() => setDraft(null)}>Cancel</button>
+                  <span className="self-center text-xs text-slate-500">Saving re-runs the checks. Keep every title, date, employer and result true to your resume.</span>
+                </>
+              )}
             </div>
           </div>
         )}
