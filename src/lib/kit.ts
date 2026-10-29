@@ -193,3 +193,33 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
   }
   return out;
 }
+
+// ---- Suggested fixes: one flagged issue at a time, as a find-and-replace she can apply ----
+
+export type KitFix = { find: string; replace: string; why: string };
+
+/** Asks Claude for the smallest change that clears one flagged issue, under the same fact rules as the kit. */
+export async function suggestFix(input: KitInput, part: KitPart, text: string, issue: KitIssue): Promise<KitFix> {
+  const ask = `Below is the current ${KIT_LABEL[part].toLowerCase()} between <current> tags. The app's check flagged one issue in it:
+[${issue.kind}] ${issue.text}: ${issue.detail}
+
+Fix only that issue. Change as little as possible and keep everything else word for word. Follow the fact rules and the original task below.
+- A figure not in her resume: rewrite the sentence without it, or with the figure RESUME actually gives.
+- Banned or weak language: rewrite the sentence in her direct, confident voice.
+- A missing paragraph or opening: write it the way the task says, and replace the paragraph it belongs in.
+
+Reply with JSON only, no other text: {"find": "<text copied exactly from the current document that should change: a whole sentence or paragraph>", "replace": "<the new text>", "why": "<one short sentence on what changed>"}
+
+ORIGINAL TASK:
+${TASK[part]}
+
+<current>
+${text}
+</current>`;
+  const out = await writeOver(new Anthropic(), SYSTEM, kitContext(input), [{ role: "user", content: ask }], "medium", "suggested fix");
+  const json = out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1);
+  let fix: KitFix;
+  try { fix = JSON.parse(json); } catch { throw new Error("The suggestion came back in the wrong shape. Try again."); }
+  if (typeof fix.find !== "string" || typeof fix.replace !== "string" || !text.includes(fix.find)) throw new Error("The suggestion did not match the current text. Try again.");
+  return { find: fix.find, replace: fix.replace, why: String(fix.why ?? "") };
+}
