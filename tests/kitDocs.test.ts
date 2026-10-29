@@ -25,6 +25,12 @@ describe("kit documents stay with their company", () => {
     expect(shown).toEqual([original.id, ownVersion.id]);
   });
 
+  it("keeps copies saved from a kit document out of the library too", async () => {
+    const { resume } = await kitFor("Kitdocs D");
+    const copy = await db.document.create({ data: { kind: "resume", name: "copy", fileName: "d.txt", mimeType: "text/plain", size: 1, sha256: "x", data: Buffer.from("x"), text: "x", isTailored: true, parentId: resume.id } });
+    expect((await kitDocIds(db)).has(copy.id)).toBe(true);
+  });
+
   it("lists this job's kit documents on its application, and not another company's", async () => {
     const mine = await kitFor("Kitdocs B");
     const theirs = await kitFor("Kitdocs C");
