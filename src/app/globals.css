@@ -3,26 +3,38 @@
 @tailwind utilities;
 
 :root { --navy: #0b1730; --gold: #c4a254; }
-html, body { background: #f4f5f8; color: #0f172a; }
-body { font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
+html, body { background: #f2f4f8; color: #0f172a; }
+body {
+  font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(1200px 500px at 85% -120px, rgba(196, 162, 84, 0.10), transparent 60%), radial-gradient(900px 500px at 10% -200px, rgba(61, 85, 145, 0.10), transparent 60%);
+  background-attachment: fixed;
+}
+input[type="range"] { accent-color: #c4a254; }
 
 @layer components {
-  .card { @apply bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)]; }
-  .card-h { @apply px-5 pt-4 pb-2 flex items-center justify-between; }
-  .card-t { @apply text-[13px] font-semibold uppercase tracking-wider text-navy-700; }
+  .card { @apply bg-white rounded-2xl ring-1 ring-slate-900/[0.06] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_30px_-18px_rgba(15,23,42,0.25)]; }
+  .card-h { @apply px-5 pt-4 pb-3 flex items-center justify-between gap-3; }
+  .card-t { @apply text-[15px] font-semibold tracking-tight text-navy-950 truncate; }
+  .hero { @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 px-5 py-5 lg:px-7 text-white shadow-[0_18px_40px_-24px_rgba(6,13,31,0.8)]; }
+  .hero-actions .btn-primary { @apply bg-none bg-gold-500 text-navy-950 hover:bg-gold-400; }
+  .hero-actions .btn-ghost { @apply border-white/20 bg-white/10 text-white hover:bg-white/20; }
+  .hero-actions .btn-gold { @apply shadow-none; }
   .btn { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50; }
-  .btn-primary { @apply btn bg-navy-900 text-white hover:bg-navy-800; }
-  .btn-gold { @apply btn bg-gold-500 text-navy-950 hover:bg-gold-400; }
-  .btn-ghost { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  .btn-primary { @apply btn bg-gradient-to-b from-navy-800 to-navy-900 text-white shadow-sm hover:from-navy-700 hover:to-navy-800; }
+  .btn-gold { @apply btn bg-gradient-to-b from-gold-400 to-gold-500 text-navy-950 shadow-sm hover:from-gold-300 hover:to-gold-400; }
+  .btn-ghost { @apply btn border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50; }
   .btn-danger { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50; }
-  .input { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-navy-500 focus:ring-2 focus:ring-navy-500/15; }
+  .input { @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/15; }
   .label { @apply block text-xs font-medium text-slate-500 mb-1; }
   .tbl { @apply w-full text-sm; }
-  .tbl th { @apply text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-3 py-2 border-b border-slate-200 bg-slate-50/70 whitespace-nowrap; }
-  .tbl td { @apply px-3 py-2.5 border-b border-slate-100 align-top; }
-  .tbl tr:hover td { @apply bg-slate-50/60; }
+  .tbl th { @apply text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-3 py-2.5 border-b border-slate-200 whitespace-nowrap; }
+  .tbl td { @apply px-3 py-3 border-b border-slate-100 align-top; }
+  .tbl tbody tr:last-child td { @apply border-b-0; }
+  .tbl tr:hover td { @apply bg-navy-500/[0.03]; }
   .chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap; }
   .link { @apply text-navy-600 hover:text-navy-900 underline-offset-2 hover:underline; }
   .h1 { @apply text-2xl font-semibold tracking-tight text-navy-950; }
   .muted { @apply text-slate-500; }
+  /* A clickable row in a list: name on top, detail underneath, highlight on hover. */
+  .row-link { @apply -mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-navy-500/[0.04]; }
 }

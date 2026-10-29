@@ -32,12 +32,12 @@ export async function pipelineDashboard(db: PrismaClient, now = new Date()) {
     db.application.count({ where: { stage: { in: [...ACTIVE_PROCESS] } } }),
     db.application.count({ where: { interviewAt: { gte: now } } }),
     db.application.count({ where: { OR: [{ stage: { in: ["OFFER", "ACCEPTED"] } }, { stageHistory: { some: { to: "OFFER" } } }] } }),
-    db.application.findMany({ where: followUpWhere(now), include: { company: { select: { name: true } } }, orderBy: { nextActionDue: "asc" }, take: 8 }),
+    db.application.findMany({ where: followUpWhere(now), include: { company: { select: { name: true, logoUrl: true } } }, orderBy: { nextActionDue: "asc" }, take: 8 }),
     db.application.count({ where: READY_TO_APPLY }),
-    db.task.findMany({ where: { done: false, dueAt: { lte: new Date(now.getTime() + 86400_000) } }, include: { application: { include: { company: { select: { name: true } } } } }, orderBy: { dueAt: "asc" }, take: 8 }),
-    db.application.findMany({ where: { interviewAt: { gte: now } }, include: { company: { select: { name: true } } }, orderBy: { interviewAt: "asc" }, take: 6 }),
-    db.application.findMany({ where: { AND: [OPEN, { applied: true }, { updatedAt: { lt: quietSince } }] }, include: { company: { select: { name: true } } }, orderBy: { updatedAt: "asc" }, take: 6 }),
-    db.stageChange.findMany({ where: { at: { gte: weekAgo } }, include: { application: { include: { company: { select: { name: true } } } } }, orderBy: { at: "desc" }, take: 8 }),
+    db.task.findMany({ where: { done: false, dueAt: { lte: new Date(now.getTime() + 86400_000) } }, include: { application: { include: { company: { select: { name: true, logoUrl: true } } } } }, orderBy: { dueAt: "asc" }, take: 8 }),
+    db.application.findMany({ where: { interviewAt: { gte: now } }, include: { company: { select: { name: true, logoUrl: true } } }, orderBy: { interviewAt: "asc" }, take: 6 }),
+    db.application.findMany({ where: { AND: [OPEN, { applied: true }, { updatedAt: { lt: quietSince } }] }, include: { company: { select: { name: true, logoUrl: true } } }, orderBy: { updatedAt: "asc" }, take: 6 }),
+    db.stageChange.findMany({ where: { at: { gte: weekAgo } }, include: { application: { include: { company: { select: { name: true, logoUrl: true } } } } }, orderBy: { at: "desc" }, take: 8 }),
   ]);
   const weeks: { week: string; applied: number; moves: number }[] = [];
   const start = new Date(now.getTime() - 11 * 7 * 86400_000);
