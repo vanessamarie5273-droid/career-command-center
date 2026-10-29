@@ -45,4 +45,12 @@ describe("assisted apply", () => {
     expect(app.stage).toBe("APPLIED");
     expect(app.nextAction).toBe("Call Dana");
   });
+
+  it("attaches the kit she applied with, even when another resume was set earlier", async () => {
+    const { job, kit, resume, letter } = await jobWithKit();
+    const old = await db.document.create({ data: { kind: "resume", name: "old", fileName: "d.txt", mimeType: "text/plain", size: 1, sha256: "x", data: Buffer.from("x"), text: "x" } });
+    await db.application.create({ data: { companyId: job.companyId, jobId: job.id, title: job.title, stage: "PRIORITIZED", resumeId: old.id, stageHistory: { create: { to: "PRIORITIZED" } } } });
+    const app = await markApplied(db, job.id, kit.id, null);
+    expect(app).toMatchObject({ stage: "APPLIED", resumeId: resume.id, coverLetterId: letter.id });
+  });
 });

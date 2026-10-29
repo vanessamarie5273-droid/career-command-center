@@ -9,6 +9,7 @@ import { date, dateTime, range, STAGE_LABEL, TIER_LABEL } from "@/lib/format";
 import { isSpecificJobUrl } from "@/lib/links";
 import OverrideControl from "@/components/OverrideControl";
 import AddToPipeline from "@/components/AddToPipeline";
+import MarkApplied from "@/components/MarkApplied";
 import ResumeMatch from "@/components/ResumeMatch";
 import ApplicationKit, { type KitRow } from "@/components/ApplicationKit";
 import { assistantConfigured } from "@/lib/assistant";
@@ -43,6 +44,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <div className="flex flex-col items-end gap-2">
           <a href={j.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-gold px-5 py-2.5 text-base">Open employer posting ↗</a>
           {!specific && <span className="text-xs text-amber-700">This link may not be job-specific; verify before applying.</span>}
+          {!app?.applied && <MarkApplied jobId={j.id} kitId={kits[0]?.id ?? null} />}
+          {!app?.applied && kits[0] && <span className="text-xs text-slate-500">Attaches this kit's resume and letter and moves it to Applied.</span>}
           {app ? <Link href={`/applications/${app.id}`} className="link text-sm">In pipeline: {STAGE_LABEL[app.stage]} →</Link> : <AddToPipeline jobId={j.id} />}
         </div>
       </div>

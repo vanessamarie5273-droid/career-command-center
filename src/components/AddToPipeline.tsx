@@ -11,5 +11,5 @@ export default function AddToPipeline({ jobId }: { jobId: string }) {
     const j = await res.json();
     if (res.ok) r.push(`/applications/${j.id}`); else { setBusy(false); alert(j.error); }
   }
-  return <button onClick={go} disabled={busy} className="btn-primary">{busy ? "Adding…" : "+ Add to my applications"}</button>;
+  return <button onClick={go} disabled={busy} className="btn-ghost">{busy ? "Adding…" : "+ Save to my applications"}</button>;
 }

@@ -25,7 +25,8 @@ export async function markApplied(db: PrismaClient, jobId: string, kitId: string
     where: { id: app.id },
     data: {
       applied: true, appliedAt: created || !app.appliedAt ? now : app.appliedAt,
-      resumeId: app.resumeId ?? kit?.resumeDocId ?? undefined, coverLetterId: app.coverLetterId ?? kit?.letterDocId ?? undefined,
+      // The kit she applied with wins over anything attached earlier.
+      resumeId: kit?.resumeDocId ?? app.resumeId ?? undefined, coverLetterId: kit?.letterDocId ?? app.coverLetterId ?? undefined,
       nextAction: app.nextAction ?? tasks[1].title, nextActionDue: app.nextActionDue ?? tasks[1].dueAt,
     },
   });
