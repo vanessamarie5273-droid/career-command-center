@@ -5,6 +5,11 @@ import { prisma } from "./db";
 export const FEED_CATEGORIES = ["MAIN", "STRETCH", "RELOCATION"];
 /** Roles with an application marked applied leave the feed and live under My Applications. */
 export const NOT_APPLIED: Prisma.JobWhereInput = { applications: { none: { applied: true } } };
+/** Roles she saved or applied to leave Discover Jobs: saved ones wait on Ready to Apply, applied ones live under My Applications. */
+export const IN_DISCOVER: Prisma.JobWhereInput = { applications: { none: {} } };
+export const PRE_APPLY = ["RESEARCHING", "PRIORITIZED", "RESUME_PREP", "READY_TO_APPLY"] as const;
+/** Ready to Apply: roles she saved and has not yet sent, while the posting is open. */
+export const READY_TO_APPLY: Prisma.ApplicationWhereInput = { applied: false, stage: { in: [...PRE_APPLY] }, job: { is: { status: "OPEN" } } };
 export const MATCHING: Prisma.JobWhereInput = { status: "OPEN", dismissed: false, category: { in: FEED_CATEGORIES }, ...NOT_APPLIED };
 /** Roles the user removed from feeds, split by why. A null reason predates the split and means "Not a fit". */
 export const NOT_A_FIT: Prisma.JobWhereInput = { dismissed: true, OR: [{ dismissReason: null }, { dismissReason: { not: "duplicate" } }] };

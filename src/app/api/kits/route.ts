@@ -6,6 +6,7 @@ import { assistantConfigured, MODEL } from "@/lib/assistant";
 import { atsReport } from "@/lib/resume";
 import { checkKit, generateKit, kitContext } from "@/lib/kit";
 import { kitInput } from "@/lib/kitEdit";
+import { ensureApplication } from "@/lib/applications";
 
 export const maxDuration = 300;
 
@@ -18,7 +19,7 @@ export const GET = route("VIEWER", async (req) => {
 export const POST = route("EDITOR", async (req, _c, u) => {
   if (!assistantConfigured()) return aiNotConfigured("The Application Kit");
   const b = z.object({ jobId: z.string(), documentId: z.string().optional() }).parse(await req.json());
-  const job = await prisma.job.findUniqueOrThrow({ where: { id: b.jobId }, include: { company: { include: { news: { orderBy: { createdAt: "desc" }, take: 5 } } }, applications: true } });
+  const job = await prisma.job.findUniqueOrThrow({ where: { id: b.jobId }, include: { company: { include: { news: { orderBy: { createdAt: "desc" }, take: 5 } } } } });
   const base = b.documentId
     ? await prisma.document.findUniqueOrThrow({ where: { id: b.documentId } })
     : await prisma.document.findFirst({ where: { kind: "resume", isTailored: false }, orderBy: { createdAt: "desc" } });
@@ -31,7 +32,8 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   catch (e) { return aiError(e); }
   const checks = checkKit(parts, { resumeText: base.text, contextText: kitContext(input) });
 
-  const app = job.applications[0];
+  // Building a kit saves the role, so it moves from Discover Jobs to Ready to Apply.
+  const { app } = await ensureApplication(prisma, job.id, u.sub);
   const label = `${c.name}: ${job.title}`.slice(0, 160);
   const save = async (kind: string, name: string, text: string) => {
     const buf = Buffer.from(text, "utf8");

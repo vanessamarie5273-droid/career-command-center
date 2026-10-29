@@ -37,7 +37,7 @@ export async function moveStage(db: PrismaClient, id: string, to: Stage, userId:
 }
 
 /** Create (or return) the application for a job. Company is never duplicated; one application per job. */
-export async function ensureApplication(db: PrismaClient, jobId: string, userId: string | null, stage: Stage = "PRIORITIZED") {
+export async function ensureApplication(db: PrismaClient, jobId: string, userId: string | null, stage: Stage = "READY_TO_APPLY") {
   const job = await db.job.findUniqueOrThrow({ where: { id: jobId } });
   const existing = await db.application.findUnique({ where: { companyId_jobId: { companyId: job.companyId, jobId } } });
   if (existing) return { app: existing, created: false };

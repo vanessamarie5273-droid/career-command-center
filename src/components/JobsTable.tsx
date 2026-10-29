@@ -26,6 +26,12 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
     await fetch("/api/jobs/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...sel], action }) });
     setBusy(false); setSel(new Set()); r.refresh();
   }
+  async function save(id: string) {
+    setBusy(true);
+    const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: id }) });
+    setBusy(false);
+    if (res.ok) r.refresh(); else alert((await res.json().catch(() => ({}))).error ?? "Could not save the role");
+  }
   if (!rows.length) return <div className="card p-8 text-center text-sm text-slate-500">No roles match these filters. If no job-feed refresh has run yet, start one from the Command Center.</div>;
   return (
     <div className="card overflow-hidden">
@@ -33,7 +39,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-navy-950 px-4 py-2 text-sm text-white">
           <span>{sel.size} selected</span>
           <button disabled={busy} onClick={() => bulk("applied")} className="btn bg-gold-500 text-navy-950 !py-1">Mark applied</button>
-          <button disabled={busy} onClick={() => bulk("pipeline")} className="btn bg-white/10 !py-1">Add to pipeline</button>
+          <button disabled={busy} onClick={() => bulk("pipeline")} className="btn bg-white/10 !py-1">Save to Ready to Apply</button>
           <button disabled={busy} onClick={() => bulk("favorite")} className="btn bg-white/10 !py-1">★ Favorite</button>
           <button disabled={busy} onClick={() => bulk("unfavorite")} className="btn bg-white/10 !py-1">Unfavorite</button>
           <button disabled={busy} onClick={() => bulk("dismiss")} className="btn bg-white/10 !py-1">Not a fit</button>
@@ -67,7 +73,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
                 <td className="whitespace-nowrap text-slate-600">{d(x.postedAt)}</td>
                 <td className="whitespace-nowrap text-xs text-slate-500" title={new Date(x.lastVerifiedAt).toLocaleString()}>{d(x.lastVerifiedAt)}</td>
                 <td className="whitespace-nowrap text-xs">{x.application ? <Link className="link" href={`/applications/${x.application.id}`}>{x.application.applied ? "Applied" : x.application.stage.replace(/_/g, " ").toLowerCase()}</Link> : <span className="text-slate-400">—</span>}</td>
-                <td><a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-primary !py-1 !px-2.5 text-xs">Apply ↗</a></td>
+                <td className="whitespace-nowrap">{!compact && !x.application && x.status === "OPEN" ? <button disabled={busy} onClick={() => save(x.id)} className="btn-primary !py-1 !px-2.5 text-xs" title="Moves this role to Ready to Apply">+ Save</button> : <a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost !py-1 !px-2.5 text-xs">Posting ↗</a>}</td>
               </tr>
             ))}
           </tbody>

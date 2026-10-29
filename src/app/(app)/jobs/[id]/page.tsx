@@ -46,7 +46,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           {!specific && <span className="text-xs text-amber-700">This link may not be job-specific; verify before applying.</span>}
           {!app?.applied && <MarkApplied jobId={j.id} kitId={kits[0]?.id ?? null} />}
           {!app?.applied && kits[0] && <span className="text-xs text-slate-500">Attaches this kit's resume and letter and moves it to Applied.</span>}
-          {app ? <Link href={`/applications/${app.id}`} className="link text-sm">In pipeline: {STAGE_LABEL[app.stage]} →</Link> : <AddToPipeline jobId={j.id} />}
+          {!app ? <AddToPipeline jobId={j.id} /> : app.applied ? <Link href={`/applications/${app.id}`} className="link text-sm">In pipeline: {STAGE_LABEL[app.stage]} →</Link> : <Link href="/apply" className="link text-sm">Saved on Ready to Apply →</Link>}
         </div>
       </div>
 

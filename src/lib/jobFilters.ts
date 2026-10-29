@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { tierWhere, NOT_A_FIT, DUPLICATE, FEED_CATEGORIES, NOT_APPLIED } from "./queries";
+import { tierWhere, NOT_A_FIT, DUPLICATE, FEED_CATEGORIES, IN_DISCOVER } from "./queries";
 
 export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; status?: string; view?: string; all?: string };
 
@@ -31,7 +31,7 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
     if (p.category && p.category !== "ALL") and.push({ category: p.category });
     else if (!p.category) and.push({ category: { in: FEED_CATEGORIES } });
     if (p.status !== "CLOSED") and.push({ dismissed: false });
-    if (p.status !== "CLOSED" && (!p.category || FEED_CATEGORIES.includes(p.category))) and.push(NOT_APPLIED);
+    if (p.status !== "CLOSED" && (!p.category || FEED_CATEGORIES.includes(p.category))) and.push(IN_DISCOVER);
   }
   if (p.tier && ["TIER1", "TIER2", "TIER3"].includes(p.tier)) and.push(tierWhere(p.tier as "TIER1"));
   if (p.company) and.push({ companyId: p.company });
@@ -53,10 +53,11 @@ export function jobOrder(p: JobParams): Prisma.JobOrderByWithRelationInput[] {
   if (p.view && RANKINGS[p.view]) return RANKINGS[p.view].orderBy;
   switch (p.sort) {
     case "new": return [{ firstSeenAt: "desc" }];
-    case "posted": return [{ postedAt: { sort: "desc", nulls: "last" } }];
+    case "score": return [{ overrideScore: { sort: "desc", nulls: "last" } }, { score: { sort: "desc", nulls: "last" } }];
     case "comp": return [{ oteMax: { sort: "desc", nulls: "last" } }, { salaryMax: { sort: "desc", nulls: "last" } }];
     case "company": return [{ company: { name: "asc" } }, { score: "desc" }];
     case "location": return [{ location: "asc" }];
-    default: return [{ overrideScore: { sort: "desc", nulls: "last" } }, { score: { sort: "desc", nulls: "last" } }];
+    // Most recent first: posting date, then when the app first found it (for boards that publish no date).
+    default: return [{ postedAt: { sort: "desc", nulls: "last" } }, { firstSeenAt: "desc" }];
   }
 }
