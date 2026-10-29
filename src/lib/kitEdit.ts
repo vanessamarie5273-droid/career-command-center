@@ -17,13 +17,19 @@ export function kitInput(job: JobWithCompany, resumeText: string): KitInput {
   };
 }
 
-/** Replaces one part's text, re-runs that part's checks against the kit's base resume, and updates the saved resume or letter in place. */
-export async function saveKitPart(db: PrismaClient, kitId: string, part: KitPart, text: string) {
+/** A kit with the job and company it was written for, and the resume its facts come from. */
+export async function kitSources(db: PrismaClient, kitId: string) {
   const kit = await db.kit.findUniqueOrThrow({ where: { id: kitId }, include: { job: { include: { company: { include: { news: { orderBy: { createdAt: "desc" }, take: 5 } } } } } } });
   const base = (kit.baseResumeId ? await db.document.findUnique({ where: { id: kit.baseResumeId }, select: { text: true } }) : null)
     ?? await db.document.findFirst({ where: { kind: "resume", isTailored: false }, orderBy: { createdAt: "desc" }, select: { text: true } });
   const resumeText = base?.text ?? "";
-  const fresh = checkKit({ [part]: text }, { resumeText, contextText: kitContext(kitInput(kit.job, resumeText)) });
+  return { kit, resumeText, input: kitInput(kit.job, resumeText) };
+}
+
+/** Replaces one part's text, re-runs that part's checks against the kit's base resume, and updates the saved resume or letter in place. */
+export async function saveKitPart(db: PrismaClient, kitId: string, part: KitPart, text: string) {
+  const { kit, resumeText, input } = await kitSources(db, kitId);
+  const fresh = checkKit({ [part]: text }, { resumeText, contextText: kitContext(input) });
   const parts = { ...(kit.parts as KitParts), [part]: text };
   const checks = { ...(kit.checks as KitChecks), [part]: fresh[part] };
   const docId = part === "resume" ? kit.resumeDocId : part === "letter" ? kit.letterDocId : null;

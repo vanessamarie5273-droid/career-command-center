@@ -5,7 +5,8 @@ import ReadyToApply from "@/components/ReadyToApply";
 import { MATCHING } from "@/lib/queries";
 import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import { dateTime } from "@/lib/format";
-import type { KitChecks, KitParts } from "@/lib/kitParts";
+import type { KitChecks } from "@/lib/kitParts";
+import type { KitRow } from "@/components/ApplicationKit";
 
 export const metadata = { title: "Ready to Apply" };
 
@@ -30,7 +31,7 @@ export default async function ApplyPage() {
                   <div className="text-sm text-slate-500">{j.company.name}{j.location ? ` · ${j.location}` : ""}</div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs"><TierBadge tier={effectiveTier(j)} /><ScorePill score={effectiveScore(j)} /><span className="muted">Kit built {dateTime(kit.createdAt)}</span>{issues ? <Link href={`/jobs/${j.id}#kit`} className="chip bg-amber-50 text-amber-800">{issues} check{issues > 1 ? "s" : ""} to review</Link> : <span className="chip bg-emerald-50 text-emerald-700">Checks pass</span>}</div>
                 </div>
-                <ReadyToApply jobId={j.id} kitId={kit.id} applyUrl={j.applyUrl} parts={kit.parts as KitParts} resumeDocId={kit.resumeDocId} letterDocId={kit.letterDocId} />
+                <ReadyToApply key={kit.id} jobId={j.id} applyUrl={j.applyUrl} kit={JSON.parse(JSON.stringify(kit)) as KitRow} />
               </div>
             </section>
           );
