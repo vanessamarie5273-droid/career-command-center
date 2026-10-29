@@ -6,6 +6,7 @@ export type JobParams = { q?: string; tier?: string; category?: string; company?
 export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
   best: { label: "Best immediately available jobs", where: {}, orderBy: [{ score: "desc" }] },
   cash: { label: "Highest expected cash compensation (published)", where: { OR: [{ oteMax: { not: null } }, { salaryMax: { not: null } }] }, orderBy: [{ oteMax: { sort: "desc", nulls: "last" } }, { salaryMax: { sort: "desc", nulls: "last" } }] },
+  growth: { label: "Fastest-growing companies' roles", where: { company: { growthScore: { gte: 80 } } }, orderBy: [{ company: { growthScore: { sort: "desc", nulls: "last" } } }, { score: "desc" }] },
   equity: { label: "Highest potential equity upside", where: {}, orderBy: [{ company: { equityUpsideScore: "desc" } }, { score: "desc" }] },
   quals: { label: "Strongest qualifications match", where: {}, orderBy: [{ score: "desc" }] },
   remote: { label: "Best remote opportunities", where: { isRemote: true }, orderBy: [{ score: "desc" }] },

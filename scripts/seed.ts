@@ -28,7 +28,7 @@ export async function seed(client = db) {
       category: c.category, headquarters: c.hq, ownership: c.ownership, ticker: c.ticker ?? null, maturity: c.maturity,
       description: c.description, keyProducts: c.products, buyerPersonas: c.buyers,
       profileFactType: "AI_ASSESSMENT" as const, profileSource: "AI-compiled from model knowledge (mid-2026); not yet verified",
-      marketPositionScore: c.mp, equityUpsideScore: c.eq, compCompetitiveness: c.cc,
+      marketPositionScore: c.mp, equityUpsideScore: c.eq, compCompetitiveness: c.cc, growthScore: c.growth ?? null, growthThesis: c.thesis ?? null,
       risks: c.risks ?? null, atsHints: c.hints ?? [], addedBy: c.seed ? "seed:vanessa" : "seed:research",
     };
     const existing = await client.company.findUnique({ where: { slug: c.slug } });
@@ -38,6 +38,9 @@ export async function seed(client = db) {
     } else {
       const fill: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(data)) if ((existing as unknown as Record<string, unknown>)[k] == null || (Array.isArray(v) && !((existing as unknown as Record<string, unknown[]>)[k]?.length))) fill[k] = v;
+      // New feed hints reach companies that have no working board yet; a board found or set by hand is kept.
+      const hints = c.hints ?? [];
+      if (existing.atsProvider === "NONE" && hints.length && JSON.stringify(existing.atsHints) !== JSON.stringify(hints)) Object.assign(fill, { atsHints: hints, atsStatus: "pending", atsError: null });
       if (Object.keys(fill).length) await client.company.update({ where: { id: existing.id }, data: fill });
     }
   }

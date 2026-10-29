@@ -59,6 +59,7 @@ export type ScoreInput = {
     marketPositionScore?: number | null;
     equityUpsideScore?: number | null;
     compCompetitiveness?: number | null;
+    growthScore?: number | null;
     ownership?: string | null;
     maturity?: string | null;
     totalOpenings?: number | null;
@@ -133,13 +134,18 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
 
   // 3. Company market position (15) — AI assessment stored on the company
   const mp = j.company.marketPositionScore;
-  const m = mp != null ? mp / 100 : 0.5;
-  reasons.push({ criterion: "company", delta: m >= 0.75 ? "+" : m >= 0.5 ? "=" : "-", text: mp != null ? `Company market position assessed ${mp}/100 (AI assessment)` : "Company market position not yet assessed" });
+  const gr = j.company.growthScore;
+  // Market position and growth potential count equally once growth is assessed.
+  const m = ((mp ?? 50) + (gr ?? mp ?? 50)) / 200;
+  reasons.push({ criterion: "company", delta: (mp ?? 50) >= 75 ? "+" : (mp ?? 50) >= 50 ? "=" : "-", text: mp != null ? `Company market position assessed ${mp}/100 (AI assessment)` : "Company market position not yet assessed" });
+  if (gr != null) reasons.push({ criterion: "company", delta: gr >= 70 ? "+" : gr >= 50 ? "=" : "-", text: `Growth potential assessed ${gr}/100 (AI assessment)` });
   b.company = m * WEIGHTS.company;
 
   // 4. Equity (15)
   const eu = j.company.equityUpsideScore;
   let e = eu != null ? eu / 100 : 0.4;
+  // A fast grower's stock can rise a lot even after an IPO (Palantir), so high growth potential lifts equity.
+  if (gr != null && gr >= 80 && e < (gr / 100) * 0.9) { e = (gr / 100) * 0.9; reasons.push({ criterion: "equity", delta: "+", text: `High growth potential (${gr}/100) can lift the value of stock grants` }); }
   if (j.equityMentioned) { e = Math.min(1, e + 0.05); reasons.push({ criterion: "equity", delta: "+", text: "Posting mentions equity in the package" }); }
   reasons.push({ criterion: "equity", delta: e >= 0.7 ? "+" : e >= 0.45 ? "=" : "-", text: eu != null ? `Equity upside assessed ${eu}/100 for a ${j.company.maturity || j.company.ownership || "company"} (AI assessment, not a guarantee of value)` : "Equity upside not yet assessed" });
   b.equity = e * WEIGHTS.equity;
@@ -224,8 +230,9 @@ function roundAll(b: Record<Criterion, number>) {
 }
 
 /** Company attractiveness is ranked independently of whether it has a suitable opening today. */
-export function companyAttractiveness(c: { marketPositionScore?: number | null; equityUpsideScore?: number | null; compCompetitiveness?: number | null }) {
+export function companyAttractiveness(c: { marketPositionScore?: number | null; equityUpsideScore?: number | null; compCompetitiveness?: number | null; growthScore?: number | null }) {
   const mp = c.marketPositionScore ?? 50, eq = c.equityUpsideScore ?? 40, cc = c.compCompetitiveness ?? 50;
+  if (c.growthScore != null) return Math.round(mp * 0.3 + c.growthScore * 0.25 + eq * 0.25 + cc * 0.2);
   return Math.round(mp * 0.45 + eq * 0.3 + cc * 0.25);
 }
 

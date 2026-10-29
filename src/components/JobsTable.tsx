@@ -6,7 +6,7 @@ import Logo from "./Logo";
 import JobMarks from "./JobMarks";
 
 type Row = {
-  id: string; title: string; company: { id: string; name: string; logoUrl: string | null; category: string }; location: string | null; arrangement: string | null;
+  id: string; title: string; company: { id: string; name: string; logoUrl: string | null; category: string; growthScore?: number | null }; location: string | null; arrangement: string | null;
   postedAt: string | null; firstSeenAt: string; lastVerifiedAt: string; applyUrl: string; score: number | null; aiScore: number | null; tier: string | null; overridden: boolean;
   confidence: string | null; salaryMin: number | null; salaryMax: number | null; oteMin: number | null; oteMax: number | null; category: string | null; status: string; favorite: boolean;
   family: string | null; sources: string[]; application: { id: string; stage: string; applied: boolean } | null; excludedReason: string | null;
@@ -59,7 +59,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
                 {!compact && <td>{x.status === "OPEN" && !x.application?.applied && <JobMarks id={x.id} />}</td>}
                 <td className="min-w-[240px]">
                   <Link href={`/jobs/${x.id}`} className="font-medium text-navy-950 hover:underline">{x.favorite && <span className="text-gold-500 mr-1">★</span>}{x.title}</Link>
-                  <div className="text-xs text-slate-500">{x.category === "STRETCH" && <span className="chip mr-1 bg-violet-50 text-violet-700">Stretch</span>}{x.category === "RELOCATION" && <span className="chip mr-1 bg-amber-50 text-amber-800" title="On-site or hybrid outside Arizona">Relocation</span>}{x.excludedReason ?? x.sources.join(", ").toLowerCase()}</div>
+                  <div className="text-xs text-slate-500">{(x.company.growthScore ?? 0) >= 85 && <span className="chip mr-1 bg-emerald-50 text-emerald-700" title={`Growth potential ${x.company.growthScore}/100 (AI assessment)`}>Hypergrowth</span>}{x.category === "STRETCH" && <span className="chip mr-1 bg-violet-50 text-violet-700">Stretch</span>}{x.category === "RELOCATION" && <span className="chip mr-1 bg-amber-50 text-amber-800" title="On-site or hybrid outside Arizona">Relocation</span>}{x.excludedReason ?? x.sources.join(", ").toLowerCase()}</div>
                 </td>
                 <td className="whitespace-nowrap"><Link href={`/companies/${x.company.id}`} className="inline-flex items-center gap-2 hover:underline"><Logo src={x.company.logoUrl} name={x.company.name} size={20} />{x.company.name}</Link></td>
                 <td className="min-w-[150px] text-slate-600">{x.location || "—"}<div className="text-xs text-slate-400">{x.arrangement}</div></td>

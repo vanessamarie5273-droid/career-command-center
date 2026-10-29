@@ -5,6 +5,7 @@ import { PageHeader, Logo, StatusDot } from "@/components/ui";
 import { CATEGORIES } from "@/data/companies";
 import { MATCHING } from "@/lib/queries";
 import { companyAttractiveness } from "@/lib/scoring";
+import { growthOutlook } from "@/lib/growth";
 import SavedFilters from "@/components/SavedFilters";
 
 export const metadata = { title: "Company Intelligence" };
@@ -20,10 +21,10 @@ export default async function Companies({ searchParams }: { searchParams: Promis
     p.feed ? { atsStatus: p.feed } : {},
     p.fav === "1" ? { favorite: true } : {},
   ] };
-  const companies = await prisma.company.findMany({ where, include: { jobs: { where: MATCHING, select: { score: true, overrideScore: true, tier: true, overrideTier: true } }, _count: { select: { applications: true } } } });
-  const rows = companies.map((c) => ({ ...c, attract: companyAttractiveness(c), matches: c.jobs.length, best: Math.max(0, ...c.jobs.map((j) => j.overrideScore ?? j.score ?? 0)), tier1: c.jobs.filter((j) => (j.overrideTier ?? j.tier) === "TIER1").length }));
+  const companies = await prisma.company.findMany({ where, include: { jobs: { where: MATCHING, select: { score: true, overrideScore: true, tier: true, overrideTier: true } }, news: { where: { kind: "funding" }, select: { kind: true, headline: true, publishedAt: true, createdAt: true } }, _count: { select: { applications: true } } } });
+  const rows = companies.map((c) => ({ ...c, attract: companyAttractiveness(c), growth: growthOutlook(c), matches: c.jobs.length, best: Math.max(0, ...c.jobs.map((j) => j.overrideScore ?? j.score ?? 0)), tier1: c.jobs.filter((j) => (j.overrideTier ?? j.tier) === "TIER1").length }));
   const sort = p.sort ?? "attract";
-  rows.sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "matches" ? b.matches - a.matches || b.best - a.best : sort === "best" ? b.best - a.best : (b.userPriority ? 6 - b.userPriority : 0) - (a.userPriority ? 6 - a.userPriority : 0) || b.attract - a.attract);
+  rows.sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "matches" ? b.matches - a.matches || b.best - a.best : sort === "best" ? b.best - a.best : sort === "growth" ? b.growth.score - a.growth.score : (b.userPriority ? 6 - b.userPriority : 0) - (a.userPriority ? 6 - a.userPriority : 0) || b.attract - a.attract);
   const sortLink = (k: string, l: string) => <Link href={`/companies?${new URLSearchParams({ ...p, sort: k } as Record<string, string>)}`} className={sort === k ? "text-navy-900 underline" : ""}>{l}</Link>;
   return (
     <>
@@ -39,12 +40,13 @@ export default async function Companies({ searchParams }: { searchParams: Promis
       <SavedFilters page="companies" />
       <div className="card overflow-x-auto">
         <table className="tbl">
-          <thead><tr><th>{sortLink("name", "Company")}</th><th>Industry</th><th>HQ</th><th>Ownership</th><th title="AI assessment">{sortLink("attract", "Attractiveness")}</th><th>{sortLink("matches", "Open matches")}</th><th>{sortLink("best", "Best fit")}</th><th>Feed</th><th>Pipeline</th><th></th></tr></thead>
+          <thead><tr><th>{sortLink("name", "Company")}</th><th>Industry</th><th>HQ</th><th>Ownership</th><th title="AI assessment">{sortLink("attract", "Attractiveness")}</th><th title="Potential for very fast growth: AI assessment plus hiring and funding signals">{sortLink("growth", "Growth")}</th><th>{sortLink("matches", "Open matches")}</th><th>{sortLink("best", "Best fit")}</th><th>Feed</th><th>Pipeline</th><th></th></tr></thead>
           <tbody>{rows.map((c) => (
             <tr key={c.id}>
               <td className="min-w-[200px]"><Link href={`/companies/${c.id}`} className="inline-flex items-center gap-2 font-medium hover:underline"><Logo src={c.logoUrl} name={c.name} size={22} />{c.favorite && <span className="text-gold-500">★</span>}{c.name}</Link><div className="text-xs text-slate-500 ml-8">{c.maturity}</div></td>
               <td className="text-xs">{c.category}</td><td className="text-xs whitespace-nowrap">{c.headquarters}</td><td className="text-xs">{c.ownership}{c.ticker ? ` (${c.ticker})` : ""}</td>
               <td><span className="font-semibold tabular-nums">{c.attract}</span><span className="text-[10px] text-violet-600 ml-1">AI</span></td>
+              <td title={c.growth.signals.map((s) => s.text).join("\n")}>{c.growth.assessed ? <><span className="font-semibold tabular-nums">{c.growth.score}</span><div className={`text-[10px] whitespace-nowrap ${c.growth.score >= 85 ? "text-emerald-700 font-semibold" : "text-slate-500"}`}>{c.growth.label}</div></> : <span className="text-xs text-slate-400">—</span>}</td>
               <td className="tabular-nums">{c.matches ? <Link className="link" href={`/jobs?company=${c.id}`}>{c.matches}{c.tier1 ? ` (${c.tier1} T1)` : ""}</Link> : <span className="text-xs text-slate-400">No suitable role</span>}</td>
               <td className="tabular-nums">{c.best || "—"}</td>
               <td className="text-xs whitespace-nowrap" title={c.atsError ?? undefined}><StatusDot status={c.atsStatus} /> {c.atsProvider !== "NONE" ? c.atsProvider.toLowerCase() : c.atsStatus === "unsupported" ? "manual" : c.atsStatus ?? "pending"}</td>

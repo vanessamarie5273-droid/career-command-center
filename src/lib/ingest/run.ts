@@ -109,7 +109,7 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
       }
       const d = await discoverBoard(company.slug, company.name, company.atsHints, f);
       if (!d.provider || !d.result) {
-        await db.company.update({ where: { id: company.id }, data: { atsStatus: "not_found", atsCheckedAt: new Date(), atsError: d.errors.length ? d.errors.slice(0, 3).join("; ") : "No public Greenhouse, Lever or Ashby board found for this company" } });
+        await db.company.update({ where: { id: company.id }, data: { atsStatus: "not_found", atsCheckedAt: new Date(), atsError: d.errors.length ? d.errors.slice(0, 3).join("; ") : "No public Greenhouse, Lever, Ashby, SmartRecruiters or Workable board found for this company" } });
         return { ...out, status: d.errors.length ? "error" : "not_found", error: d.errors[0] };
       }
       provider = d.provider; token = d.token;
@@ -162,7 +162,7 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   for (const j of fresh) if (!before.has(j.id)) await db.alert.create({ data: { kind: "new_high_score_job", title: `New ${j.score}-point match: ${j.title} at ${j.company.name}`, body: j.location ?? undefined, link: `/jobs/${j.id}` } });
   const errored = outcomes.filter((o) => o.status === "error");
   if (errored.length) await db.alert.create({ data: { kind: "integration_error", title: `${errored.length} job feed${errored.length > 1 ? "s" : ""} failed to refresh`, body: errored.slice(0, 8).map((o) => `${o.company}: ${o.error}`).join("\n"), link: "/settings" } });
-  for (const p of ["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY"]) {
+  for (const p of ["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "WORKABLE", "AMAZON", "ORACLE"]) {
     const cs = companies.filter((c) => c.atsProvider === p).map((c) => c.name);
     const errs = errored.filter((o) => cs.includes(o.company)).length;
     await db.integrationStatus.upsert({

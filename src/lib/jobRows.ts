@@ -2,7 +2,7 @@
 import type { Prisma } from "@prisma/client";
 import { effectiveScore, effectiveTier } from "./scoring";
 
-export const JOB_ROW_INCLUDE = { company: { select: { id: true, name: true, logoUrl: true, category: true } }, applications: { select: { id: true, stage: true, applied: true } }, sources: { select: { provider: true } } } satisfies Prisma.JobInclude;
+export const JOB_ROW_INCLUDE = { company: { select: { id: true, name: true, logoUrl: true, category: true, growthScore: true } }, applications: { select: { id: true, stage: true, applied: true } }, sources: { select: { provider: true } } } satisfies Prisma.JobInclude;
 type J = Prisma.JobGetPayload<{ include: typeof JOB_ROW_INCLUDE }>;
 
 export const toRow = (j: J) => ({
