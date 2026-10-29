@@ -31,7 +31,7 @@ export default async function Applications({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="My Applications" sub={`${apps.length} records${p.followup ? " awaiting follow-up" : p.active ? " in an active process" : p.applied ? " applied" : ""}. Drag cards between stages; every field saves automatically.`}
         actions={<><div className="card flex p-1"><Link className={tab("board")} href="/applications">Board</Link><Link className={tab("table")} href="/applications?view=table">Table</Link></div><NewApplication companies={companies} /></>} />
-      {apps.length === 0 ? <Empty>No applications yet. Use “Add to my applications” on any job, or start a company-level pursuit above.</Empty> : view === "board" ? (
+      {apps.length === 0 ? <Empty>No applications yet. Use “I applied” or “Save to my applications” on any job, or start a company-level pursuit above.</Empty> : view === "board" ? (
         <Kanban stages={STAGES.map(([k, l]) => [k, l])} cards={apps.map((a) => ({ id: a.id, title: a.title, stage: a.stage, company: a.company.name, logo: a.company.logoUrl, score: a.job ? effectiveScore(a.job) : null, nextAction: a.nextAction, due: a.nextActionDue?.toISOString() ?? null, applied: a.applied }))} />
       ) : (
         <div className="card"><ApplicationsTable apps={apps} /></div>
