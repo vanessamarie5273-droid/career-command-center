@@ -24,10 +24,9 @@ export const PROFILE = {
     "Strategic Enterprise Sales",
     "Account Director",
     "Regional Sales Director",
-    "Director of Business Development",
-    "Director of Sales Development",
+    "Business Development Leader / Director / Manager",
+    "Sales Development Leader / Director / Manager",
     "Head of Sales Development",
-    "Sales Development Leadership",
     "Enterprise Growth / Go-to-Market Leadership",
   ],
   // Domain keywords drawn from her stated experience; used for alignment scoring.

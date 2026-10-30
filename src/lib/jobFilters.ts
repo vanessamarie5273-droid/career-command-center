@@ -6,6 +6,7 @@ export type JobParams = { q?: string; tier?: string; category?: string; company?
 export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
   best: { label: "Best immediately available jobs", where: {}, orderBy: [{ score: "desc" }] },
   cash: { label: "Highest expected cash compensation (published)", where: { OR: [{ oteMax: { not: null } }, { salaryMax: { not: null } }] }, orderBy: [{ oteMax: { sort: "desc", nulls: "last" } }, { salaryMax: { sort: "desc", nulls: "last" } }] },
+  growth: { label: "Fastest-growing companies' roles", where: { company: { growthScore: { gte: 80 } } }, orderBy: [{ company: { growthScore: { sort: "desc", nulls: "last" } } }, { score: "desc" }] },
   equity: { label: "Highest potential equity upside", where: {}, orderBy: [{ company: { equityUpsideScore: "desc" } }, { score: "desc" }] },
   quals: { label: "Strongest qualifications match", where: {}, orderBy: [{ score: "desc" }] },
   remote: { label: "Best remote opportunities", where: { isRemote: true }, orderBy: [{ score: "desc" }] },
@@ -13,9 +14,15 @@ export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInp
   ai: { label: "Most promising emerging AI companies' roles", where: { company: { category: { in: ["Enterprise AI & Agents", "AI Infrastructure & Data", "Healthcare & Clinical AI"] }, ownership: { contains: "Private" } } }, orderBy: [{ company: { marketPositionScore: "desc" } }, { score: "desc" }] },
 };
 
-/** Whether the 3-per-company limit applies: the main feeds, not history or the screened-out lists. */
+/** Whether the 3-per-company limit applies: the main feeds, not history, the screened-out lists, or a search or role-type filter (those show every match). */
 export function capApplies(p: JobParams) {
-  return p.all !== "1" && p.status !== "CLOSED" && (!p.category || FEED_CATEGORIES.includes(p.category));
+  return p.all !== "1" && !p.q?.trim() && !p.family && p.status !== "CLOSED" && (!p.category || FEED_CATEGORIES.includes(p.category));
+}
+
+const STOP_WORDS = new Set(["of", "and", "the", "for", "in", "a", "an", "to"]);
+/** Words of a search, so "Business Development Director" also finds "Director, Business Development". "Leader" also finds "Lead". */
+export function searchWords(q: string) {
+  return [...new Set(q.toLowerCase().split(/[^a-z0-9&+#]+/).filter((w) => w.length > 1 && !STOP_WORDS.has(w)).map((w) => (w === "leader" ? "lead" : w)))];
 }
 
 export function jobWhere(p: JobParams): Prisma.JobWhereInput {
@@ -44,7 +51,14 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
     const n = Number(p.minComp) || 0;
     and.push({ OR: [{ oteMax: { gte: n } }, { salaryMax: { gte: n } }] });
   }
-  if (p.q) and.push({ OR: [{ title: { contains: p.q, mode: "insensitive" } }, { company: { name: { contains: p.q, mode: "insensitive" } } }, { location: { contains: p.q, mode: "insensitive" } }, { descriptionText: { contains: p.q, mode: "insensitive" } }] });
+  if (p.q?.trim()) {
+    const q = p.q.trim();
+    const words = searchWords(q);
+    and.push({ OR: [
+      { title: { contains: q, mode: "insensitive" } }, { company: { name: { contains: q, mode: "insensitive" } } }, { location: { contains: q, mode: "insensitive" } }, { descriptionText: { contains: q, mode: "insensitive" } },
+      ...(words.length > 1 ? [{ AND: words.map((w) => ({ title: { contains: w, mode: "insensitive" as const } })) }] : []),
+    ] });
+  }
   if (p.view && RANKINGS[p.view]) and.push(RANKINGS[p.view].where);
   return { AND: and };
 }

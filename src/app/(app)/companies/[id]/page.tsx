@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { Card, FactTag, Logo, Empty, StatusDot } from "@/components/ui";
 import AutoField from "@/components/AutoField";
+import { growthOutlook } from "@/lib/growth";
 import JobsTable from "@/components/JobsTable";
 import RefreshButton from "@/components/RefreshButton";
 import NewApplication from "@/components/NewApplication";
@@ -33,6 +34,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
   const other = await prisma.job.count({ where: { companyId: c.id, status: "OPEN", OR: [{ category: { in: ["RELOCATION", "EXCLUDED"] } }, { dismissed: true }] } });
   const ep = `/api/companies/${c.id}`;
   const attract = companyAttractiveness(c);
+  const growth = growthOutlook(c);
   const rows = c.jobs.map((j) => ({ id: j.id, title: j.title, company: { id: c.id, name: c.name, logoUrl: c.logoUrl, category: c.category }, location: j.location, arrangement: j.workArrangement, postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(), lastVerifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl, score: effectiveScore(j), aiScore: j.score, tier: effectiveTier(j), overridden: !!(j.overrideTier || j.overrideScore), confidence: j.confidence, salaryMin: j.salaryMin, salaryMax: j.salaryMax, oteMin: j.oteMin, oteMax: j.oteMax, category: j.category, status: j.status, favorite: j.favorite, family: j.roleFamily, sources: [...new Set(j.sources.map((s) => s.provider))], application: j.applications[0] ?? null, excludedReason: j.excludedReason }));
   const pos = positioning(c.category, c.maturity);
   return (
@@ -117,8 +119,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
               <AutoField endpoint={ep} field="marketPositionScore" type="number" label="Market position" value={c.marketPositionScore} />
               <AutoField endpoint={ep} field="equityUpsideScore" type="number" label="Equity upside" value={c.equityUpsideScore} />
               <AutoField endpoint={ep} field="compCompetitiveness" type="number" label="Comp competitiveness" value={c.compCompetitiveness} />
+              <AutoField endpoint={ep} field="growthScore" type="number" label="Growth potential" value={c.growthScore} />
               <AutoField endpoint={ep} field="userPriority" type="select" label="My priority" value={c.userPriority?.toString() ?? ""} options={[["", "—"], ["1", "1 · Top"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"]]} />
             </div>
+            <div className="label">Growth outlook: {growth.label} ({growth.score}/100)</div>
+            <ul className="text-sm space-y-1 mb-3">{growth.signals.map((g) => <li key={g.text} className="flex gap-1.5"><span className={g.delta === "+" ? "text-emerald-600" : g.delta === "-" ? "text-rose-600" : "text-slate-400"}>{g.delta === "=" ? "•" : g.delta}</span>{g.text}</li>)}</ul>
             <div className="label">How to position yourself</div>
             <ul className="list-disc ml-4 text-sm space-y-1 mb-3">{pos.map((p) => <li key={p}>{p}</li>)}</ul>
             <AutoField endpoint={ep} field="assessmentRationale" type="textarea" label="Why this company is attractive" value={c.assessmentRationale} />
@@ -138,7 +143,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           </Card>
           <Card title="Job feed configuration">
             <div className="space-y-2">
-              <AutoField endpoint={ep} field="atsProvider" type="select" label="Provider" value={c.atsProvider} options={[["NONE", "Auto-discover / none"], ["GREENHOUSE", "Greenhouse"], ["LEVER", "Lever"], ["ASHBY", "Ashby"], ["SMARTRECRUITERS", "SmartRecruiters"], ["WORKDAY", "Workday"]]} />
+              <AutoField endpoint={ep} field="atsProvider" type="select" label="Provider" value={c.atsProvider} options={[["NONE", "Auto-discover / none"], ["GREENHOUSE", "Greenhouse"], ["LEVER", "Lever"], ["ASHBY", "Ashby"], ["SMARTRECRUITERS", "SmartRecruiters"], ["WORKDAY", "Workday"], ["WORKABLE", "Workable"], ["AMAZON", "amazon.jobs"], ["ORACLE", "Oracle Recruiting"]]} />
               <AutoField endpoint={ep} field="atsToken" label="Board token (Workday: tenant|wdN|Site)" value={c.atsToken} />
               <AutoField endpoint={ep} field="careersUrl" type="url" label="Careers URL" value={c.careersUrl} />
             </div>

@@ -32,6 +32,9 @@ enum AtsProvider {
   ASHBY
   SMARTRECRUITERS
   WORKDAY
+  WORKABLE
+  AMAZON
+  ORACLE
   NONE
 }
 
@@ -115,6 +118,8 @@ model Company {
   // AI assessments (0-100), labelled as such everywhere they are shown.
   marketPositionScore Int?
   equityUpsideScore   Int?
+  growthScore         Int?         // potential for very fast growth (AI assessment)
+  growthThesis        String?
   compCompetitiveness Int?
   assessmentRationale String?
   risks               String?
@@ -241,7 +246,7 @@ model JobSource {
   id          String      @id @default(cuid())
   jobId       String
   job         Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  provider    String      // GREENHOUSE / LEVER / ASHBY / SMARTRECRUITERS / WORKDAY / MANUAL / LINKEDIN
+  provider    String      // GREENHOUSE / LEVER / ASHBY / SMARTRECRUITERS / WORKDAY / WORKABLE / AMAZON / ORACLE / MANUAL / LINKEDIN
   externalId  String
   url         String
   firstSeenAt DateTime    @default(now())
