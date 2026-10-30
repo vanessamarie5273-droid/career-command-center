@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { tierWhere, NOT_A_FIT, DUPLICATE, FEED_CATEGORIES, IN_DISCOVER } from "./queries";
 
-export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; status?: string; view?: string; all?: string };
+export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; near?: string; status?: string; view?: string; all?: string };
 
 export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
   best: { label: "Best immediately available jobs", where: {}, orderBy: [{ score: "desc" }] },
@@ -13,6 +13,9 @@ export const RANKINGS: Record<string, { label: string; where: Prisma.JobWhereInp
   leadership: { label: "Best career leadership opportunities", where: { seniority: { in: ["MANAGER", "DIRECTOR", "HEAD", "VP", "EXEC"] } }, orderBy: [{ score: "desc" }] },
   ai: { label: "Most promising emerging AI companies' roles", where: { company: { category: { in: ["Enterprise AI & Agents", "AI Infrastructure & Data", "Healthcare & Clinical AI"] }, ownership: { contains: "Private" } } }, orderBy: [{ company: { marketPositionScore: "desc" } }, { score: "desc" }] },
 };
+
+// Place names that only match the Phoenix metro (bare "Mesa" or "Glendale" would also match California).
+const PHX_TERMS = ["Phoenix", "Scottsdale", "Tempe", "Chandler", "Gilbert", ", AZ", "Arizona"];
 
 /** Whether the 3-per-company limit applies: the main feeds, not history, the screened-out lists, or a search or role-type filter (those show every match). */
 export function capApplies(p: JobParams) {
@@ -44,6 +47,8 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   if (p.company) and.push({ companyId: p.company });
   if (p.industry) and.push({ company: { category: p.industry } });
   if (p.remote === "1") and.push({ isRemote: true });
+  // Phoenix area: roles based in the metro, plus remote U.S. roles she can take from home.
+  if (p.near === "phx") and.push({ OR: [...PHX_TERMS.map((t) => ({ location: { contains: t, mode: "insensitive" as const } })), { isRemote: true }] });
   if (p.fav === "1") and.push({ favorite: true });
   if (p.family) and.push({ roleFamily: p.family });
   if (p.minScore) and.push({ score: { gte: Number(p.minScore) || 0 } });
