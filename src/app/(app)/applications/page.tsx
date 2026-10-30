@@ -6,6 +6,7 @@ import Kanban from "@/components/Kanban";
 import { STAGES, STAGE_LABEL } from "@/lib/format";
 import { ACTIVE_PROCESS, followUpWhere } from "@/lib/queries";
 import { effectiveScore } from "@/lib/scoring";
+import { newestFirst } from "@/lib/applications";
 import NewApplication from "@/components/NewApplication";
 import ApplicationsTable from "@/components/ApplicationsTable";
 
@@ -21,10 +22,11 @@ export default async function Applications({ searchParams }: { searchParams: Pro
     p.interviews ? { interviewAt: { gte: new Date() } } : {},
     p.q ? { OR: [{ title: { contains: p.q, mode: "insensitive" } }, { company: { name: { contains: p.q, mode: "insensitive" } } }] } : {},
   ] };
-  const [apps, companies] = await Promise.all([
-    prisma.application.findMany({ where, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ updatedAt: "desc" }] }),
+  const [all, companies] = await Promise.all([
+    prisma.application.findMany({ where, include: { company: true, job: true, resume: { select: { name: true } } } }),
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
+  const apps = newestFirst(all);
   const view = p.view === "table" ? "table" : "board";
   const tab = (v: string) => `px-3 py-1.5 text-sm rounded-md ${view === v ? "bg-navy-900 text-white" : "text-slate-600 hover:bg-slate-100"}`;
   return (
