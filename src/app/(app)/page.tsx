@@ -17,7 +17,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   const search = applicationSearch(by, q);
   const [d, found] = await Promise.all([
     pipelineDashboard(prisma),
-    search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: "desc" }, { updatedAt: "desc" }], take: 50 }) : null,
+    search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 50 }) : null,
   ]);
   const t = d.tiles;
   // Stages in pipeline order, leaving out the ones with nothing in them.
