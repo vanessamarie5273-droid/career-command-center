@@ -1,4 +1,4 @@
-import type { Company, PrismaClient } from "@prisma/client";
+import type { Company, Job, PrismaClient } from "@prisma/client";
 import { classifyTitle, isRelevantFamily } from "../roles";
 import { htmlToText, parseCompensation, parseLocation, parseYearsRequired, requiresClearance, splitQualifications, extractTravel, extractRelocation, extractTerritory } from "../normalize";
 import { jobFingerprint, contentHash } from "../dedupe";
@@ -150,7 +150,8 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   const run = await db.ingestionRun.create({ data: { trigger: opts.trigger } });
   const companies = await db.company.findMany({ where: opts.companyIds ? { id: { in: opts.companyIds } } : {} });
   const before = new Set((await db.job.findMany({ where: { status: "OPEN" }, select: { id: true } })).map((j) => j.id));
-  const outcomes = await pool(companies, 6, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));
+  // Two boards at a time: the refresh runs inside the web server, which has little memory to spare.
+  const outcomes = await pool(companies, 2, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));
   const tot = outcomes.reduce((a, o) => ({ fetched: a.fetched + o.fetched, relevant: a.relevant + o.relevant, created: a.created + o.created, updated: a.updated + o.updated, closed: a.closed + o.closed, errors: a.errors + (o.status === "error" ? 1 : 0) }), { fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, errors: 0 });
   const status = tot.errors === 0 ? "ok" : tot.errors < companies.length ? "partial" : "failed";
   await db.ingestionRun.update({ where: { id: run.id }, data: { ...tot, companies: companies.length, finishedAt: new Date(), status, log: outcomes } });
@@ -186,7 +187,19 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
 
 /** Recompute scores after company assessments or the profile change. */
 export async function rescoreAll(db: PrismaClient) {
-  const jobs = await db.job.findMany({ include: { company: true } });
+  // In pages, so every job and its description is never in memory at once.
+  let count = 0;
+  for (let cursor: string | undefined; ; ) {
+    const jobs = await db.job.findMany({ include: { company: true }, orderBy: { id: "asc" }, take: 200, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });
+    if (!jobs.length) break;
+    await rescorePage(db, jobs);
+    count += jobs.length;
+    cursor = jobs[jobs.length - 1].id;
+  }
+  return count;
+}
+
+async function rescorePage(db: PrismaClient, jobs: (Job & { company: Company })[]) {
   for (const j of jobs) {
     const s = scoreJob({ ...j, company: j.company });
     // Role type and seniority are stored for the Role type filter, so they follow title-rule changes too.
@@ -196,5 +209,4 @@ export async function rescoreAll(db: PrismaClient) {
       await db.jobEvent.create({ data: { jobId: j.id, kind: "rescored", detail: `${j.score ?? "–"} → ${s.score}` } });
     }
   }
-  return jobs.length;
 }

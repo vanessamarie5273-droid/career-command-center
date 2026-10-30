@@ -15,6 +15,13 @@ export function mockFetch(routes: Record<string, unknown | (() => unknown)>) {
         const body = typeof v === "function" ? (v as () => unknown)() : v;
         if (body === 404) return new Response("not found", { status: 404 });
         if (body === 500) return new Response("boom", { status: 500 });
+        // A Greenhouse board also answers its per-job detail URL with that one job.
+        const id = url.match(/boards-api\.greenhouse\.io\/v1\/boards\/[^/]+\/jobs\/(\d+)/)?.[1];
+        const jobs = (body as { jobs?: { id: number }[] })?.jobs;
+        if (id && Array.isArray(jobs)) {
+          const job = jobs.find((j) => String(j.id) === id);
+          return job ? new Response(JSON.stringify(job), { status: 200, headers: { "Content-Type": "application/json" } }) : new Response("not found", { status: 404 });
+        }
         return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
       }
     }
