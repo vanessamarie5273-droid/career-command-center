@@ -75,9 +75,9 @@ The app reads your Outlook inbox (and Junk folder) for email from companies you 
 Microsoft only lets apps sign in once they are registered in a directory, so this is a one-time setup of about ten minutes.
 
 1. **Get a free directory.** Sign up for a free Azure account at azure.microsoft.com/free with your Outlook address. Microsoft asks for a phone number and a card to verify you; registering an app is free and nothing in these steps is billed.
-2. **Register the app.** Go to entra.microsoft.com → **Applications → App registrations → New registration**.
+2. **Register the app.** In portal.azure.com (or entra.microsoft.com), search **App registrations** → **New registration**. You don't need to start the Azure free trial: the "Default Directory" your account comes with is enough.
    - Name: `Career Command Center`.
-   - Supported account types: **Accounts in any organizational directory and personal Microsoft accounts**. (Your outlook.com address is a personal Microsoft account; without this choice the sign-in fails.)
+   - Supported account types: **Any Entra ID Tenant + Personal Microsoft accounts** (older screens call it "Accounts in any organizational directory and personal Microsoft accounts"). Not "Personal accounts only": the app signs in through Microsoft's shared `common` endpoint, which needs this choice.
    - Redirect URI: platform **Web**, address `https://<your app address>/api/mail/callback`, for example `https://ccc-web.onrender.com/api/mail/callback`. Use the address you open the app at. If you also use a custom domain, add a second redirect URI for it under **Authentication**.
 3. **Copy the client ID.** On the app's **Overview**, copy **Application (client) ID**.
 4. **Create a secret.** **Certificates & secrets → Client secrets → New client secret**, expiry 24 months. Copy the **Value** (not the Secret ID) right away; it is shown once.
