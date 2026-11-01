@@ -1,4 +1,4 @@
-# Render Blueprint: web app + managed Postgres + daily 6:00 AM Arizona job.
+# Render Blueprint: web app + managed Postgres + daily 6:00 AM Arizona job + hourly daytime alerts job.
 # Deploy: Render dashboard → New → Blueprint → pick this repo. See SETUP.md.
 databases:
   - name: ccc-db
@@ -39,6 +39,10 @@ services:
         sync: false
       - key: ALERT_FROM_EMAIL  # optional: verified sender, e.g. "Command Center <alerts@yourdomain.com>"
         sync: false
+      - key: MICROSOFT_CLIENT_ID     # optional: Outlook connection (see SETUP.md, "Connect Outlook")
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
 
   - type: cron
     name: ccc-daily
@@ -59,4 +63,35 @@ services:
       - key: RESEND_API_KEY    # optional: sends the morning briefing email
         sync: false
       - key: ALERT_FROM_EMAIL  # optional: verified sender
+        sync: false
+      - key: MICROSOFT_CLIENT_ID     # optional: reads Outlook and sends alerts from it
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+
+  # Instant alerts: every hour from 7 AM to 9 PM Arizona, refresh the feeds, email new high-fit roles and
+  # read Outlook for recruiter replies. (6 AM is the daily job above.)
+  - type: cron
+    name: ccc-hourly
+    runtime: node
+    plan: starter
+    region: oregon
+    schedule: "0 14-23,0-4 * * *"   # 14:00-04:00 UTC = 7 AM-9 PM Arizona
+    buildCommand: npm ci --include=dev && npx prisma generate
+    startCommand: npm run job:hourly
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase: { name: ccc-db, property: connectionString }
+      - fromGroup: ccc-shared
+      - key: APP_URL           # the web app's address, used for links in alert emails
+        sync: false
+      - key: RESEND_API_KEY    # optional
+        sync: false
+      - key: ALERT_FROM_EMAIL  # optional
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
         sync: false

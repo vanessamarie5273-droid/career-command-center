@@ -6,7 +6,7 @@ import { hashPassword } from "@/lib/auth";
 import { rescoreAll } from "@/lib/ingest/run";
 
 export const PATCH = route("EDITOR", async (req, _c, u) => {
-  const b = z.object({ alertEmail: z.string().email().nullable().optional(), alertMinScore: z.union([z.number(), z.string()]).transform(Number).refine((n) => n >= 0 && n <= 100).optional(), name: z.string().max(100).nullable().optional() }).parse(await req.json());
+  const b = z.object({ alertEmail: z.string().email().nullable().optional(), alertMinScore: z.union([z.number(), z.string()]).transform(Number).refine((n) => n >= 0 && n <= 100).optional(), name: z.string().max(100).nullable().optional(), instantAlerts: z.boolean().optional() }).parse(await req.json());
   await prisma.user.update({ where: { id: u.sub }, data: b });
   return { ok: true };
 });

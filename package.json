@@ -15,6 +15,7 @@
     "job:ingest": "tsx scripts/ingest.ts",
     "job:briefing": "tsx scripts/briefing.ts",
     "job:daily": "tsx scripts/daily.ts",
+    "job:hourly": "tsx scripts/hourly.ts",
     "job:rescore": "tsx scripts/rescore.ts"
   },
   "dependencies": {

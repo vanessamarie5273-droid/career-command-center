@@ -1,5 +1,6 @@
 // Stroke icons (24×24 paths) shared by the sidebar, page headers, cards and tiles.
 export const ICONS = {
+  mail: "M3 6h18v12H3zM3 7l9 6 9-6",
   home: "M3 12l9-8 9 8v8a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z",
   briefcase: "M10 4h4a2 2 0 012 2v1h3a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h3V6a2 2 0 012-2zm0 3h4V6h-4z",
   building: "M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M8 8h3M8 12h3M8 16h3",

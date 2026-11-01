@@ -14,6 +14,7 @@ const KIND: Record<string, [IconName, string]> = {
   follow_up_due: ["clock", "bg-amber-500/15 text-amber-600"],
   interview: ["calendar", "bg-sky-500/10 text-sky-600"],
   integration_error: ["alert", "bg-rose-500/10 text-rose-600"],
+  email_update: ["mail", "bg-sky-500/10 text-sky-600"],
 };
 // "New 84-point match: <title> at <company>", as written by the job refresh.
 const MATCH = /^New (\d+)-point match: (.+) at (.+)$/;

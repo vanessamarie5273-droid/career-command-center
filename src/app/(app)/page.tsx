@@ -6,6 +6,8 @@ import { StageBars, WeeklyLine } from "@/components/Charts";
 import ApplicationSearch from "@/components/ApplicationSearch";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import { STAGES, STAGE_LABEL, ago, date, dateTime } from "@/lib/format";
+import { UndoEmail } from "@/components/MailWidgets";
+import { KIND_LABEL } from "@/lib/mail/sync";
 
 export const metadata = { title: "Command Center" };
 const table = (q: string) => `/applications?view=table${q ? `&${q}` : ""}`;
@@ -15,10 +17,13 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   const by: SearchBy = p.by && p.by in SEARCH_BY ? (p.by as SearchBy) : "company";
   const q = p.q?.trim() ?? "";
   const search = applicationSearch(by, q);
-  const [d, found] = await Promise.all([
+  const [d, found, inbox, mail] = await Promise.all([
     pipelineDashboard(prisma),
     search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: "desc" }, { updatedAt: "desc" }], take: 50 }) : null,
+    prisma.emailEvent.findMany({ where: { receivedAt: { gte: new Date(Date.now() - 14 * 86400_000) } }, orderBy: { receivedAt: "desc" }, take: 12 }),
+    prisma.mailAccount.findUnique({ where: { id: "outlook" }, select: { lastSyncAt: true } }),
   ]);
+  const inboxApps = inbox.length ? await prisma.application.findMany({ where: { id: { in: inbox.map((e) => e.applicationId!).filter(Boolean) } }, select: { id: true, title: true, company: { select: { name: true, logoUrl: true } } } }) : [];
   const t = d.tiles;
   // Stages in pipeline order, leaving out the ones with nothing in them.
   const stageData = STAGES.map(([k, l]) => ({ label: l, count: d.stages.find((s) => s.stage === k)?.count ?? 0, href: table(`stage=${k}`) })).filter((s) => s.count);
@@ -59,6 +64,22 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
           )}
         </Card>
       </div>
+
+      {(mail || inbox.length > 0) && (
+        <Card title="Inbox updates" icon="mail" tone="sky" className="mb-4" action={<span className="text-xs text-slate-500">From your Outlook, last 14 days{mail?.lastSyncAt ? ` · checked ${ago(mail.lastSyncAt)}` : ""}</span>}>
+          {inbox.length === 0 ? <Empty>No emails from companies you&apos;re in process with yet. Confirmations, recruiter replies, interview requests, offers and rejections show here and move the application for you.</Empty> : (
+            <ul className="space-y-0.5">{inbox.map((e) => {
+              const app = inboxApps.find((x) => x.id === e.applicationId);
+              return (
+                <li key={e.id} className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1"><ul><Item href={app ? `/applications/${app.id}` : undefined} company={app?.company} title={`${app?.company.name ?? e.fromEmail}: ${e.undone ? "undone" : e.action}`} detail={`${KIND_LABEL[e.kind as keyof typeof KIND_LABEL] ?? e.kind} from ${e.fromName ?? e.fromEmail} · “${e.subject}” · ${ago(e.receivedAt)}`} /></ul></div>
+                  {e.newStage && !e.undone && <UndoEmail id={e.id} />}
+                </li>
+              );
+            })}</ul>
+          )}
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4 mb-4 items-start">
         <Card title="Weekly activity" icon="trend" tone="emerald" className="lg:col-span-2" action={<span className="text-xs text-slate-500">Applications sent and stage moves, last 12 weeks</span>}><WeeklyLine data={d.weeks} /></Card>
