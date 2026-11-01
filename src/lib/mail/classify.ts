@@ -25,25 +25,30 @@ export const isFreemail = (d: string | null) => !!d && FREEMAIL.includes(d);
 /** A system sender rather than a person she could write back to. */
 export const isAutomated = (email: string) => /^(no-?reply|do-?not-?reply|donotreply|notifications?|mailer(-daemon)?|bounce|careers|jobs|recruiting|talent(acquisition)?|hr|apply|applications?|hiring|team|info|hello|support|system)([+._-].*)?@/i.test(email);
 
-const RULES: [EmailKind, RegExp][] = [
+const REJECTION: RegExp[] = [
   // Rejections first: they usually also thank her for applying.
-  ["rejection", /\b(regret to (inform|let you know)|(not|won'?t|will not) be (moving|proceeding|progressing) (forward|further)|decided (not )?to (move|moving) forward with (other|another)|(move|moving) forward with (other|another) candidates?|pursue (other|another) candidates?|decided to (pursue|proceed with) (other|another)|position has (been|now been) filled|no longer (under consideration|being considered|considering your)|not (been )?selected|other candidates (whose|who)|not a match for|(will|have decided to) not (be )?(move|moving) your (application|candidacy))/i],
-  ["rejection", /\bunfortunately\b[^.]{0,140}\b(not|other candidates?|another candidate|move forward|moving forward|pursue|filled|declin)/i],
-  ["offer", /\b(offer letter|pleased to (extend|offer you)|extend (you )?an? (formal |verbal )?offer|formal offer|verbal offer|offer of employment|your offer (details|package))\b/i],
-  ["interview", /\b(schedule (a|an|some|the) (time|call|interview|chat|conversation|meeting|screen)|interview (invitation|invite|request|with)|invite you to (an? |a virtual |our )?(interview|call|conversation|chat|onsite)|your availability|availability (for|to)|set up (a|an|some) (call|time|interview|chat)|book (a |some )?time|calendly\.com|goodtime\.io|cal\.com|next round|phone screen|recruiter screen|would (love|like) to (chat|connect|speak|talk|schedule)|next steps? in (the|our) (process|interview)|move (you )?forward (to|in|with) (the|our|an?) (next|interview)|times that work)\b/i],
-  ["confirmation", /\b(thank(s| you) for (applying|your application|submitting)|received your application|application (has been |was )?(received|submitted)|we('ve| have) received your|successfully (applied|submitted)|your application (for|to) .{0,80} (is|has been) (received|submitted|under review))\b/i],
+  /\b(regret to (inform|let you know)|(not|won'?t|will not) be (moving|proceeding|progressing) (forward|further)|decided (not )?to (move|moving) forward with (other|another)|(move|moving) forward with (other|another) candidates?|pursue (other|another) candidates?|decided to (pursue|proceed with) (other|another)|position has (been|now been) filled|no longer (under consideration|being considered|considering your)|not (been )?selected|other candidates (whose|who)|not a match for|(will|have decided to) not (be )?(move|moving) your (application|candidacy))/i,
+  /\bunfortunately\b[^.]{0,140}\b(not|other candidates?|another candidate|move forward|moving forward|pursue|filled|declin)/i,
 ];
+const OFFER = /\b(offer letter|pleased to (extend|offer you)|extend (you )?an? (formal |verbal )?offer|formal offer|verbal offer|offer of employment|your offer (details|package))\b/i;
+/** A real invitation: someone asking for her time now, or a scheduling link. */
+const INTERVIEW_NOW = /\b(invite you to (an? |a virtual |our )?(interview|call|conversation|chat|onsite|phone screen)|(share|send|provide|let (me|us) know) (me |us )?your availability|what('s| is) your availability|your availability (for|this|next|on)|times that work|calendly\.com|goodtime\.io|cal\.com\/|book (a |some )?time (with|on)|would (love|like) to (schedule|set up|chat|connect|speak|talk)|next round|move (you )?forward (to|in|with) (the|our|an?) (next|interview)|schedule (a|an|some) (call|time|interview|chat|conversation|screen) with (me|us|our|the)|interview (invitation|invite|request))\b/i;
+/** Interview words that also appear in confirmations ("if there's a fit, we'll reach out to schedule an interview"). */
+const INTERVIEW_MENTION = /\b(schedule (a|an|some|the) (time|call|interview|chat|conversation|meeting|screen)|set up (a|an|some) (call|time|interview|chat)|phone screen|recruiter screen|next steps? in (the|our) (process|interview))\b/i;
+const CONFIRMATION = /\b(thank(s| you) for (applying|your application|submitting|your interest)|received your application|application (has been |was )?(received|submitted)|we('ve| have) received your|successfully (applied|submitted)|your application (for|to) .{0,80} (is|has been) (received|submitted|under review))\b/i;
 
 /** Mentions of her application or a conversation about a role, for telling a recruiter's reply from other company mail. */
 const ABOUT_A_ROLE = /\b(application|applied|candidacy|position|role|opening|interview|resume|résumé|your background|your experience|opportunity|recruit|hiring|req\b)/i;
 
-/** The kind of email, or null when it is nothing she needs to act on (newsletters, product mail, etc.). */
+/** The kind of email, or null when it is nothing she needs to act on (newsletters, product mail, etc.).
+ *  Order matters: rejection, offer, a real interview invitation, confirmation, then softer interview mentions,
+ *  so "Thanks for applying, we'll reach out to schedule an interview if there's a fit" stays a confirmation. */
 export function classify(subject: string, text: string, from: { email: string; isPersonAtCompany: boolean }): { kind: EmailKind; why: string } | null {
   const hay = `${subject}\n${text.slice(0, 6000)}`;
-  for (const [kind, re] of RULES) {
-    const m = hay.match(re);
-    if (m) return { kind, why: m[0].replace(/\s+/g, " ").trim() };
-  }
+  const hit = (re: RegExp) => hay.match(re)?.[0].replace(/\s+/g, " ").trim();
+  for (const re of REJECTION) { const m = hit(re); if (m) return { kind: "rejection", why: m }; }
+  const order: [EmailKind, RegExp][] = [["offer", OFFER], ["interview", INTERVIEW_NOW], ["confirmation", CONFIRMATION], ["interview", INTERVIEW_MENTION]];
+  for (const [kind, re] of order) { const m = hit(re); if (m) return { kind, why: m }; }
   if (from.isPersonAtCompany && !isAutomated(from.email) && ABOUT_A_ROLE.test(hay)) return { kind: "reply", why: "a person at the company wrote to you about the role" };
   return null;
 }

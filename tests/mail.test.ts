@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { baseDomain, classify, nextStage, titleMatch } from "@/lib/mail/classify";
 import { seal, unseal } from "@/lib/mail/seal";
 import { connect, accessToken, mailbox, type Mailbox, type MailMessage } from "@/lib/mail/outlook";
-import { syncMailbox, undoEmailEvent, matchCompany } from "@/lib/mail/sync";
+import { syncMailbox, undoEmailEvent, matchCompany, repairEarlyReads } from "@/lib/mail/sync";
 import { splitOutreach } from "@/lib/outreach";
 import { testDb, makeCompany } from "./setup-db";
 
@@ -21,6 +21,11 @@ describe("reading company email", () => {
     expect(classify("Quick question", "Hi Vanessa, I saw your application for the West role and had a question about your background.", person)?.kind).toBe("reply");
     expect(classify("Acme product update", "Our new release ships today. Read the blog.", person)).toBeNull();
     expect(classify("Your application", "Thanks for applying!", { email: "careers@acme.com", isPersonAtCompany: true })?.kind).toBe("confirmation");
+    // A confirmation that mentions interviews later is still a confirmation.
+    expect(classify("Thank you for applying to Databricks!", "Our team will review your application. If your background is a fit, a recruiter will reach out to schedule a call.", system)?.kind).toBe("confirmation");
+    expect(classify("Thank you for applying to Senior Manager, Enterprise Sales Development at Commure", "We will be in touch about next steps in the process.", system)?.kind).toBe("confirmation");
+    // A real invitation still wins, even with a thank-you.
+    expect(classify("Thanks for applying!", "We'd like to schedule a call with our hiring manager. Book a time on calendly.com/acme/30min", system)?.kind).toBe("interview");
     // "Unfortunately" about something else is not a rejection.
     expect(classify("Re: call", "Unfortunately I'm out Friday, could we schedule a call Monday? Send me times that work.", person)?.kind).toBe("interview");
   });
@@ -124,6 +129,32 @@ describe("Outlook sync", () => {
     const r = await syncMailbox(db, { box: fakeBox([msg("m4", { fromEmail: "news@brightwell.com", fromName: "Brightwell", subject: "Our Q3 product launch" }), msg("m5", { fromEmail: "vanessa@outlook.com", subject: "Brightwell application" })], { m4: "Join our webinar." }) });
     expect(r).toMatchObject({ matched: 0 });
   });
+
+  it("names the email, not a no-reply address, when an automated system asks for availability", async () => {
+    const { app } = await appAt("Pellucid", "https://pellucid.ai", "APPLIED");
+    await syncMailbox(db, { box: fakeBox([msg("m6", { fromEmail: "no-reply@ashbyhq.com", fromName: "Pellucid Recruiting", subject: "Pellucid: interview invitation" })], { m6: "We'd like to invite you to an interview. Share your availability here." }) });
+    const a = await db.application.findUniqueOrThrow({ where: { id: app.id } });
+    expect(a.stage).toBe("RECRUITER_CONTACT");
+    expect(a.nextAction).toBe("Answer the Pellucid scheduling email (“Pellucid: interview invitation”)");
+  });
+
+  it("repairs confirmations the first rules read as interview requests, once", async () => {
+    await db.integrationStatus.deleteMany({ where: { id: "mail_rules_v2" } });
+    const { app } = await appAt("Kestrelon", "https://kestrelon.com", "APPLIED");
+    await moveStageForTest(app.id);
+    const ev = await db.emailEvent.create({ data: { providerId: `old-${Math.random()}`, threadId: "t", applicationId: app.id, fromEmail: "no-reply@us.greenhouse-mail.io", subject: "Thank you for applying to Kestrelon!", snippet: "We will reach out to schedule an interview if there's a fit.", receivedAt: new Date(), kind: "interview", action: "Moved to Recruiter Contact", prevStage: "APPLIED", newStage: "RECRUITER_CONTACT", prevApplied: true, createdAt: new Date(Date.now() - 3600_000) } });
+    const real = await db.emailEvent.create({ data: { providerId: `old-${Math.random()}`, threadId: "t", applicationId: app.id, fromEmail: "sam@kestrelon.com", subject: "Interview with Kestrelon", snippet: "Could you share your availability for next week?", receivedAt: new Date(), kind: "interview", createdAt: new Date(Date.now() - 3600_000) } });
+    expect(await repairEarlyReads(db)).toBe(1);
+    const a = await db.application.findUniqueOrThrow({ where: { id: app.id } });
+    expect(a).toMatchObject({ stage: "APPLIED", nextAction: null });
+    expect(await db.emailEvent.findUniqueOrThrow({ where: { id: ev.id } })).toMatchObject({ kind: "confirmation", undone: true });
+    expect((await db.emailEvent.findUniqueOrThrow({ where: { id: real.id } })).kind).toBe("interview");
+    expect(await repairEarlyReads(db)).toBe(0);
+  });
+
+  async function moveStageForTest(id: string) {
+    await db.application.update({ where: { id }, data: { stage: "RECRUITER_CONTACT", nextAction: "Reply to no-reply@us.greenhouse-mail.io with your availability" } });
+  }
 
   it("connects with Microsoft sign-in, stores sealed tokens, and saves the rotated refresh token", async () => {
     process.env.MICROSOFT_CLIENT_ID = "cid"; process.env.MICROSOFT_CLIENT_SECRET = "secret";
