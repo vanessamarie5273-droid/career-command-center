@@ -17,7 +17,7 @@ export default async function Documents() {
   const groups = Object.keys(KIND_LABEL).map((k) => [k, docs.filter((d) => d.kind === k)] as const).filter(([, v]) => v.length);
   return (
     <>
-      <PageHeader title="Resume Library" sub={`${unique} unique resume${unique === 1 ? "" : "s"} · ${docs.length} documents. Files are stored privately in your database; text is extracted for ATS checks and job matching. Resumes and letters from an Application Kit stay with their company and application.`} />
+      <PageHeader title="Resume Library" sub={`${unique} resume${unique === 1 ? "" : "s"} · ${docs.length} documents`} />
       <Card title="Upload" className="mb-4"><UploadDocument /></Card>
       {groups.length === 0 ? <Empty>No documents yet. Upload your resume to enable ATS checks, job matching and submission tracking.</Empty> : groups.map(([k, list]) => (
         <Card key={k} title={KIND_LABEL[k]} className="mb-4">

@@ -21,7 +21,7 @@ export default async function ApplyPage() {
   const rows = saved.flatMap((a) => (a.job ? [{ app: a, j: a.job }] : [])).sort((x, y) => (effectiveScore(y.j) ?? 0) - (effectiveScore(x.j) ?? 0));
   return (
     <>
-      <PageHeader title="Ready to Apply" sub="Roles you saved from Discover Jobs. Build the kit, open the employer's form, paste your materials and submit it yourself, then click I applied: it moves to My Applications with your resume and letter attached, and the follow-ups are booked." />
+      <PageHeader title="Ready to Apply" />
       <div className="space-y-4">
         {rows.length === 0 ? <Empty>Nothing saved yet. In <Link className="link" href="/jobs">Discover Jobs</Link>, click Save on a role you want to apply to and it moves here.</Empty> : rows.map(({ app, j }) => {
           const kit = j.kits[0];

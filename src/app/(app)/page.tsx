@@ -36,30 +36,30 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
     <>
       <PageHeader title="Command Center" actions={<Link href="/applications" className="btn-ghost">All applications →</Link>}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
-          <HeroStat label="Active processes" value={t.active} href={table("active=1")} sub="recruiter to final round" icon="flame" highlight />
+          <HeroStat label="Active processes" value={t.active} href={table("active=1")} icon="flame" highlight />
           <HeroStat label="Applied" value={t.applied} href={table("applied=1")} icon="send" />
-          <HeroStat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} sub="of applications sent" icon="trend" />
+          <HeroStat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
           <HeroStat label="Interviews scheduled" value={t.interviews} href={table("interviews=1")} icon="calendar" />
           <HeroStat label="Offers" value={t.offers} href={table("stage=OFFER")} icon="trophy" />
           <HeroStat label="Follow-ups due" value={t.followUps} href={table("followup=1")} icon="clock" />
-          <HeroStat label="Ready to apply" value={t.readyToApply} href="/apply" sub="saved, not yet sent" icon="check" />
+          <HeroStat label="Ready to apply" value={t.readyToApply} href="/apply" icon="check" />
         </div>
         <div className="hero-search mt-4"><ApplicationSearch by={by} q={q} /></div>
       </PageHeader>
 
       {found && (
-        <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} sub="Change the stage, next action or due date right here, or open one for everything else." icon="search" className="mb-4" action={<Link href="/" className="text-xs link">Clear search</Link>}>
+        <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} icon="search" className="mb-3" action={<Link href="/" className="text-xs link">Clear search</Link>}>
           {found.length ? <ApplicationsTable apps={found} /> : <Empty>No application matches. {by === "date" ? "Only applications marked applied have a date applied." : "Try part of the name."}</Empty>}
         </Card>
       )}
 
       <Pipeline f={d.funnel} />
 
-      <div className="mb-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+      <div className="mb-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-5">
         <Card title={<Count n={todo.items.length + todo.nudges.length}>Your next moves</Count>} icon="clock" tone="amber" className="lg:col-span-3">
           <NextMoves items={todo.items} nudges={todo.nudges} />
         </Card>
-        <div className="flex flex-col gap-4 lg:col-span-2">
+        <div className="flex flex-col gap-3 lg:col-span-2">
           <Card title={<Count n={changes.items.length}>What changed</Count>} icon="arrows" tone="violet">
             <Changes items={changes.items} logged={changes.logged} outlook={!!mail} checked={mail?.lastSyncAt ?? null} />
           </Card>
@@ -81,7 +81,7 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
   const max = Math.max(1, ...f.stages.map((s) => s.count));
   const closed = f.closed.filter((c) => c.count);
   return (
-    <Card title="Pipeline" icon="board" className="mb-4">
+    <Card title="Pipeline" icon="board" className="mb-3">
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <ol className="grid min-w-[860px] grid-cols-8 gap-2.5">
           {f.stages.map((s, i) => {

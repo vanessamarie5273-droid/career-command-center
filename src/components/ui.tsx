@@ -35,7 +35,7 @@ export function Card({ title, sub, action, icon, tone = "navy", children, classN
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className={flush ? "" : title ? "px-5 pb-5" : "p-5"}>{children}</div>
+      <div className={flush ? "" : title ? "px-4 pb-4" : "p-4"}>{children}</div>
     </section>
   );
 }
@@ -43,8 +43,8 @@ export function Card({ title, sub, action, icon, tone = "navy", children, classN
 /** A heading that groups the cards under it, so a page reads as a few sections instead of a wall of boxes. */
 export function Section({ title, sub, action, children, className = "" }: { title: ReactNode; sub?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`mb-8 ${className}`}>
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+    <section className={`mb-4 ${className}`}>
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
         <div><h2 className="text-lg font-semibold tracking-tight text-navy-950">{title}</h2>{sub && <p className="text-sm text-slate-500">{sub}</p>}</div>
         {action}
       </div>
@@ -128,16 +128,16 @@ export function ApplyLink({ url, label = "Open posting" }: { url: string; label?
 /** Banner at the top of each page. `children` holds an optional row of headline numbers (HeroStat). */
 export function PageHeader({ title, sub, actions, icon, children }: { title: string; sub?: ReactNode; actions?: ReactNode; icon?: IconName; children?: ReactNode }) {
   return (
-    <div className="hero mb-6">
+    <div className="hero mb-4">
       <svg className="pointer-events-none absolute -right-10 -top-16 h-72 w-72 text-gold-500/[0.12]" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="99" fill="none" stroke="currentColor" strokeWidth="1.5" /><circle cx="100" cy="100" r="70" fill="none" stroke="currentColor" strokeWidth="1.5" /><circle cx="100" cy="100" r="41" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
       <div className="relative flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 flex-1 basis-96 items-center gap-4">
-          <span className="hidden sm:inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/[0.08] text-gold-400 ring-1 ring-white/15"><Icon name={icon ?? iconForTitle(title)} size={24} /></span>
+          <span className="hidden sm:inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.08] text-gold-400 ring-1 ring-white/15"><Icon name={icon ?? iconForTitle(title)} size={21} /></span>
           <div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight text-white">{title}</h1>{sub && <p className="mt-1 max-w-4xl text-sm text-white/65">{sub}</p>}</div>
         </div>
-        {actions && <div className="hero-actions flex shrink-0 flex-wrap gap-2">{actions}</div>}
+        {actions && <div className="hero-actions flex min-w-0 flex-wrap gap-2">{actions}</div>}
       </div>
-      {children && <div className="relative mt-5">{children}</div>}
+      {children && <div className="relative mt-4">{children}</div>}
     </div>
   );
 }
@@ -145,9 +145,9 @@ export function PageHeader({ title, sub, actions, icon, children }: { title: str
 /** One headline number inside a PageHeader. Links when `href` is set. */
 export function HeroStat({ label, value, sub, href, icon, highlight }: { label: string; value: ReactNode; sub?: ReactNode; href?: string; icon?: IconName; highlight?: boolean }) {
   const inner = (
-    <div className={`h-full rounded-xl px-4 py-3 ring-1 transition ${highlight ? "bg-gold-500/15 ring-gold-400/40" : "bg-white/[0.06] ring-white/10"} ${href ? "hover:bg-white/[0.12]" : ""}`}>
-      <div className="flex items-center gap-1.5 text-[11.5px] font-medium text-white/60">{icon && <Icon name={icon} size={13} className="text-gold-400" />}{label}</div>
-      <div className="mt-1 text-2xl font-semibold leading-tight tabular-nums text-white">{value}</div>
+    <div className={`h-full rounded-xl px-3.5 py-2.5 ring-1 transition ${highlight ? "bg-gold-500/15 ring-gold-400/40" : "bg-white/[0.06] ring-white/10"} ${href ? "hover:bg-white/[0.12]" : ""}`}>
+      <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-white/70">{icon && <Icon name={icon} size={14} className="text-gold-400" />}{label}</div>
+      <div className="mt-0.5 text-[28px] font-semibold leading-tight tabular-nums text-white">{value}</div>
       {sub && <div className="text-[11.5px] text-white/50">{sub}</div>}
     </div>
   );

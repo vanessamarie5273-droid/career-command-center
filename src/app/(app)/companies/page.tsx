@@ -28,12 +28,12 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const sortLink = (k: string, l: string) => <Link href={`/companies?${new URLSearchParams({ ...p, sort: k } as Record<string, string>)}`} className={sort === k ? "text-navy-900 underline" : ""}>{l}</Link>;
   return (
     <>
-      <PageHeader title="Company Intelligence" sub={`${rows.length} companies. Company attractiveness is ranked separately from whether a suitable role is open today.`} actions={<Link href="/companies/new" className="btn-primary">+ Add company</Link>} />
-      <form className="card p-3 mb-3 grid grid-cols-2 md:grid-cols-6 gap-2 items-end" action="/companies">
-        <div className="col-span-2"><label className="label">Search</label><input name="q" defaultValue={p.q} className="input" placeholder="Name, product, description" /></div>
-        <div><label className="label">Industry</label><select name="category" defaultValue={p.category ?? ""} className="input"><option value="">All</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div><label className="label">Ownership</label><select name="ownership" defaultValue={p.ownership ?? ""} className="input"><option value="">All</option><option value="public">Public</option><option value="private">Private / subsidiary</option></select></div>
-        <div><label className="label">Suitable openings</label><select name="openings" defaultValue={p.openings ?? ""} className="input"><option value="">Any</option><option value="some">Has open matches</option><option value="none">None right now (monitor)</option></select></div>
+      <PageHeader title="Company Intelligence" actions={<Link href="/companies/new" className="btn-primary">+ Add company</Link>} />
+      <form className="card p-3 mb-3 grid grid-cols-2 md:grid-cols-6 gap-2 items-center" action="/companies">
+        <div className="col-span-2"><input name="q" defaultValue={p.q} className="input" placeholder="Search" aria-label="Search name, product or description" /></div>
+        <div><select name="category" aria-label="Industry" defaultValue={p.category ?? ""} className="input"><option value="">All industries</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+        <div><select name="ownership" aria-label="Ownership" defaultValue={p.ownership ?? ""} className="input"><option value="">Any ownership</option><option value="public">Public</option><option value="private">Private / subsidiary</option></select></div>
+        <div><select name="openings" aria-label="Suitable openings" defaultValue={p.openings ?? ""} className="input"><option value="">Any openings</option><option value="some">Has open matches</option><option value="none">None right now (monitor)</option></select></div>
         <div className="flex items-center gap-3"><label className="text-sm flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Filter</button></div>
         <input type="hidden" name="sort" value={sort} />
       </form>

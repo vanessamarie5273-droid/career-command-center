@@ -13,9 +13,9 @@ input[type="range"] { accent-color: #c4a254; }
 
 @layer components {
   .card { @apply bg-white rounded-2xl ring-1 ring-slate-900/[0.06] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_30px_-18px_rgba(15,23,42,0.25)]; }
-  .card-h { @apply px-5 pt-4 pb-3 flex items-center justify-between gap-3; }
+  .card-h { @apply px-4 pt-3.5 pb-2.5 flex items-center justify-between gap-3; }
   .card-t { @apply text-[16.5px] font-semibold tracking-tight text-navy-950 truncate; }
-  .hero { @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 px-5 py-5 lg:px-7 text-white shadow-[0_18px_40px_-24px_rgba(6,13,31,0.8)]; }
+  .hero { @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 px-4 py-4 lg:px-5 text-white shadow-[0_18px_40px_-24px_rgba(6,13,31,0.8)]; }
   .hero-search .input { @apply border-white/15 bg-white/[0.08] text-white placeholder:text-white/40 focus:bg-white/[0.12]; }
   .hero-search select.input option { @apply text-navy-950; }
   .hero-search .btn-primary, .hero-actions .btn-primary { @apply bg-none bg-gold-500 text-navy-950 hover:bg-gold-400; }
