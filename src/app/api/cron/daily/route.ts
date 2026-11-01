@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { runIngestion, rescoreAll } from "@/lib/ingest/run";
 import { generateAndSendBriefing } from "@/lib/briefing";
+import { syncMailbox } from "@/lib/mail/sync";
 
 export const maxDuration = 800;
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ async function handle(req: Request) {
   if (!authorized(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const r = await runIngestion(prisma, { trigger: "cron" });
   await rescoreAll(prisma);
+  await syncMailbox(prisma).catch((e) => console.error("Outlook sync", e));
   const b = await generateAndSendBriefing(prisma);
   return Response.json({ ingestion: { status: r.status, created: r.created, updated: r.updated, closed: r.closed, errors: r.errors }, briefing: { id: b.id, email: b.emailStatus } });
 }

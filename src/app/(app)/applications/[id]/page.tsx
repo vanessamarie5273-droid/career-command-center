@@ -9,6 +9,11 @@ import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import { TaskList, NoteForm, TouchForm, AttachDocument, DeleteApplication } from "@/components/CrmWidgets";
 import InterviewPrep, { type PrepRow } from "@/components/InterviewPrep";
 import { assistantConfigured } from "@/lib/assistant";
+import FollowUpEmails from "@/components/FollowUpEmails";
+import { UndoEmail } from "@/components/MailWidgets";
+import { outreachPlan } from "@/lib/outreach";
+import { outlookConfigured } from "@/lib/mail/outlook";
+import { KIND_LABEL } from "@/lib/mail/sync";
 
 export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,13 +22,17 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     include: { company: { include: { contacts: true } }, job: true, tasks: { orderBy: [{ done: "asc" }, { dueAt: "asc" }] }, activities: { orderBy: { at: "desc" } }, touches: { include: { contact: true }, orderBy: { sentAt: "desc" } }, documents: { select: { id: true, name: true, kind: true, version: true } }, stageHistory: { orderBy: { at: "desc" } } },
   });
   if (!a) notFound();
-  const [all, kitDocs, jobDocs, audit, preps] = await Promise.all([
+  const [all, kitDocs, jobDocs, audit, preps, plan, emails, mail] = await Promise.all([
     prisma.document.findMany({ select: { id: true, name: true, kind: true, version: true }, orderBy: { createdAt: "desc" } }),
     kitDocIds(prisma),
     a.jobId ? kitDocIds(prisma, { jobId: a.jobId }) : new Set<string>(),
     prisma.auditLog.findMany({ where: { entity: "Application", entityId: id }, orderBy: { at: "desc" }, take: 40 }),
     prisma.interviewPrep.findMany({ where: { applicationId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
+    outreachPlan(prisma, id),
+    prisma.emailEvent.findMany({ where: { applicationId: id }, orderBy: { receivedAt: "desc" }, take: 20 }),
+    prisma.mailAccount.findUnique({ where: { id: "outlook" }, select: { id: true } }),
   ]);
+  const outlook = !!mail && outlookConfigured();
   // Your library plus this job's kit documents; other companies' kit documents stay out of the lists.
   const docs = libraryOnly(all, kitDocs, [...jobDocs, a.resumeId, a.coverLetterId]);
   const ep = `/api/applications/${a.id}`;
@@ -79,7 +88,20 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
               <TouchForm applicationId={a.id} contacts={a.company.contacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName ?? ""}`.trim() }))} />
             </div>
           </Card>
-          <InterviewPrep applicationId={a.id} preps={JSON.parse(JSON.stringify(preps)) as PrepRow[]} configured={assistantConfigured()} />
+          <FollowUpEmails plan={plan} outlook={outlook} ai={assistantConfigured()} />
+          {emails.length > 0 && (
+            <Card title="Emails from the company" icon="mail" sub="Read from your Outlook">
+              <ul className="space-y-2 text-sm">{emails.map((e) => (
+                <li key={e.id} className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate"><b>{e.fromName ?? e.fromEmail}</b> · {e.subject}</div>
+                    <div className="text-xs text-slate-500">{dateTime(e.receivedAt)} · {KIND_LABEL[e.kind as keyof typeof KIND_LABEL] ?? e.kind} · {e.undone ? <s>{e.action}</s> : e.action}{e.undone ? " (undone)" : ""}</div>
+                  </div>
+                  {e.newStage && !e.undone && <UndoEmail id={e.id} />}
+                </li>))}</ul>
+            </Card>
+          )}
+          <InterviewPrep applicationId={a.id} preps={JSON.parse(JSON.stringify(preps)) as PrepRow[]} configured={assistantConfigured()} outlook={outlook} />
           <Card title="Interview notes"><AutoField endpoint={ep} field="interviewNotes" type="textarea" rows={6} value={a.interviewNotes} placeholder="Who you met, questions asked, signals, next steps" /></Card>
           <Card title="Notes & activity">
             <NoteForm applicationId={a.id} />

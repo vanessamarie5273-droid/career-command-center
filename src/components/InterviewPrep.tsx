@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { MOCK_FINISH, MOCK_OPENER, PERSONAS, PERSONA_LABEL, type MockMessage, type Persona } from "@/lib/personas";
 import { dateTime } from "@/lib/format";
+import { DraftButton } from "@/components/MailWidgets";
 
 export type PrepRow = { id: string; kind: "prep" | "mock" | "followup"; persona: Persona; input: string | null; output: string | null; messages: MockMessage[] | null; createdAt: string };
 
 const KIND_LABEL = { prep: "Prep sheet", mock: "Mock interview", followup: "Follow-up" } as const;
 
-export default function InterviewPrep({ applicationId, preps: initial, configured }: { applicationId: string; preps: PrepRow[]; configured: boolean }) {
+export default function InterviewPrep({ applicationId, preps: initial, configured, outlook = false }: { applicationId: string; preps: PrepRow[]; configured: boolean; outlook?: boolean }) {
   const [preps, setPreps] = useState(initial);
   const [openId, setOpenId] = useState(initial[0]?.id ?? "");
   const [persona, setPersona] = useState<Persona>("hiring_manager");
@@ -66,7 +67,10 @@ export default function InterviewPrep({ applicationId, preps: initial, configure
           <div className="space-y-2">
             {open.input && <details><summary className="cursor-pointer text-xs text-slate-500">Your notes</summary><pre className="mt-1 whitespace-pre-wrap font-sans text-xs text-slate-600">{open.input}</pre></details>}
             <pre className="max-h-[620px] overflow-auto rounded-lg bg-slate-50 p-4 text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{open.output}</pre>
-            <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(open.output ?? "")}>Copy</button>
+            <div className="flex flex-wrap items-start gap-2">
+              <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(open.output ?? "")}>Copy</button>
+              {open.kind === "followup" && outlook && <DraftButton key={open.id} applicationId={applicationId} kind="interview_followup" prepId={open.id} label="Save to Outlook drafts" />}
+            </div>
           </div>
         )}
         {open?.kind === "mock" && (

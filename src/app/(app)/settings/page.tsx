@@ -10,24 +10,33 @@ import { WEIGHTS, CRITERION_LABEL, type Criterion } from "@/lib/scoring";
 import { emailConfigured } from "@/lib/email";
 import { assistantConfigured, MODEL } from "@/lib/assistant";
 import { dateTime } from "@/lib/format";
+import { outlookConfigured } from "@/lib/mail/outlook";
+import { OutlookControls } from "@/components/MailWidgets";
 
 export const metadata = { title: "Settings & Integrations" };
 
-export default async function Settings() {
+export default async function Settings({ searchParams }: { searchParams: Promise<{ outlook?: string; outlook_error?: string; note?: string }> }) {
   const s = await getSession();
-  const [user, statuses, feeds, lastRun] = await Promise.all([
+  const sp = await searchParams;
+  const [user, statuses, feeds, lastRun, mail, emailCount, lastHourly] = await Promise.all([
     prisma.user.findUnique({ where: { id: s!.sub } }),
     prisma.integrationStatus.findMany(),
     prisma.company.findMany({ select: { id: true, name: true, atsProvider: true, atsToken: true, atsStatus: true, atsError: true, atsCheckedAt: true, totalOpenings: true, careersUrl: true }, orderBy: [{ atsStatus: "asc" }, { name: "asc" }] }),
     prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } }),
+    prisma.mailAccount.findUnique({ where: { id: "outlook" } }),
+    prisma.emailEvent.count(),
+    prisma.ingestionRun.findFirst({ where: { trigger: "hourly" }, orderBy: { startedAt: "desc" } }),
   ]);
+  const outlookOk = !!mail && outlookConfigured();
   const st = (id: string) => statuses.find((x) => x.id === id);
   const byStatus = (k: string) => feeds.filter((f) => (f.atsStatus ?? "pending") === k).length;
   const integrations = [
     { name: "Database (PostgreSQL)", status: "connected", detail: "Persistent storage for all records and files", action: null },
     ...["greenhouse", "lever", "ashby", "smartrecruiters", "workday"].map((id) => ({ name: `${id[0].toUpperCase()}${id.slice(1)} job boards`, status: st(id)?.status ?? "not_configured", detail: st(id)?.detail ?? "Public first-party job board API; no credentials needed", action: null })),
     { name: "Scheduled daily refresh", status: lastRun && lastRun.startedAt > new Date(Date.now() - 36 * 3600_000) ? "connected" : "not_configured", detail: lastRun ? `Last run ${dateTime(lastRun.startedAt)} (${lastRun.trigger}, ${lastRun.status})` : "No run yet", action: "Configured as a cron job on the host (see SETUP.md)" },
-    { name: "Email alerts (Resend)", status: emailConfigured() ? st("email")?.status === "error" ? "error" : "connected" : "not_configured", detail: emailConfigured() ? st("email")?.detail ?? "Configured" : "Set RESEND_API_KEY and ALERT_FROM_EMAIL", action: emailConfigured() ? null : "Create a free Resend account and verify a sending domain" },
+    { name: "Outlook (job inbox)", status: !outlookConfigured() ? "not_configured" : !mail ? "not_configured" : mail.status === "error" ? "error" : "connected", detail: !outlookConfigured() ? "Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET" : mail ? `${mail.email} · ${mail.lastSyncNote ?? "connected"}` : "Not connected", action: !outlookConfigured() ? "Register the app with Microsoft (SETUP.md, Connect Outlook)" : !mail || mail.status === "error" ? "Connect Outlook below" : null },
+    { name: "Instant job alerts", status: !user?.instantAlerts ? "not_configured" : lastHourly && lastHourly.startedAt > new Date(Date.now() - 18 * 3600_000) ? "connected" : "degraded", detail: user?.instantAlerts ? `Hourly 7 AM–9 PM Arizona for new roles scoring ${user.alertMinScore}+ · ${lastHourly ? `last hourly run ${dateTime(lastHourly.startedAt)} (${lastHourly.status})` : "no hourly run yet"}` : "Off: new roles wait for the morning briefing", action: user?.instantAlerts && !lastHourly ? "Runs from the ccc-hourly cron job (see SETUP.md)" : null },
+    { name: "Email alerts (Resend)", status: emailConfigured() ? st("email")?.status === "error" ? "error" : "connected" : outlookOk ? "connected" : "not_configured", detail: emailConfigured() ? st("email")?.detail ?? "Configured" : outlookOk ? `Not needed: alerts and the briefing are sent from your Outlook (${mail!.email})` : "Set RESEND_API_KEY and ALERT_FROM_EMAIL, or connect Outlook", action: emailConfigured() || outlookOk ? null : "Connect Outlook below" },
     { name: "AI assistant (Anthropic)", status: assistantConfigured() ? st("anthropic")?.status ?? "connected" : "not_configured", detail: assistantConfigured() ? `${MODEL} · ${st("anthropic")?.detail ?? "ready"}` : "Set ANTHROPIC_API_KEY", action: assistantConfigured() ? null : "Create an API key at console.anthropic.com" },
     { name: "LinkedIn", status: st("linkedin")?.status === "connected" ? "connected" : "degraded", detail: st("linkedin")?.status === "connected" ? st("linkedin")!.detail : "Limited by LinkedIn's API policy: connections via official CSV export; profile and company links open in your browser", action: "Import Connections.csv in Network & Contacts" },
     { name: "Mobile notifications", status: "not_configured", detail: "Install the site to your phone's home screen; email alerts reach your phone today", action: null },
@@ -45,10 +54,25 @@ export default async function Settings() {
           <div className="space-y-3">
             <AutoField endpoint="/api/settings" field="alertEmail" label="Briefing & alert email" value={user?.alertEmail} />
             <AutoField endpoint="/api/settings" field="alertMinScore" type="number" label="Alert me for new jobs scoring at least" value={user?.alertMinScore} />
-            <p className="text-xs text-slate-500">The briefing is generated after each daily refresh from the refreshed records.</p>
+            <AutoField endpoint="/api/settings" field="instantAlerts" type="checkbox" label="Email me within the hour when a role at or above that score is posted" value={user?.instantAlerts} />
+            <p className="text-xs text-slate-500">Feeds refresh every hour from 7 AM to 9 PM Arizona. Roles found overnight are in the 6 AM briefing.</p>
           </div>
         </Card>
       </div>
+      <div id="outlook" className="scroll-mt-20" />
+      <Card title="Outlook (your job inbox)" icon="mail" tone="sky" className="mb-4" action={mail ? <span className="text-xs text-slate-500">{mail.email}</span> : null}>
+        {sp.outlook === "connected" && <p className="mb-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Outlook connected. {sp.note}</p>}
+        {sp.outlook_error && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{sp.outlook_error}</p>}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 text-sm text-slate-700 space-y-1.5">
+            <p>When a company you&apos;re in process with emails you, the app reads it and moves the application: confirmation → Applied, a recruiter reply or interview request → Recruiter contact or Interviewing, an offer → Offer, a rejection → Rejected. Each move shows on the Command Center with an Undo.</p>
+            <p>People who write to you are saved as contacts, and follow-ups you draft from an application go to your Outlook Drafts, as replies in the recruiter&apos;s thread when there is one. Nothing is ever sent for you: you review and send every email. The only emails the app sends are your own alerts, to you.</p>
+            {mail && <p className="text-xs text-slate-500">Last check: {mail.lastSyncAt ? dateTime(mail.lastSyncAt) : "never"}{mail.lastSyncNote ? ` · ${mail.lastSyncNote}` : ""} · {emailCount} company emails read so far. Checked every hour with the job feeds.</p>}
+            {mail?.status === "error" && <p className="text-xs text-red-700">Microsoft sign-in needs renewing: click Reconnect.</p>}
+          </div>
+          <div>{outlookConfigured() ? <OutlookControls connected={!!mail} /> : <p className="text-xs text-slate-600">One-time setup first: register the Command Center with Microsoft and add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to Render. Steps are in SETUP.md under “Connect Outlook”.</p>}</div>
+        </div>
+      </Card>
       <Card title={`Job feeds by company · ${byStatus("ok")} live · ${byStatus("error")} errors · ${byStatus("not_found")} no public board · ${byStatus("unsupported")} careers-site only · ${byStatus("pending")} pending`} className="mb-4" action={<RefreshButton />}>
         <div className="max-h-[420px] overflow-auto"><table className="tbl"><thead><tr><th>Company</th><th>Provider</th><th>Status</th><th>Openings</th><th>Checked</th><th>Error / note</th></tr></thead>
           <tbody>{feeds.map((f) => <tr key={f.id}><td><Link className="link" href={`/companies/${f.id}`}>{f.name}</Link></td><td className="text-xs">{f.atsProvider === "NONE" ? "—" : `${f.atsProvider.toLowerCase()} · ${f.atsToken}`}</td><td className="text-xs whitespace-nowrap"><StatusDot status={f.atsStatus} /> {f.atsStatus ?? "pending"}</td><td>{f.totalOpenings ?? "—"}</td><td className="text-xs whitespace-nowrap">{dateTime(f.atsCheckedAt)}</td><td className="text-xs text-slate-500 max-w-md">{f.atsError}{(f.atsStatus === "not_found" || f.atsStatus === "unsupported") && f.careersUrl && <> · <a className="link" href={f.careersUrl} target="_blank" rel="noopener noreferrer">check careers site ↗</a></>}</td></tr>)}</tbody>

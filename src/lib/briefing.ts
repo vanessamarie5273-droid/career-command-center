@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { sendEmail } from "./email";
+import { alertAddress, deliver } from "./notify";
 import { effectiveScore, effectiveTier } from "./scoring";
 import { companyCap } from "./companyCap";
 import { FEED_CATEGORIES, NOT_APPLIED } from "./queries";
@@ -72,14 +72,14 @@ export function briefingHtml(b: BriefingContent) {
 export async function generateAndSendBriefing(db: PrismaClient) {
   const content = await buildBriefing(db);
   const lastRun = await db.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } });
-  const user = await db.user.findFirst({ orderBy: { createdAt: "asc" } });
-  const to = user?.alertEmail || user?.email;
+  const { to } = await alertAddress(db);
   let emailStatus = "not_sent";
   if (to) {
-    const r = await sendEmail(to, `Morning briefing: ${content.newJobs.length} new matches, ${content.tier1.length} Tier 1`, briefingHtml(content));
+    const r = await deliver(db, to, `Morning briefing: ${content.newJobs.length} new matches, ${content.tier1.length} Tier 1`, briefingHtml(content));
     emailStatus = r.detail;
-    await db.integrationStatus.upsert({ where: { id: "email" }, create: { id: "email", name: "Email (Resend)", status: r.ok ? "connected" : r.detail.includes("not configured") ? "not_configured" : "error", detail: r.detail }, update: { status: r.ok ? "connected" : r.detail.includes("not configured") ? "not_configured" : "error", detail: r.detail, checkedAt: new Date() } });
   }
+  // Roles in the briefing have been seen, so the hourly alerts don't send them again.
+  if (content.newJobs.length) await db.job.updateMany({ where: { id: { in: content.newJobs.map((j) => j.id) }, alertedAt: null }, data: { alertedAt: new Date() } });
   return db.briefing.create({ data: { content, basedOnRun: lastRun?.id, emailedTo: to, emailStatus } });
 }
 
