@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { baseDomain, classify, nextStage, titleMatch } from "@/lib/mail/classify";
 import { seal, unseal } from "@/lib/mail/seal";
 import { connect, accessToken, mailbox, type Mailbox, type MailMessage } from "@/lib/mail/outlook";
-import { syncMailbox, undoEmailEvent, matchCompany, repairEarlyReads } from "@/lib/mail/sync";
+import { syncMailbox, undoEmailEvent, matchCompany, repairEarlyReads, clearStaleAlerts } from "@/lib/mail/sync";
 import { splitOutreach } from "@/lib/outreach";
 import { testDb, makeCompany } from "./setup-db";
 
@@ -110,7 +110,10 @@ describe("Outlook sync", () => {
     expect((await db.application.findUniqueOrThrow({ where: { id: app.id } })).stage).toBe("REJECTED");
     const ev = await db.emailEvent.findUniqueOrThrow({ where: { providerId: "m2" } });
     expect(ev).toMatchObject({ kind: "rejection", prevStage: "APPLIED", newStage: "REJECTED" });
+    const alertWhere = { kind: "email_update", link: `/applications/${app.id}` };
+    expect(await db.alert.count({ where: alertWhere })).toBe(1);
     await undoEmailEvent(db, ev.id);
+    expect(await db.alert.count({ where: alertWhere })).toBe(0);
     const back = await db.application.findUniqueOrThrow({ where: { id: app.id } });
     expect(back).toMatchObject({ stage: "APPLIED", outcome: null });
     expect((await db.emailEvent.findUniqueOrThrow({ where: { id: ev.id } })).undone).toBe(true);
@@ -150,6 +153,16 @@ describe("Outlook sync", () => {
     expect(await db.emailEvent.findUniqueOrThrow({ where: { id: ev.id } })).toMatchObject({ kind: "confirmation", undone: true });
     expect((await db.emailEvent.findUniqueOrThrow({ where: { id: real.id } })).kind).toBe("interview");
     expect(await repairEarlyReads(db)).toBe(0);
+  });
+
+  it("clears alerts left behind by moves that were undone before alerts were cleaned up", async () => {
+    const { app } = await appAt("Pellucid", "https://pellucid.com", "APPLIED");
+    await db.emailEvent.create({ data: { providerId: `old-${Math.random()}`, threadId: "t", applicationId: app.id, fromEmail: "no-reply@us.greenhouse-mail.io", subject: "Thank you for applying to Pellucid!", receivedAt: new Date(), kind: "confirmation", action: "Re-read as an application confirmation: no stage change", prevStage: "APPLIED", newStage: "INTERVIEWING", undone: true } });
+    const link = `/applications/${app.id}`;
+    await db.alert.create({ data: { kind: "email_update", title: "Pellucid: Moved to Interviewing", body: "Interview request from no-reply@us.greenhouse-mail.io: “Thank you for applying to Pellucid!”", link } });
+    await db.alert.create({ data: { kind: "email_update", title: "Pellucid: Moved to Offer", body: "Offer from Dana: “Your offer from Pellucid”", link } });
+    expect(await clearStaleAlerts(db)).toBe(1);
+    expect((await db.alert.findMany({ where: { link } })).map((a) => a.title)).toEqual(["Pellucid: Moved to Offer"]);
   });
 
   async function moveStageForTest(id: string) {

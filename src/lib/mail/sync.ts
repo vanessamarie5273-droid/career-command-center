@@ -70,6 +70,7 @@ export async function syncMailbox(db: PrismaClient, opts: { box?: Mailbox | null
   const since = acct?.lastSyncAt ? new Date(acct.lastSyncAt.getTime() - 2 * 3600_000) : new Date(now.getTime() - FIRST_SYNC_DAYS * DAY);
   try {
     await repairEarlyReads(db);
+    await clearStaleAlerts(db);
     const apps = await openApplications(db);
     const cos = companyIndex(apps);
     const messages = cos.length ? await box.list(since, opts.max ?? 300) : [];
@@ -144,7 +145,21 @@ export async function undoEmailEvent(db: PrismaClient, id: string, why = "Undid"
     if (ev.newStage === "REJECTED") await db.application.update({ where: { id: app.id }, data: { outcome: null, outcomeReason: null } });
     await db.activity.create({ data: { applicationId: app.id, kind: "email", body: `${why} “${ev.action}” from the email “${ev.subject}”. Back to ${STAGE_LABEL[ev.prevStage as keyof typeof STAGE_LABEL]}.` } });
   }
-  return db.emailEvent.update({ where: { id }, data: { undone: true } });
+  const done = await db.emailEvent.update({ where: { id }, data: { undone: true } });
+  await clearStaleAlerts(db, [done]);
+  return done;
+}
+
+/** Removes the "Company: Moved to …" alerts written for email events that were later undone, so the Alerts list never shows a move that didn't stick. */
+export async function clearStaleAlerts(db: PrismaClient, events?: { applicationId: string | null; subject: string; undone: boolean }[]) {
+  const evs = events ?? await db.emailEvent.findMany({ where: { undone: true, applicationId: { not: null } }, select: { applicationId: true, subject: true, undone: true } });
+  let removed = 0;
+  for (const ev of evs) {
+    if (!ev.undone || !ev.applicationId) continue;
+    const r = await db.alert.deleteMany({ where: { kind: "email_update", link: `/applications/${ev.applicationId}`, body: { contains: `“${ev.subject}”` } } });
+    removed += r.count;
+  }
+  return removed;
 }
 
 /**
