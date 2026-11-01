@@ -14,7 +14,7 @@ export default function Sidebar({ alerts }: { alerts: number }) {
       <button className="lg:hidden fixed top-3 left-3 z-50 rounded-lg bg-navy-900 p-2 text-white" onClick={() => setOpen(!open)} aria-label="Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
-      <aside className={`fixed inset-y-0 left-0 z-40 w-56 bg-gradient-to-b from-navy-950 via-navy-950 to-navy-900 text-white flex flex-col transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-56 bg-navy-950 text-white flex flex-col transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="px-5 py-5 flex items-center gap-3 border-b border-white/5">
           <svg width="30" height="30" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#12224a" /><path d="M18 40 L30 24 L38 34 L46 20" stroke="#c4a254" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
           <div className="leading-tight"><div className="text-[15px] font-semibold">Career Command</div><div className="text-[11px] uppercase tracking-[0.18em] text-gold-400">Center</div></div>

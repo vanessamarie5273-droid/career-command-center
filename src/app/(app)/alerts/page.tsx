@@ -74,7 +74,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
   return (
     <>
       <PageHeader title="Alerts" actions={<><AlertActions /><BriefingButton /></>}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
           <HeroStat label="Unread" value={unread} icon="bell" highlight={unread > 0} />
           <HeroStat label="New matches today" value={b ? b.newJobs.length : "—"} icon="spark" href="/jobs?sort=new" />
           <HeroStat label="Tier 1 open" value={b ? b.tier1.length : "—"} icon="flame" href="/jobs?tier=TIER1" />

@@ -54,7 +54,7 @@ export default async function Reports() {
           <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {bestCompanies.map((c, i) => (
               <li key={c.id}>
-                <Link href={`/companies/${c.id}`} className="flex h-full items-center gap-3 rounded-xl bg-slate-50/70 p-2.5 ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md">
+                <Link href={`/companies/${c.id}`} className="flex h-full items-center gap-3 rounded-lg bg-slate-50 p-2.5 transition hover:bg-slate-100">
                   <span className={`w-4 text-center text-xs font-bold tabular-nums ${i < 3 ? "text-gold-600" : "text-slate-300"}`}>{i + 1}</span>
                   <Logo src={c.logoUrl} name={c.name} size={32} />
                   <span className="min-w-0 flex-1">
@@ -82,15 +82,15 @@ export default async function Reports() {
 function Funnel({ steps }: { steps: { label: string; value: number; href: string }[] }) {
   const top = Math.max(1, steps[0].value);
   return (
-    <ol className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <ol className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
       {steps.map((s, i) => {
         const pct = Math.round((s.value / top) * 100);
         return (
           <li key={s.label} className="relative">
-            <Link href={s.href} className={`block h-full rounded-xl px-4 py-3 ring-1 transition hover:bg-white/[0.12] ${i === steps.length - 1 && s.value ? "bg-gold-500/15 ring-gold-400/40" : "bg-white/[0.06] ring-white/10"}`}>
-              <span className="block text-[12.5px] font-medium text-white/70">{s.label}</span>
-              <span className="mt-0.5 flex items-baseline gap-2"><span className="text-[30px] font-semibold leading-tight tabular-nums text-white">{s.value}</span>{i > 0 && <span className="text-sm font-semibold tabular-nums text-gold-300">{pct}%</span>}</span>
-              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-300" style={{ width: `${s.value ? Math.max(4, pct) : 0}%` }} /></span>
+            <Link href={s.href} className={`block h-full rounded-lg px-3.5 py-2.5 transition hover:bg-slate-50 ${i === steps.length - 1 && s.value ? "bg-gold-300/25" : ""}`}>
+              <span className="block text-[12.5px] font-medium text-slate-500">{s.label}</span>
+              <span className="mt-0.5 flex items-baseline gap-2"><span className="text-[26px] font-semibold leading-tight tabular-nums text-navy-950">{s.value}</span>{i > 0 && <span className="text-sm font-semibold tabular-nums text-gold-600">{pct}%</span>}</span>
+              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-300" style={{ width: `${s.value ? Math.max(4, pct) : 0}%` }} /></span>
             </Link>
           </li>
         );

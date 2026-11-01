@@ -71,5 +71,5 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 function FeedStatus({ run }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null }) {
   const text = !run ? "Never refreshed" : run.finishedAt ? ago(run.finishedAt) : "Refreshing…";
   const title = run?.finishedAt ? `Last refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
-  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white/80 ring-1 ring-white/15"><StatusDot status={run?.status} />{text}</span>;
+  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-200"><StatusDot status={run?.status} />{text}</span>;
 }

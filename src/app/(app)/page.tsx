@@ -35,7 +35,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Command Center" actions={<Link href="/applications" className="btn-ghost">All applications →</Link>}>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7">
           <HeroStat label="Active processes" value={t.active} href={table("active=1")} icon="flame" highlight />
           <HeroStat label="Applied" value={t.applied} href={table("applied=1")} icon="send" />
           <HeroStat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
@@ -44,7 +44,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
           <HeroStat label="Follow-ups due" value={t.followUps} href={table("followup=1")} icon="clock" />
           <HeroStat label="Ready to apply" value={t.readyToApply} href="/apply" icon="check" />
         </div>
-        <div className="hero-search mt-4"><ApplicationSearch by={by} q={q} /></div>
+        <div className="mt-1.5 border-t border-slate-100 px-2 pb-1 pt-2.5"><ApplicationSearch by={by} q={q} /></div>
       </PageHeader>
 
       {found && (
@@ -83,13 +83,13 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
   return (
     <Card title="Pipeline" icon="board" className="mb-3">
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <ol className="grid min-w-[860px] grid-cols-8 gap-2.5">
+        <ol className="grid min-w-[860px] grid-cols-8 gap-1.5">
           {f.stages.map((s, i) => {
             const live = i >= 2 && i <= 5 && s.count > 0, offer = s.key === "OFFER" && s.count > 0;
-            const box = offer ? "bg-emerald-50 ring-emerald-500/30" : live ? "bg-gold-300/20 ring-gold-500/40" : s.count ? "bg-slate-50/80 ring-slate-200" : "bg-white ring-slate-100";
+            const box = offer ? "bg-emerald-50" : live ? "bg-gold-300/20" : s.count ? "bg-slate-50" : "bg-white";
             return (
               <li key={s.key} className="relative">
-                <Link href={s.key === "READY_TO_APPLY" ? "/apply" : table(`stage=${s.key}`)} className={`group flex h-full flex-col rounded-xl px-3 pb-3 pt-2.5 ring-1 transition hover:-translate-y-0.5 hover:shadow-md ${box}`}>
+                <Link href={s.key === "READY_TO_APPLY" ? "/apply" : table(`stage=${s.key}`)} className={`group flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-slate-100 ${box}`}>
                   <span className="truncate text-[13px] font-semibold text-slate-600">{s.label}</span>
                   <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${s.count ? "text-navy-950" : "text-slate-300"}`}>{s.count}</span>
                   <span className="mt-2 flex min-h-[22px] items-center">
@@ -98,12 +98,11 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
                   </span>
                   <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-slate-200/70"><span className={`block h-full rounded-full ${offer ? "bg-emerald-500" : live ? "bg-gold-500" : "bg-navy-600"}`} style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
                 </Link>
-                {i < f.stages.length - 1 && <span className="pointer-events-none absolute -right-[11px] top-1/2 z-10 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-200"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 6l6 6-6 6" /></svg></span>}
               </li>
             );
           })}
           <li>
-            <Link href={table("stage=REJECTED")} className="flex h-full flex-col rounded-xl border border-dashed border-slate-200 px-3 pb-3 pt-2.5 transition hover:bg-slate-50">
+            <Link href={table("stage=REJECTED")} className="flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-slate-100">
               <span className="text-[13px] font-semibold text-slate-500">Closed</span>
               <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${closed.length ? "text-slate-500" : "text-slate-300"}`}>{closed.reduce((n, c) => n + c.count, 0)}</span>
               <span className="mt-auto pt-2 text-[12px] leading-snug text-slate-500">{closed.length ? closed.map((c) => `${c.count} ${STAGE_LABEL[c.key].toLowerCase()}`).join(" · ") : "None yet"}</span>
