@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar alerts={unread} />
       <div className="lg:pl-64">
         <Topbar email={s.email} />
-        <main className="px-4 lg:px-8 py-6 max-w-[1500px]">{children}</main>
+        <main className="px-4 lg:px-8 2xl:px-10 py-6">{children}</main>
       </div>
     </div>
   );

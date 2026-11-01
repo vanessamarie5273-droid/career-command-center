@@ -14,10 +14,12 @@ input[type="range"] { accent-color: #c4a254; }
 @layer components {
   .card { @apply bg-white rounded-2xl ring-1 ring-slate-900/[0.06] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_30px_-18px_rgba(15,23,42,0.25)]; }
   .card-h { @apply px-5 pt-4 pb-3 flex items-center justify-between gap-3; }
-  .card-t { @apply text-[15px] font-semibold tracking-tight text-navy-950 truncate; }
+  .card-t { @apply text-[16.5px] font-semibold tracking-tight text-navy-950 truncate; }
   .hero { @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 px-5 py-5 lg:px-7 text-white shadow-[0_18px_40px_-24px_rgba(6,13,31,0.8)]; }
-  .hero-actions .btn-primary { @apply bg-none bg-gold-500 text-navy-950 hover:bg-gold-400; }
-  .hero-actions .btn-ghost { @apply border-white/20 bg-white/10 text-white hover:bg-white/20; }
+  .hero-search .input { @apply border-white/15 bg-white/[0.08] text-white placeholder:text-white/40 focus:bg-white/[0.12]; }
+  .hero-search select.input option { @apply text-navy-950; }
+  .hero-search .btn-primary, .hero-actions .btn-primary { @apply bg-none bg-gold-500 text-navy-950 hover:bg-gold-400; }
+  .hero-search .btn-ghost, .hero-actions .btn-ghost { @apply border-white/20 bg-white/10 text-white hover:bg-white/20; }
   .hero-actions .btn-gold { @apply shadow-none; }
   .btn { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50; }
   .btn-primary { @apply btn bg-gradient-to-b from-navy-800 to-navy-900 text-white shadow-sm hover:from-navy-700 hover:to-navy-800; }
