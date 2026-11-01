@@ -69,6 +69,7 @@ export async function syncMailbox(db: PrismaClient, opts: { box?: Mailbox | null
   const acct = await db.mailAccount.findUnique({ where: { id: "outlook" } });
   const since = acct?.lastSyncAt ? new Date(acct.lastSyncAt.getTime() - 2 * 3600_000) : new Date(now.getTime() - FIRST_SYNC_DAYS * DAY);
   try {
+    await repairEarlyReads(db);
     const apps = await openApplications(db);
     const cos = companyIndex(apps);
     const messages = cos.length ? await box.list(since, opts.max ?? 300) : [];
@@ -113,9 +114,9 @@ async function applyEmail(db: PrismaClient, app: App, kind: EmailKind, m: MailMe
     const r = await moveStage(db, app.id, to, null);
     if (r.ok) newStage = to;
   }
-  const who = m.fromName ?? m.fromEmail;
+  const person = direct && !isAutomated(m.fromEmail);
   const patch: Record<string, unknown> = {};
-  if (kind === "interview") { patch.nextAction = `Reply to ${who} with your availability`; patch.nextActionDue = new Date(); }
+  if (kind === "interview") { patch.nextAction = person ? `Reply to ${m.fromName ?? m.fromEmail} with your availability` : `Answer the ${app.company.name} scheduling email (“${m.subject.slice(0, 60)}”)`; patch.nextActionDue = new Date(); }
   if (kind === "rejection") patch.outcomeReason = app.outcomeReason ?? `Email from ${app.company.name}: “${m.subject}”`;
   // A real person at the company: keep them as a contact, and as the recruiter when their signature says so.
   if (direct && m.fromName && !isAutomated(m.fromEmail)) {
@@ -132,7 +133,7 @@ async function applyEmail(db: PrismaClient, app: App, kind: EmailKind, m: MailMe
 }
 
 /** Put an application back where it was before an email moved it. */
-export async function undoEmailEvent(db: PrismaClient, id: string) {
+export async function undoEmailEvent(db: PrismaClient, id: string, why = "Undid") {
   const ev = await db.emailEvent.findUniqueOrThrow({ where: { id } });
   if (ev.undone || !ev.prevStage || !ev.applicationId) return ev;
   const app = await db.application.findUnique({ where: { id: ev.applicationId } });
@@ -141,7 +142,32 @@ export async function undoEmailEvent(db: PrismaClient, id: string) {
     if (!r.ok) throw new Error(r.error);
     if (ev.prevApplied === false) await db.application.update({ where: { id: app.id }, data: { applied: false, appliedAt: null } });
     if (ev.newStage === "REJECTED") await db.application.update({ where: { id: app.id }, data: { outcome: null, outcomeReason: null } });
-    await db.activity.create({ data: { applicationId: app.id, kind: "email", body: `Undid “${ev.action}” from the email “${ev.subject}”. Back to ${STAGE_LABEL[ev.prevStage as keyof typeof STAGE_LABEL]}.` } });
+    await db.activity.create({ data: { applicationId: app.id, kind: "email", body: `${why} “${ev.action}” from the email “${ev.subject}”. Back to ${STAGE_LABEL[ev.prevStage as keyof typeof STAGE_LABEL]}.` } });
   }
   return db.emailEvent.update({ where: { id }, data: { undone: true } });
+}
+
+/**
+ * The first version of the rules read "thank you for applying" emails that mention scheduling interviews later
+ * as interview requests, and named no-reply addresses in the next action. Re-read those events with the current
+ * rules from their subject and preview, put back any stage they moved, and clear the bad next action. Runs once
+ * per event: events written after the current rules shipped are left alone.
+ */
+export async function repairEarlyReads(db: PrismaClient) {
+  const marker = await db.integrationStatus.upsert({ where: { id: "mail_rules_v2" }, create: { id: "mail_rules_v2", name: "Email reading rules", status: "connected", detail: "v2: confirmations win over later-interview mentions" }, update: {} });
+  const events = await db.emailEvent.findMany({ where: { kind: "interview", createdAt: { lt: marker.checkedAt } } });
+  let fixed = 0;
+  for (const ev of events) {
+    const now = classify(ev.subject, ev.snippet ?? "", { email: ev.fromEmail, isPersonAtCompany: false });
+    // Only emails that positively read as a confirmation; a real invitation can sit past the stored preview.
+    if (now?.kind !== "confirmation") continue;
+    if (ev.newStage && !ev.undone) await undoEmailEvent(db, ev.id, "Re-read the email as an application confirmation and undid");
+    if (ev.applicationId) {
+      const app = await db.application.findUnique({ where: { id: ev.applicationId } });
+      if (app?.nextAction && app.nextAction === `Reply to ${ev.fromName ?? ev.fromEmail} with your availability`) await db.application.update({ where: { id: app.id }, data: { nextAction: null, nextActionDue: null } });
+    }
+    await db.emailEvent.update({ where: { id: ev.id }, data: { kind: "confirmation", action: "Re-read as an application confirmation: no stage change" } });
+    fixed++;
+  }
+  return fixed;
 }
