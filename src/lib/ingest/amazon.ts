@@ -24,14 +24,14 @@ export async function fetchAmazon(token: string, f: FetchLike = fetch): Promise<
       const r = await getJson<AJ>(f, url);
       if (!Array.isArray(r.jobs)) throw new Error("Unexpected amazon.jobs response");
       total = Math.max(total, r.hits ?? 0);
-      for (const j of r.jobs) seen.set(j.id_icims || j.id || j.job_path, j);
+      // Keep only the roles we evaluate, so thousands of unrelated descriptions are not held in memory.
+      for (const j of r.jobs) if (isRelevantFamily(classifyTitle(j.title).family)) seen.set(j.id_icims || j.id || j.job_path, j);
       if (r.jobs.length < 100) break;
     }
   }
   const postings: RawPosting[] = [];
   for (const [id, j] of seen) {
     if (filter && !`${j.company_name ?? ""} ${j.business_category ?? ""}`.toLowerCase().includes(filter) && !j.title.toLowerCase().includes(filter)) continue;
-    if (!isRelevantFamily(classifyTitle(j.title).family)) continue;
     const html = [j.description, j.basic_qualifications && `<h3>Basic qualifications</h3>${j.basic_qualifications}`, j.preferred_qualifications && `<h3>Preferred qualifications</h3>${j.preferred_qualifications}`].filter(Boolean).join("\n");
     const posted = j.posted_date ? new Date(j.posted_date) : null;
     postings.push({
