@@ -12,15 +12,16 @@ export function ContactImport() {
     setBusy(true);
     const fd = new FormData(); fd.append("file", f);
     const res = await fetch("/api/contacts/import", { method: "POST", body: fd });
-    const j = await res.json();
+    const j = await res.json().catch(() => ({ error: "Upload failed. Try again." }));
     setBusy(false);
+    e.target.value = "";
     setMsg(res.ok ? `Imported ${j.rows} connections (${j.created} new, ${j.updated} updated). ${j.matched} work at target companies.` : j.error);
     r.refresh();
   }
   return (
     <div className="text-sm space-y-2">
-      <p className="text-xs text-slate-500">Upload Connections.csv from LinkedIn&apos;s official data export.</p>
-      <label className="btn-primary cursor-pointer">{busy ? "Importing…" : "Choose Connections.csv"}<input type="file" accept=".csv" className="hidden" onChange={up} /></label>
+      <p className="text-xs text-slate-500">Upload LinkedIn&apos;s data export: the .zip as downloaded, or Connections.csv from inside it.</p>
+      <label className="btn-primary cursor-pointer">{busy ? "Importing…" : "Choose LinkedIn export"}<input type="file" accept=".csv,.zip,text/csv,application/zip,application/x-zip-compressed" className="hidden" onChange={up} /></label>
       {msg && <p className="text-xs">{msg}</p>}
     </div>
   );

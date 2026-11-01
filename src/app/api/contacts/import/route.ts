@@ -1,14 +1,14 @@
 import { route } from "@/lib/api";
 import { prisma } from "@/lib/db";
-import { matchCompany, parseConnections } from "@/lib/linkedin";
+import { connectionsText, matchCompany, parseConnections } from "@/lib/linkedin";
 
 export const POST = route("EDITOR", async (req, _c, u) => {
   const fd = await req.formData();
   const file = fd.get("file");
   if (!(file instanceof File)) return Response.json({ error: "No file" }, { status: 400 });
-  if (file.size > 20 * 1024 * 1024) return Response.json({ error: "File too large" }, { status: 400 });
+  if (file.size > 60 * 1024 * 1024) return Response.json({ error: "File too large" }, { status: 400 });
   let rows;
-  try { rows = parseConnections(await file.text()); } catch (e) { return Response.json({ error: (e as Error).message }, { status: 400 }); }
+  try { rows = parseConnections(await connectionsText(Buffer.from(await file.arrayBuffer()))); } catch (e) { return Response.json({ error: (e as Error).message }, { status: 400 }); }
   const companies = await prisma.company.findMany({ select: { id: true, name: true } });
   let created = 0, updated = 0, matched = 0;
   for (const r of rows) {
