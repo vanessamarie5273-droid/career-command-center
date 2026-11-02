@@ -4,7 +4,7 @@ import type { PrismaClient } from "@prisma/client";
 const create = vi.fn(async (req: { messages: { content: string }[] }) => ({ stop_reason: "end_turn", content: [{ type: "text", text: `OUT ${req.messages[0].content.slice(0, 20)}` }] }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { create } }; } }));
 
-import { checkKit, copiedFromResume, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
+import { checkKit, copiedFrom, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
 import { exportAll, restoreAll } from "@/lib/backup";
 import { LETTER_EXAMPLES } from "@/lib/letterStyle";
 import { testDb, makeCompany } from "./setup-db";
@@ -20,15 +20,13 @@ const src = { resumeText: RESUME, contextText: ctx, input };
 const clean = Object.fromEntries(KIT_PARTS.map((p) => [p, "Your posting points to stalled pipeline. I closed $8.5M and earned Winners Circle 2025."])) as Record<(typeof KIT_PARTS)[number], string>;
 const LETTER = `Dear Acme AI Hiring Team,
 
-I am interested in the Strategic Account Executive role because Acme AI puts agents in the hands of finance teams. I see an opportunity to bring my experience building business cases with CFOs to help Acme AI win its largest accounts.
+Finance teams do not buy agents to save clicks. They buy them when the CFO can see the close shrink, and most vendors pitch the controller instead.
 
-During my nine years at SAP, I owned full sales cycles across new customer acquisition and account expansion. I closed $8.5M across Public Sector accounts and earned Winners Circle 2025.
+I have sold to that CFO for years. I build the business case from the customer's own financials, and that approach closed $8.5M and earned Winners Circle 2025.
 
-I secure C-suite sponsorship early and keep decision milestones visible with Mutual Action Plans.
+At Acme AI, I would open every account with the cost of last quarter's close.
 
-Most recently, I led the recovery of a strategic account at significant risk of churn. The effort drove a $1.58M licensing expansion.
-
-At Acme AI, I would build champions in finance and connect each evaluation to a funded decision. I would welcome the opportunity to bring that account discipline to your next stage of growth.
+I would welcome a conversation about where your largest accounts stand today.
 
 Kindest regards,
 Vanessa Morales`;
@@ -60,31 +58,41 @@ describe("Application Kit checks", () => {
   });
 
   it("flags a placeholder left behind", () => {
-    expect(checkKit({ ...clean, letter: LETTER.replace("Acme AI puts", "[Company] puts") }, src).letter.map((i) => i.text)).toContain("[Company]");
+    expect(checkKit({ ...clean, letter: LETTER.replace("At Acme AI", "At [Company]") }, src).letter.map((i) => i.text)).toContain("[Company]");
   });
 
   it("flags a letter that skips the company or drops paragraphs", () => {
-    const checks = checkKit({ ...clean, letter: "Dear Hiring Team,\n\nI want this role.\n\nAt SAP I sold software.\n\nLet's talk.\n\nKindest Regards,\nVanessa Morales" }, src);
-    expect(checks.letter.filter((i) => i.kind === "structure").map((i) => i.text)).toEqual(["3 paragraphs", "Company not named"]);
+    const checks = checkKit({ ...clean, letter: "Dear Hiring Team,\n\nI want this role.\n\nLet's talk.\n\nKindest Regards,\nVanessa Morales" }, src);
+    expect(checks.letter.filter((i) => i.kind === "structure").map((i) => i.text)).toEqual(["2 paragraphs", "Company not named"]);
   });
 
-  it("flags a letter with no paragraph on how she would run the role there", () => {
-    const checks = checkKit({ ...clean, letter: LETTER.replace("At Acme AI, I would", "I would") }, src);
-    expect(checks.letter.map((i) => i.text)).toEqual(["No “At Acme AI, I would…”"]);
+  it("flags a letter that opens with interest instead of a point of view", () => {
+    const checks = checkKit({ ...clean, letter: LETTER.replace("Finance teams do not", "I am interested in this role. Finance teams do not") }, src);
+    expect(checks.letter.map((i) => i.text)).toEqual(["Opens with interest"]);
   });
 
-  it("passes her own example letters' style", () => {
+  it("flags a letter that repeats the job posting back", () => {
+    const checks = checkKit({ ...clean, letter: LETTER.replace("I have sold to that CFO", "You need someone to build executive relationships and run complex multi-stakeholder cycles. I have sold to that CFO") }, src);
+    expect(checks.letter.map((i) => i.text)).toContain("Repeats the posting");
+  });
+
+  it("flags a letter that lists results instead of one or two proof points", () => {
+    const checks = checkKit({ ...clean, letter: LETTER.replace("closed $8.5M", "closed $8.5M, grew one account by $1.58M, led a team to $15.6M") }, src);
+    expect(checks.letter.map((i) => i.text)).toContain("3 figures");
+  });
+
+  it("passes her model letter", () => {
     for (const e of LETTER_EXAMPLES) {
       const company = e.match(/^Dear (\w+)/)![1];
-      const issues = checkKit({ letter: e }, { resumeText: `${RESUME}\n$80.6M $15.6M 25% 30%`, contextText: ctx, input: { ...input, company: { ...input.company, name: company } } }).letter;
+      const issues = checkKit({ letter: e }, { resumeText: RESUME, contextText: ctx, input: { ...input, company: { ...input.company, name: company } } }).letter;
       expect(issues).toEqual([]);
     }
   });
 
-  it("flags a letter that restates her resume instead of tying it to the role", () => {
-    const rehash = LETTER.replace("I closed $8.5M across Public Sector accounts", "Closed $8.5M in new and expansion revenue; earned Winners Circle 2025. Expanded the account with a $1.58M TCV licensing upsell. I");
+  it("flags a letter that restates her resume", () => {
+    const rehash = LETTER.replace("that approach closed $8.5M", "Closed $8.5M in new and expansion revenue; earned Winners Circle 2025. Expanded the account with a $1.58M TCV licensing upsell. I");
     expect(checkKit({ ...clean, letter: rehash }, src).letter.map((i) => i.text)).toContain("Copies your resume");
-    expect(copiedFromResume(LETTER, RESUME)).toBeNull();
+    expect(copiedFrom(LETTER, RESUME, 10)).toBeNull();
   });
 
   it("flags a kit written without the job description", () => {
@@ -100,7 +108,7 @@ describe("Application Kit checks", () => {
 
   it("flags long sentences and an over-long letter", () => {
     const long = `${"word ".repeat(45)}end.`;
-    const checks = checkKit({ ...clean, letter: `${clean.letter} ${long} ${"more ".repeat(400)}` }, src);
+    const checks = checkKit({ ...clean, letter: `${clean.letter} ${long} ${"more ".repeat(260)}` }, src);
     expect(checks.letter.filter((i) => i.kind === "length")).toHaveLength(2);
   });
 });

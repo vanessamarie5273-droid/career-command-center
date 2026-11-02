@@ -1,58 +1,39 @@
-// Vanessa's cover letters (Nov 2, 2026). She sent two letters she wrote herself as the model: one for a Sales Development
-// Manager role, one for an Enterprise AE role. Kit letters follow their shape, tone and length, written fresh for each role.
+// Vanessa's cover letters (Nov 2, 2026, third pass). Letters that restated her resume, then letters that restated the posting,
+// both had "no value". A letter now leads with her point of view on the company's problem and uses one or two proof points.
 
 export const LETTER_GREETING = "Dear [Company Name] Hiring Team,";
 export const LETTER_SIGNOFF = "Kindest regards,\nVanessa Morales";
 
-// Her two proof stories, in her words. A letter may use one nearly word for word when it fits the role.
+// Her two proof stories, in her words. A letter may draw one result from them when it supports the point of view.
 export const LETTER_ACCOMPLISHMENTS = {
   "Customer recovery and expansion": "Most recently, I led the recovery of a strategic account at significant risk of churn. I brought technical experts, partners, and executive leadership together to resolve implementation challenges, restore customer confidence, and establish a path to go-live. The effort drove a $1.58M licensing expansion.",
   "Building a sales motion (GTM, sales development, leadership)": "During my nine years at SAP, I collaborated with global leadership to establish the North America Digital Hub, expanding sales development into active co-selling with Account Executives. Our team generated $80.6M in pipeline and $15.6M in closed revenue, increasing pipeline creation by 25% and conversion to closed revenue by 30%.",
 };
 
-// The paragraphs of her letters, in order. Each does a different job.
+// Four short paragraphs. The letter's value is her point of view, not a summary of the posting or her resume.
 export const LETTER_GUIDE = [
-  { name: "Why this role", purpose: "What the role achieves for the company and why that draws her", change: "Name the role. One specific thing about the company's business or the role's mandate, then the contribution she sees for herself" },
-  { name: "SAP proof", purpose: "Her most relevant experience, with numbers", change: "Opens \"During my nine years at SAP,\" and leads with what this role needs most: the Digital Hub for team and sales development roles, full-cycle selling for AE roles" },
-  { name: "How I work", purpose: "The methods behind the results", change: "Concrete practices that match the posting: qualification, buying committees, executive sponsorship, partners, procurement, Mutual Action Plans, coaching" },
-  { name: "Proof story (when it fits)", purpose: "One result that shows she delivers", change: "The account recovery story or the Digital Hub story, whichever was not already used" },
-  { name: "At [Company], I would", purpose: "Show she has already started doing the job", change: "Specific operating behaviors in this role: what she would focus on, coach, inspect or build, in their terms" },
-  { name: "Close", purpose: "Tie her discipline to their next stage", change: "One or two sentences: the goal she would drive, then \"I would welcome the opportunity to bring that ... to ...\"" },
+  { name: "Point of view", purpose: "Her read of the problem behind this role that the posting does not spell out", change: "The buyer's real pain, who actually buys, the competitive or market pressure, or where deals in this space are won and lost. Specific to this company and segment, stated with confidence" },
+  { name: "Why me", purpose: "Why she in particular can solve it", change: "The one angle from her experience that connects to that point of view (for example, she sold the incumbent systems, sold to that buyer, or built that motion), backed by one or two results from her resume" },
+  { name: "First move", purpose: "Show she has already started doing the job", change: "The one concrete thing she would do first in this role, following from the point of view. One move, not a list" },
+  { name: "Close", purpose: "Create the next conversation", change: "One sentence inviting a conversation about their specific situation" },
 ];
 
-export const LETTER_PRINCIPLE = "Specific to this role and company in every paragraph. Her SAP experience is the proof, chosen and framed for what this role needs, never a career summary.";
+export const LETTER_PRINCIPLE = "The reader already knows the job description and can read her resume. Every sentence has to tell them something they don't have yet: her view of their business, why her experience fits that view, and what she would do.";
 
-export const LETTER_MAX_WORDS = 450;
+export const LETTER_MAX_WORDS = 260;
 
-// Her own letters, the model for tone, structure and length. The quota figure in her Chainguard letter is left out:
-// it is not on her resume, and kit letters may only use resume facts.
+// The model letter (Nov 2, 2026): the kit's Anaplan letter, which she rejected as "no value", rewritten around a point of view.
+// Her earlier Anthropic and Chainguard letters set the voice: complete, professional sentences and "I would welcome...".
 export const LETTER_EXAMPLES = [
-  `Dear Anthropic Hiring Team,
+  `Dear Anaplan Hiring Team,
 
-The Sales Development Manager, Enterprise role offers the opportunity to build the strategic customer relationships that support adoption while developing the next generation of sales executives. I am drawn to leading a team whose impact is visible in both revenue growth and career advancement.
+Consumer brands rarely miss a quarter for lack of data. They miss it because Finance, Supply Chain, and HR are each planning against a different number, and no one owns the gap until margin is gone. That gap is Anaplan's opening in a consumer enterprise territory, and it is sold to the CFO, not to the planning team.
 
-During my nine years at SAP, I collaborated with global leadership to establish the North America Digital Hub, expanding sales development into active co-selling with Account Executives. Our team generated $80.6M in pipeline and $15.6M in closed revenue, increasing pipeline creation by 25% and conversion to closed revenue by 30%.
+I know that conversation from the other side of the table. For nine years at SAP, I sold Cloud ERP, HCM, and Supply Chain, the systems your platform has to connect. I know where the ERP planning story breaks and how a CFO weighs the alternative. I won those deals by building the business case from the customer's own financials and securing C-suite sponsorship early, which closed $8.5M in new and expansion revenue and earned Winners Circle 2025.
 
-I built sales development strategies around market opportunity, customer fit, and buying signals. I recruited and coached professionals to research accounts, map stakeholders, and coordinate multi-threaded outreach with Account Executives. Having owned full sales cycles myself, I bring firsthand understanding of how executive priorities, procurement, legal, and security requirements shape a buying decision.
+In your territory, I would open every account with one question for the CFO: where did disconnected plans cost you margin last year? The answer becomes the business case, and the business case brings Finance, Supply Chain, and HR to the same table. Existing customers get the same question before their next planning cycle, well ahead of renewal.
 
-At Anthropic, I would coach BDRs to take ownership of the preparation enterprise selling requires, coming to Account Executive discussions with completed account research, stakeholder insights, and a proposed outreach strategy. I would expect them to contribute informed recommendations and follow through on agreed priorities without waiting for direction at every step.
-
-Pipeline reviews would examine evidence of account progression: who we have engaged, whether a champion has influence, what business need creates urgency, and whether the customer has committed to a next step. Conversion patterns and disqualification reasons would help me identify whether to adjust targeting, sharpen discovery, or broaden stakeholder engagement.
-
-My goal is to instill the discipline that prepares BDRs to think like Account Executives, pressure-test qualification against real business needs, and generate opportunities that convert to revenue for Anthropic.
-
-${LETTER_SIGNOFF}`,
-  `Dear Chainguard Hiring Team,
-
-I am interested in the Enterprise Account Executive role because Chainguard connects two executive priorities: accelerating software delivery and reducing security risk. I see an opportunity to bring my experience translating complex technology into a compelling business case to help Chainguard win new customers and expand strategic accounts.
-
-During my nine years at SAP, I owned full sales cycles across new customer acquisition and account expansion. I self-sourced opportunities, mapped buying committees, and built executive sponsorship by connecting technical requirements to financial and operational priorities. My approach is to establish why a customer needs to act, who must support the decision, and what evidence will justify the investment.
-
-I partnered with solution engineers, resellers, and implementation teams to advance evaluations, align stakeholders on success criteria, and navigate procurement and contract negotiations. Disciplined qualification and Mutual Action Plans kept ownership, decision milestones, and risks visible throughout the sales cycle.
-
-Most recently, I led the recovery of a strategic account at significant risk of churn. I brought technical experts, partners, and executive leadership together to resolve implementation challenges, restore customer confidence, and establish a path to go-live. The effort drove a $1.58M licensing expansion.
-
-At Chainguard, I would focus on developing champions across engineering and security, earning executive commitment, and connecting technical validation to a funded buying decision. I would welcome the opportunity to bring that account discipline to your next stage of growth.
+I would welcome a conversation about where your consumer accounts stand today.
 
 ${LETTER_SIGNOFF}`,
 ];
