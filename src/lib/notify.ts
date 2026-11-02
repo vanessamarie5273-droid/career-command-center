@@ -23,5 +23,7 @@ export async function deliver(db: PrismaClient, to: string, subject: string, htm
 /** Where her alerts go: the alert address in Settings, else the connected mailbox, else her sign-in email. */
 export async function alertAddress(db: PrismaClient) {
   const [user, acct] = await Promise.all([db.user.findFirst({ orderBy: { createdAt: "asc" } }), db.mailAccount.findUnique({ where: { id: "outlook" } })]);
-  return { user, to: user?.alertEmail || acct?.email || user?.email || null };
+  // Her job-search mail is Outlook. When the Outlook mailbox is connected, alerts always go there, whatever an
+  // older setting says (it once held her personal Gmail). The setting only applies when Outlook is not connected.
+  return { user, to: acct?.email || user?.alertEmail || user?.email || null };
 }
