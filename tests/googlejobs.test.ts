@@ -48,7 +48,7 @@ describe("Google Jobs search", () => {
 
     // Searches once a day: a second refresh the same day makes no calls.
     let calls = 0;
-    expect((await runGoogleJobs(db, { fetchImpl: async (u, i) => { calls++; return fx(u, i); }, now: new Date(NOW.getTime() + 3600e3), apiKey: "test-key" })).status).toBe("skipped");
+    expect((await runGoogleJobs(db, { fetchImpl: async (u) => { calls++; return fx(u); }, now: new Date(NOW.getTime() + 3600e3), apiKey: "test-key" })).status).toBe("skipped");
     expect(calls).toBe(0);
   });
 
