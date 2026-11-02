@@ -17,8 +17,8 @@ export function RestoreForm() {
       <div className="label">Restore from backup</div>
       <input type="file" name="file" accept=".json" required className="input" />
       <select name="mode" className="input"><option value="merge">Merge: add missing records</option><option value="replace">Replace everything</option></select>
-      <button className="btn-ghost">Restore</button>
-      {msg && <p className="text-xs">{msg}</p>}
+      <button className="btn-primary">Restore</button>
+      {msg && <p className="text-[13px]">{msg}</p>}
     </form>
   );
 }
@@ -36,13 +36,13 @@ export function PasswordForm() {
     <form onSubmit={submit} className="mt-3 space-y-2">
       <input name="current" type="password" required placeholder="Current password" className="input" autoComplete="current-password" />
       <input name="next" type="password" required minLength={12} placeholder="New password (12+ characters)" className="input" autoComplete="new-password" />
-      <button className="btn-ghost">Change password</button>
-      {msg && <p className="text-xs">{msg}</p>}
+      <button className="btn-primary">Change password</button>
+      {msg && <p className="text-[13px]">{msg}</p>}
     </form>
   );
 }
 
 export function RescoreButton() {
   const [msg, setMsg] = useState<string | null>(null);
-  return <><button className="btn-ghost" onClick={async () => { setMsg("Rescoring…"); const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rescore" }) }); setMsg(r.ok ? `Rescored ${(await r.json()).rescored} jobs` : "Failed"); }}>Rescore all jobs</button>{msg && <span className="ml-2 text-xs">{msg}</span>}</>;
+  return <><button className="btn-gold" onClick={async () => { setMsg("Rescoring…"); const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rescore" }) }); setMsg(r.ok ? `Rescored ${(await r.json()).rescored} jobs` : "Failed"); }}>Rescore all jobs</button>{msg && <span className="ml-2 text-[13px]">{msg}</span>}</>;
 }

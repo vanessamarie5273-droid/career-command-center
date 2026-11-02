@@ -17,7 +17,7 @@ export function TaskList({ applicationId, tasks }: { applicationId: string; task
       <ul className="space-y-1.5 mb-3">{tasks.map((t) => (
         <li key={t.id} className="flex items-start gap-2">
           <input type="checkbox" className="mt-1" checked={t.done} onChange={async (e) => { await post(`/api/tasks/${t.id}`, { done: e.target.checked }, "PATCH"); r.refresh(); }} />
-          <span className={t.done ? "line-through text-slate-400" : ""}>{t.title}{t.dueAt && <span className={`ml-1 text-xs ${!t.done && new Date(t.dueAt) < new Date() ? "text-red-600" : "text-slate-500"}`}>· {new Date(t.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}</span>
+          <span className={t.done ? "line-through text-slate-400" : ""}>{t.title}{t.dueAt && <span className={`ml-1 text-[13px] ${!t.done && new Date(t.dueAt) < new Date() ? "text-red-600" : "text-slate-500"}`}>· {new Date(t.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}</span>
         </li>))}
       </ul>
       <form onSubmit={add} className="flex gap-1.5"><input name="title" required placeholder="New task" className="input" /><input name="dueAt" type="date" className="input w-36" /><button className="btn-primary">Add</button></form>
@@ -43,7 +43,7 @@ export function NoteForm({ applicationId, companyId }: { applicationId?: string;
 
 export function TouchForm({ applicationId, contacts }: { applicationId?: string; contacts: { id: string; name: string }[] }) {
   const r = useRouter();
-  if (!contacts.length) return <p className="text-xs text-slate-500">Add a contact for this company in Network & Contacts to log outreach.</p>;
+  if (!contacts.length) return <p className="text-[13px] text-slate-500">Add a contact for this company in Network & Contacts to log outreach.</p>;
   async function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));

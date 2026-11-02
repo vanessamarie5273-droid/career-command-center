@@ -11,13 +11,14 @@ input[type="range"] { accent-color: #5D36FF; }
 
 @layer components {
   .card { @apply bg-white rounded-xl ring-1 ring-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)]; }
-  .card-h { @apply px-4 pt-3.5 pb-2.5 flex items-center justify-between gap-3; }
-  .card-t { @apply text-[15.5px] font-semibold tracking-tight text-navy-950 truncate; }
+  .card-h { @apply px-4 py-3 flex items-center justify-between gap-3 rounded-t-xl border-b border-[#e6e0ff] bg-gradient-to-r from-[#efeaff] to-[#f8f6ff]; }
+  .card-dark .card-h { @apply border-white/15 bg-none; }
+  .card-t { @apply text-[18px] font-semibold tracking-tight text-navy-950 truncate; }
   .hero { @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 px-4 py-4 lg:px-5 text-white shadow-[0_18px_40px_-24px_rgba(6,13,31,0.8)]; }
   .banner { @apply bg-[linear-gradient(120deg,#4a26ef_0%,#5D36FF_40%,#8a12d6_80%,#A100C2_100%)] shadow-[0_18px_40px_-24px_rgba(93,54,255,0.8)]; }
-  .banner .btn-ghost, .banner .btn-primary { @apply border-white/30 bg-none bg-white/20 text-white shadow-none ring-0 backdrop-blur-md hover:bg-white/30; }
+  .banner .btn-ghost, .banner .btn-primary { @apply border-transparent bg-none bg-white font-semibold text-[#5D36FF] shadow-sm ring-0 hover:bg-[#f1edff]; }
   .banner .btn-gold { @apply bg-none bg-white text-[#5D36FF] hover:bg-[#f1edff]; }
-  .banner .input { @apply border-white/25 bg-white/[0.14] text-white placeholder:text-white/60; }
+  .banner .input { @apply border-transparent bg-white text-navy-950 shadow-sm placeholder:text-slate-400 focus:ring-white/40; }
   .banner select.input option { @apply text-navy-950; }
   .card-dark { @apply bg-[linear-gradient(155deg,#2b17a6_0%,#4a26ef_60%,#7a14d0_100%)] text-white ring-0 shadow-[0_14px_30px_-18px_rgba(93,54,255,0.9)]; }
   .card-dark .card-t { @apply text-white; }
@@ -34,10 +35,10 @@ input[type="range"] { accent-color: #5D36FF; }
   .btn { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50; }
   .btn-primary { @apply btn bg-gradient-to-b from-navy-800 to-navy-900 text-white shadow-sm hover:from-navy-700 hover:to-navy-800; }
   .btn-gold { @apply btn bg-gradient-to-r from-[#5D36FF] to-[#A100C2] text-white shadow-sm hover:from-[#4a22f0] hover:to-[#8a00a8]; }
-  .btn-ghost { @apply btn border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50; }
+  .btn-ghost { @apply btn border border-[#cbbdff] bg-[#f1edff] text-[#4424e6] shadow-sm hover:bg-[#e6dfff]; }
   .btn-danger { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50; }
-  .input { @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/15; }
-  .label { @apply block text-xs font-medium text-slate-500 mb-1; }
+  .input { @apply w-full rounded-lg border border-[#d4c8ff] bg-[#f7f5ff] px-3 py-1.5 text-sm outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/15; }
+  .label { @apply block text-[13px] font-semibold text-slate-700 mb-1; }
   .tbl { @apply w-full text-sm; }
   .tbl th { @apply text-left text-[11px] font-semibold uppercase tracking-wider text-white bg-[#5D36FF] px-3 py-2.5 whitespace-nowrap; }
   .tbl thead th:first-child { @apply rounded-tl-xl; }
@@ -51,5 +52,9 @@ input[type="range"] { accent-color: #5D36FF; }
   .h1 { @apply text-2xl font-semibold tracking-tight text-navy-950; }
   .muted { @apply text-slate-500; }
   /* A clickable row in a list: name on top, detail underneath, highlight on hover. */
-  .row-link { @apply -mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-navy-500/[0.04]; }
+  .row-link { @apply -mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-navy-500/[0.04]; }
 }
+
+/* Very wide monitors: scale the whole app up so text stays readable instead of spreading thin. */
+@media (min-width: 2200px) { html { zoom: 1.2; } }
+@media (min-width: 3000px) { html { zoom: 1.4; } }

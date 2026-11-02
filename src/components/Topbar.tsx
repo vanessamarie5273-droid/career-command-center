@@ -16,7 +16,7 @@ export default function Topbar({ alerts }: { alerts: number }) {
           <nav className="flex shrink-0 rounded-xl bg-slate-100 p-1">
             {tabs.map((t) => {
               const on = path === t.href || path.startsWith(`${t.href}/`);
-              return <Link key={t.href} href={t.href} className={`rounded-lg px-2.5 py-1.5 text-[13px] font-semibold sm:px-3.5 sm:text-[13.5px] transition ${on ? "bg-navy-900 text-white shadow-sm" : "text-slate-600 hover:text-navy-900"}`}>{t.label}</Link>;
+              return <Link key={t.href} href={t.href} className={`rounded-lg px-2.5 py-1.5 text-[14px] font-semibold sm:px-3.5 sm:text-[15px] transition ${on ? "bg-navy-900 text-white shadow-sm" : "text-slate-600 hover:text-navy-900"}`}>{t.label}</Link>;
             })}
           </nav>
         )}

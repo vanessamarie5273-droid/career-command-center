@@ -45,7 +45,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
           <button disabled={busy} onClick={() => bulk("dismiss")} className="btn bg-white/10 !py-1">Not a fit</button>
           <button disabled={busy} onClick={() => bulk("duplicate")} className="btn bg-white/10 !py-1">Duplicate</button>
           <button disabled={busy} onClick={() => bulk("restore")} className="btn bg-white/10 !py-1">Restore to feed</button>
-          <button onClick={() => setSel(new Set())} className="ml-auto text-white/60 text-xs">Clear</button>
+          <button onClick={() => setSel(new Set())} className="ml-auto text-white/60 text-[13px]">Clear</button>
         </div>
       )}
       <div className="overflow-x-auto">
@@ -65,15 +65,15 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
                 {!compact && <td>{x.status === "OPEN" && !x.application?.applied && <JobMarks id={x.id} />}</td>}
                 <td className="min-w-[240px]">
                   <Link href={`/jobs/${x.id}`} className="font-medium text-navy-950 hover:underline">{x.favorite && <span className="text-gold-500 mr-1">★</span>}{x.title}</Link>
-                  <div className="text-xs text-slate-500">{(x.company.growthScore ?? 0) >= 85 && <span className="chip mr-1 bg-emerald-50 text-emerald-700" title={`Growth potential ${x.company.growthScore}/100 (AI assessment)`}>Hypergrowth</span>}{x.category === "STRETCH" && <span className="chip mr-1 bg-violet-50 text-violet-700">Stretch</span>}{x.category === "RELOCATION" && <span className="chip mr-1 bg-amber-50 text-amber-800" title="On-site or hybrid outside Arizona">Relocation</span>}{x.excludedReason ?? x.sources.join(", ").toLowerCase()}</div>
+                  <div className="text-[13px] text-slate-500">{(x.company.growthScore ?? 0) >= 85 && <span className="chip mr-1 bg-emerald-50 text-emerald-700" title={`Growth potential ${x.company.growthScore}/100 (AI assessment)`}>Hypergrowth</span>}{x.category === "STRETCH" && <span className="chip mr-1 bg-violet-50 text-violet-700">Stretch</span>}{x.category === "RELOCATION" && <span className="chip mr-1 bg-amber-50 text-amber-800" title="On-site or hybrid outside Arizona">Relocation</span>}{x.excludedReason ?? x.sources.join(", ").toLowerCase()}</div>
                 </td>
                 <td className="whitespace-nowrap"><Link href={`/companies/${x.company.id}`} className="inline-flex items-center gap-2 hover:underline"><Logo src={x.company.logoUrl} name={x.company.name} size={20} />{x.company.name}</Link></td>
-                <td className="min-w-[150px] text-slate-600">{x.location || "—"}<div className="text-xs text-slate-400">{x.arrangement}</div></td>
-                <td className="whitespace-nowrap">{pay(x) ?? <span className="text-slate-400 text-xs">Not published</span>}</td>
+                <td className="min-w-[150px] text-slate-600">{x.location || "—"}<div className="text-[13px] text-slate-400">{x.arrangement}</div></td>
+                <td className="whitespace-nowrap">{pay(x) ?? <span className="text-slate-400 text-[13px]">Not published</span>}</td>
                 <td className="whitespace-nowrap text-slate-600">{d(x.postedAt)}</td>
-                <td className="whitespace-nowrap text-xs text-slate-500" title={new Date(x.lastVerifiedAt).toLocaleString()}>{d(x.lastVerifiedAt)}</td>
-                <td className="whitespace-nowrap text-xs">{x.application ? <Link className="link" href={`/applications/${x.application.id}`}>{x.application.applied ? "Applied" : x.application.stage.replace(/_/g, " ").toLowerCase()}</Link> : <span className="text-slate-400">—</span>}</td>
-                <td className="whitespace-nowrap">{!compact && !x.application && x.status === "OPEN" ? <button disabled={busy} onClick={() => save(x.id)} className="btn-primary !py-1 !px-2.5 text-xs" title="Moves this role to Ready to Apply">+ Save</button> : <a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost !py-1 !px-2.5 text-xs">Posting ↗</a>}</td>
+                <td className="whitespace-nowrap text-[13px] text-slate-500" title={new Date(x.lastVerifiedAt).toLocaleString()}>{d(x.lastVerifiedAt)}</td>
+                <td className="whitespace-nowrap text-[13px]">{x.application ? <Link className="link" href={`/applications/${x.application.id}`}>{x.application.applied ? "Applied" : x.application.stage.replace(/_/g, " ").toLowerCase()}</Link> : <span className="text-slate-400">—</span>}</td>
+                <td className="whitespace-nowrap">{!compact && !x.application && x.status === "OPEN" ? <button disabled={busy} onClick={() => save(x.id)} className="btn-primary !py-1 !px-2.5 text-[13px]" title="Moves this role to Ready to Apply">+ Save</button> : <a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost !py-1 !px-2.5 text-[13px]">Posting ↗</a>}</td>
               </tr>
             ))}
           </tbody>
