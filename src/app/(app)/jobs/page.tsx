@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, StatusDot } from "@/components/ui";
-import RefreshButton from "@/components/RefreshButton";
 import AutoRefresh from "@/components/AutoRefresh";
-import { activeRun } from "@/lib/ingest/run";
+import { activeRun, nextScheduledRefresh } from "@/lib/ingest/run";
 import { ago, titleCase } from "@/lib/format";
 import JobsTable from "@/components/JobsTable";
 import SavedFilters from "@/components/SavedFilters";
@@ -37,7 +36,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active?.startedAt ?? null} /><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
+      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active?.startedAt ?? null} /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <Link href="/jobs" className={`chip px-3 py-1 text-[13px] ${!p.view && !p.category ? ON : OFF}`}>Your Feed</Link>
         {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 text-[13px] ${p.view === k ? ON : OFF}`}>{titleCase(r.short)}</Link>)}
@@ -79,7 +78,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
 /** Feed health as one small pill in the banner: a status dot and how long ago the feeds were read, or that a refresh is running now. */
 function FeedStatus({ run, active }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null; active: Date | null }) {
-  const text = active ? `Refreshing… started ${ago(active)}` : !run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`;
+  const next = nextScheduledRefresh().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" });
+  const text = active ? `Refreshing… started ${ago(active)}` : `${!run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`} · next ${next}`;
   const title = run?.finishedAt ? `Last finished refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
   return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={active ? "degraded" : run?.status} />{text}{active && <AutoRefresh />}</span>;
 }

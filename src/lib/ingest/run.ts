@@ -192,6 +192,14 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
 
 /** Companies without a public job board are looked up again after this many days. */
 export const REPROBE_DAYS = 3;
+/** When the next scheduled refresh starts: ccc-daily at 6 AM and ccc-hourly 7 AM to 9 PM, Arizona time (UTC-7, no daylight saving). */
+export function nextScheduledRefresh(now = new Date()) {
+  const az = new Date(now.getTime() - 7 * 3600_000);
+  const next = new Date(az); next.setUTCMinutes(0, 0, 0); next.setUTCHours(az.getUTCHours() + 1);
+  if (next.getUTCHours() > 21 || next.getUTCHours() < 6) { if (next.getUTCHours() > 21) next.setUTCDate(next.getUTCDate() + 1); next.setUTCHours(6); }
+  return new Date(next.getTime() + 7 * 3600_000);
+}
+
 /** A refresh still "running" after this long was cut off (a deploy or restart stopped the process). */
 export const STALE_RUN_MINUTES = 90;
 

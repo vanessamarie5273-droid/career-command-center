@@ -104,3 +104,13 @@ describe("Refresh runs", () => {
     expect(urls).toEqual([]);
   });
 });
+
+describe("Next scheduled refresh", () => {
+  it("is the next hour from 6 AM to 9 PM Arizona time, else 6 AM", async () => {
+    const { nextScheduledRefresh } = await import("@/lib/ingest/run");
+    const az = (d: Date) => d.toLocaleString("en-US", { timeZone: "America/Phoenix", hour: "numeric", minute: "2-digit", day: "numeric" });
+    expect(az(nextScheduledRefresh(new Date("2026-11-02T18:52:00Z")))).toBe("2, 12:00 PM");
+    expect(az(nextScheduledRefresh(new Date("2026-11-03T05:30:00Z")))).toBe("3, 6:00 AM");
+    expect(az(nextScheduledRefresh(new Date("2026-11-03T10:30:00Z")))).toBe("3, 6:00 AM");
+  });
+});

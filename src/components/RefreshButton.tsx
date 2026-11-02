@@ -2,7 +2,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function RefreshButton({ companyId, label = "Refresh job feeds" }: { companyId?: string; label?: string }) {
+/** Refreshes one company's job board now. Every board is refreshed by the hourly job, outside the web server. */
+export default function RefreshButton({ companyId, label = "Refresh this company's jobs" }: { companyId: string; label?: string }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const r = useRouter();
@@ -12,8 +13,6 @@ export default function RefreshButton({ companyId, label = "Refresh job feeds" }
     const j = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) setMsg(j.error || "Refresh failed");
-    else if (j.started) setMsg("Refresh started. New roles appear as each job board is read.");
-    else if (j.running) setMsg("A refresh is already running.");
     else setMsg(`${j.created} new · ${j.updated} updated · ${j.closed} closed · ${j.errors} errors`);
     r.refresh();
   }
