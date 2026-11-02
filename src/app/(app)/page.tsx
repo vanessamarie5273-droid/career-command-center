@@ -233,17 +233,14 @@ function Row({ href, company, title, sub, right, small }: { href?: string; compa
   return <li>{href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>}</li>;
 }
 
-/** The Command Center banner: violet gradient, a welcome line, a crystal on the right, and the headline numbers as glass tiles. */
+/** The Command Center banner: violet gradient, her greeting, a crystal on the right, and the headline numbers as glass tiles. */
 function Welcome({ children }: { children: ReactNode }) {
   return (
     <section className="relative mb-3 overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#4a26ef_0%,#5D36FF_40%,#8a12d6_80%,#A100C2_100%)] px-4 py-4 text-white shadow-[0_18px_40px_-24px_rgba(93,54,255,0.8)] lg:px-6">
       <Gem className="pointer-events-none absolute -right-4 -top-14 hidden h-[210px] w-[420px] [mask-image:linear-gradient(to_bottom,black_50%,transparent_95%)] md:block" />
-      <div className="relative flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="text-[17px] font-medium text-white/80">Welcome to the</div>
-          <h1 className="text-[34px] font-semibold leading-tight tracking-tight">Command Center</h1>
-        </div>
-        <Link href="/applications" className="relative rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur hover:bg-white/25">All applications →</Link>
+      <div className="relative flex flex-col items-center gap-2 md:block">
+        <h1 className="text-center text-[30px] font-semibold leading-tight tracking-tight md:px-48 md:text-[40px]">{"Wake Up, Daddy's Home!"}</h1>
+        <Link href="/applications" className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm hover:bg-[#f1edff] md:absolute md:right-0 md:top-1/2 md:-translate-y-1/2">All applications →</Link>
       </div>
       <div className="relative mt-4">{children}</div>
     </section>
