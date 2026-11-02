@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="text-3xl font-semibold leading-tight text-white/95">Executive career intelligence.<br /><span className="text-gold-400">Verified openings. Explainable fit.</span></p>
           <p className="mt-4 max-w-md text-white/60 text-sm">Private workspace. Every job links to the employer&apos;s own posting, and every metric is generated from your records.</p>
         </div>
-        <p className="text-xs text-white/40">Private · Single-user · Encrypted in transit</p>
+        <p className="text-[13px] text-white/40">Private · Single-user · Encrypted in transit</p>
       </div>
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
@@ -27,5 +27,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 }
 
 function Mark() {
-  return <svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#12224a" /><path d="M18 40 L30 24 L38 34 L46 20" stroke="#c4a254" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#5D36FF" /><path d="M18 40 L30 24 L38 34 L46 20" stroke="#e9e3ff" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

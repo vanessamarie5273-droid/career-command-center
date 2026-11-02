@@ -11,6 +11,8 @@ const NOT_SALES = /\b(engineer(ing)?|developer|scientist|researcher|designer|cou
 
 // Finance roles that match on "revenue". Checked apart from NOT_SALES so an Account Executive selling billing or accounting software still counts.
 const FINANCE_ROLE = /\b(accounting|revenue (recognition|assurance|cycle|integrity)|billing|collections|fp ?& ?a|financial (planning|reporting|analysis))\b/i;
+// A sales or business development leadership title stays relevant even when it names a non-sales area, e.g. "Business Development Manager, Content Partnerships".
+const LEADS_SELLING = /\b(sales|business development|account) (director|leader|vp|vice|head)\b|\b(director|head|vp|vice president) (of )?(sales|business development|sales development)\b|\b(business development|sales development|bdrs?|sdrs?) (manager|lead|leader)\b|\b(manager|lead|leader) (of )?(business development|sales development|bdrs?|sdrs?)\b/;
 const SELLING_ROLE = /\b(account executive|sales|account director|account manager|business development|client director|client partner)\b/i;
 
 export function classifyTitle(title: string): { family: RoleFamily; seniority: Seniority; adjacent: boolean; stretch: boolean } {
@@ -20,18 +22,18 @@ export function classifyTitle(title: string): { family: RoleFamily; seniority: S
     : /\b(svp|senior vice president|evp|vp|vice president)\b/.test(t) ? "VP"
     : /\bhead of\b/.test(t) ? "HEAD"
     : /\b(director|rvp|area vice)\b/.test(t) ? "DIRECTOR"
-    : /\b(manager|lead|team lead|supervisor)\b/.test(t) ? "MANAGER"
+    : /\b(manager|lead|leader|team lead|supervisor)\b/.test(t) ? "MANAGER"
     : /\b(senior|sr|principal|strategic|staff|lead|major|global)\b/.test(t) ? "SENIOR_IC"
     : "IC";
 
-  const sales = /\b(sales|account executive|\bae\b|account director|account manager|business development|bdr|sdr|revenue|go to market|gtm|commercial|partnerships?|alliances|territory|client partner|client director|customer director|enterprise (growth|accounts?)|new business|market development|growth)\b/.test(t);
-  if (!sales || (FINANCE_ROLE.test(t) && !SELLING_ROLE.test(t)) || (NOT_SALES.test(t) && !/\b(sales|business development|account) (director|leader|vp|vice|head)\b/.test(t) && !/\b(director|head|vp|vice president) (of )?(sales|business development|sales development)\b/.test(t))) {
+  const sales = /\b(sales|account executive|\bae\b|account director|account manager|business development|bdrs?|sdrs?|revenue|go to market|gtm|commercial|partnerships?|alliances|territory|client partner|client director|customer director|enterprise (growth|accounts?)|new business|market development|growth)\b/.test(t);
+  if (!sales || (FINANCE_ROLE.test(t) && !SELLING_ROLE.test(t)) || (NOT_SALES.test(t) && !LEADS_SELLING.test(t))) {
     return { family: "NOT_RELEVANT", seniority, adjacent: false, stretch: false };
   }
 
   let family: RoleFamily = "NOT_RELEVANT";
   let adjacent = false;
-  if (/\b(sales development|business development representative|\bbdr\b|\bsdr\b|\bxdr\b|market development)\b/.test(t)) {
+  if (/\b(sales development|business development representatives?|bdrs?|sdrs?|xdrs?|market development)\b/.test(t)) {
     family = ["MANAGER", "DIRECTOR", "HEAD", "VP", "EXEC"].includes(seniority) ? "SDR_LEADER" : "SDR_IC";
   } else if (/\b(go to market|gtm|growth|commercial strategy|revenue strategy)\b/.test(t) && ["DIRECTOR", "HEAD", "VP", "EXEC", "MANAGER"].includes(seniority)) {
     family = "GTM_LEADER";

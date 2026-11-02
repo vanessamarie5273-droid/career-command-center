@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 // pipelineDashboard reads follow-ups through the app's shared client; point it at the test database.
 vi.mock("@/lib/db", async () => ({ prisma: (await import("./setup-db")).testDb() }));
 
-import { applicationSearch, pipelineDashboard } from "@/lib/pipeline";
+import { agenda, applicationSearch, feed, pipelineDashboard } from "@/lib/pipeline";
 import { prisma } from "@/lib/db";
 import { makeCompany } from "./setup-db";
 
@@ -36,5 +36,35 @@ describe("Command Center dashboard", () => {
     expect(d.upcoming.map((a) => a.id)).toContain(moved.id);
     expect(d.tiles.active).toBeGreaterThanOrEqual(1);
     expect(d.tiles.responseRate).toBeGreaterThan(0);
+  });
+});
+
+describe("Command Center lists", () => {
+  const co = { name: "Acme", logoUrl: null };
+  it("puts dated to-dos in overdue / today / this week and folds no-reply follow-ups into one nudge", () => {
+    const now = new Date("2026-11-01T20:00:00Z"); // 1pm Arizona
+    const r = agenda({
+      followUps: [
+        { id: "a", title: "AE", nextAction: "Reply to no-reply@us.greenhouse-mail.io with your availability", nextActionDue: new Date("2026-11-01T15:00:00Z"), appliedAt: null, company: co },
+        { id: "b", title: "AE", nextAction: null, nextActionDue: null, appliedAt: new Date("2026-10-14T18:00:00Z"), company: co },
+      ],
+      dueTasks: [{ id: "t", title: "Send the POV", dueAt: new Date("2026-10-31T15:00:00Z"), application: { id: "a", title: "AE", company: co } }],
+      upcoming: [{ id: "i", title: "AE", interviewAt: new Date("2026-11-05T20:00:00Z"), company: co }],
+    }, now);
+    expect(r.items.map((x) => [x.kind, x.bucket])).toEqual([["task", "overdue"], ["followup", "today"], ["interview", "soon"]]);
+    expect(r.items[1].text).toBe("Reply to the recruiter with your availability");
+    expect(r.nudges.map((n) => n.id)).toEqual(["b"]);
+  });
+
+  it("shows an email-driven stage move once, with its Undo, and tucks away emails that changed nothing", () => {
+    const app = { id: "a", title: "AE", company: co };
+    const e = (id: string, newStage: string | null, h: number) => ({ id, applicationId: "a", kind: newStage ? "interview" : "confirmation", fromName: null, fromEmail: "x@y.com", subject: "Hi", receivedAt: new Date(Date.UTC(2026, 10, 1, h)), prevStage: newStage ? "APPLIED" : null, newStage, undone: false });
+    const moves = [
+      { id: "m1", applicationId: "a", from: "APPLIED", to: "INTERVIEWING", at: new Date("2026-11-01T10:05:00Z"), application: app },
+      { id: "m2", applicationId: "a", from: "INTERVIEWING", to: "FINAL_INTERVIEW", at: new Date("2026-11-01T12:00:00Z"), application: app },
+    ];
+    const r = feed([e("e1", "INTERVIEWING", 10), e("e2", null, 9)], moves, [app], { interview: "Interview request", confirmation: "Application received" });
+    expect(r.items.map((x) => [x.to, x.undoable])).toEqual([["FINAL_INTERVIEW", false], ["INTERVIEWING", true]]);
+    expect(r.logged.map((x) => x.id)).toEqual(["e2"]);
   });
 });

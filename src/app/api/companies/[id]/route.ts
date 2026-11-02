@@ -12,9 +12,9 @@ const Patch = z.object({
   headquarters: s.optional(), footprint: s.optional(), ownership: s.optional(), ticker: s.optional(), maturity: s.optional(), description: s.optional(),
   keyProducts: s.optional(), customers: s.optional(), buyerPersonas: s.optional(), revenue: s.optional(), revenueGrowth: s.optional(), fundingSummary: s.optional(),
   valuation: s.optional(), investors: s.optional(), liquidityNotes: s.optional(), financialSourceUrl: s.optional(),
-  marketPositionScore: score.optional(), equityUpsideScore: score.optional(), compCompetitiveness: score.optional(), assessmentRationale: s.optional(), risks: s.optional(),
+  marketPositionScore: score.optional(), equityUpsideScore: score.optional(), compCompetitiveness: score.optional(), growthScore: score.optional(), growthThesis: s.optional(), assessmentRationale: s.optional(), risks: s.optional(),
   cultureNotes: s.optional(), engagementStrategy: s.optional(), myContribution: s.optional(), favorite: z.boolean().optional(), userPriority: z.union([z.number(), z.string(), z.null()]).transform((v) => (v === null || v === "" ? null : Number(v))).optional(), notes: s.optional(),
-  atsProvider: z.enum(["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "NONE"]).optional(), atsToken: s.optional(),
+  atsProvider: z.enum(["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "WORKABLE", "AMAZON", "ORACLE", "NONE"]).optional(), atsToken: s.optional(),
   profileFactType: z.enum(["CONFIRMED", "ESTIMATE", "AI_ASSESSMENT"]).optional(), profileSource: s.optional(), profileVerifiedAt: z.string().optional(),
 });
 
@@ -28,7 +28,7 @@ export const PATCH = route<Ctx>("EDITOR", async (req, { params }, u) => {
   const c = await prisma.company.update({ where: { id }, data });
   const changes = diff(before as unknown as Record<string, unknown>, b);
   if (Object.keys(changes).length) await prisma.auditLog.create({ data: { userId: u.sub, entity: "Company", entityId: id, action: "update", changes: JSON.parse(JSON.stringify(changes)) } });
-  if ("marketPositionScore" in b || "equityUpsideScore" in b || "compCompetitiveness" in b) {
+  if ("marketPositionScore" in b || "equityUpsideScore" in b || "compCompetitiveness" in b || "growthScore" in b) {
     const jobs = await prisma.job.findMany({ where: { companyId: id } });
     for (const j of jobs) {
       const r = scoreJob({ ...j, company: c });

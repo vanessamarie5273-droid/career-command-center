@@ -43,16 +43,16 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         </div>
         <div className="flex flex-col items-end gap-2">
           <a href={j.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-gold px-5 py-2.5 text-base">Open employer posting ↗</a>
-          {!specific && <span className="text-xs text-amber-700">This link may not be job-specific; verify before applying.</span>}
+          {!specific && <span className="text-[13px] text-amber-700">This link may not be job-specific; verify before applying.</span>}
           {!app?.applied && <MarkApplied jobId={j.id} kitId={kits[0]?.id ?? null} />}
-          {!app?.applied && kits[0] && <span className="text-xs text-slate-500">Attaches this kit's resume and letter and moves it to Applied.</span>}
+          {!app?.applied && kits[0] && <span className="text-[13px] text-slate-500">Attaches this kit's resume and letter and moves it to Applied.</span>}
           {!app ? <AddToPipeline jobId={j.id} /> : app.applied ? <Link href={`/applications/${app.id}`} className="link text-sm">In pipeline: {STAGE_LABEL[app.stage]} →</Link> : <Link href="/apply" className="link text-sm">Saved on Ready to Apply →</Link>}
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <Card title="Why this score" action={<span className="text-xs text-slate-500">AI score {j.score ?? "—"} · {j.tier ? TIER_LABEL[j.tier] : ""}</span>}>
+          <Card title="Why this score" action={<span className="text-[13px] text-slate-500">AI score {j.score ?? "—"} · {j.tier ? TIER_LABEL[j.tier] : ""}</span>}>
             <div className="space-y-3">
               {(Object.keys(WEIGHTS) as Criterion[]).map((c) => {
                 const pts = breakdown[c] ?? 0;
@@ -60,13 +60,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                 return (
                   <div key={c}>
                     <div className="flex items-center justify-between text-sm"><span className="font-medium">{CRITERION_LABEL[c]} <span className="text-slate-400 font-normal">({WEIGHTS[c]}%)</span></span><span className="tabular-nums font-semibold">{pts} / {WEIGHTS[c]}</span></div>
-                    <div className="mt-1 h-1.5 rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-[#3b5bdb]" style={{ width: `${(pts / WEIGHTS[c]) * 100}%` }} /></div>
-                    <ul className="mt-1 space-y-0.5">{rs.map((r, i) => <li key={i} className="text-xs text-slate-600"><span className={r.delta === "+" ? "text-emerald-600" : r.delta === "-" ? "text-red-600" : "text-slate-400"}>{r.delta === "+" ? "▲" : r.delta === "-" ? "▼" : "•"}</span> {r.text}</li>)}</ul>
+                    <div className="mt-1 h-1.5 rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-[#5D36FF]" style={{ width: `${(pts / WEIGHTS[c]) * 100}%` }} /></div>
+                    <ul className="mt-1 space-y-0.5">{rs.map((r, i) => <li key={i} className="text-[13px] text-slate-600"><span className={r.delta === "+" ? "text-emerald-600" : r.delta === "-" ? "text-red-600" : "text-slate-400"}>{r.delta === "+" ? "▲" : r.delta === "-" ? "▼" : "•"}</span> {r.text}</li>)}</ul>
                   </div>
                 );
               })}
             </div>
-            <p className="mt-4 text-xs text-slate-500">Company market position and equity upside are AI assessments of the company, not facts. Compensation counts as known only when the employer publishes it.</p>
+            <p className="mt-4 text-[13px] text-slate-500">Company market position and equity upside are AI assessments of the company, not facts. Compensation counts as known only when the employer publishes it.</p>
           </Card>
           {(j.requiredQuals || j.preferredQuals) && (
             <Card title="Qualifications">
@@ -95,8 +95,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               <dt className="muted">First found</dt><dd>{dateTime(j.firstSeenAt)}</dd>
               <dt className="muted">Last verified</dt><dd>{dateTime(j.lastVerifiedAt)}</dd>
               <dt className="muted">Clearance</dt><dd>{j.requiresClearance ? "Required (excluded)" : "Not required"}</dd>
-              <dt className="muted">Travel</dt><dd className="text-xs">{j.travelNotes || "Not stated"}</dd>
-              <dt className="muted">Relocation</dt><dd className="text-xs">{j.relocationNotes || "Not stated"}</dd>
+              <dt className="muted">Travel</dt><dd className="text-[13px]">{j.travelNotes || "Not stated"}</dd>
+              <dt className="muted">Relocation</dt><dd className="text-[13px]">{j.relocationNotes || "Not stated"}</dd>
             </dl>
           </Card>
           <Card title="Compensation" action={<FactTag type={j.compFactType} />}>
@@ -105,17 +105,17 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                 {pub && <><dt className="muted">OTE</dt><dd className="font-semibold">{pub}</dd></>}
                 {base && <><dt className="muted">{pub ? "Base" : "Pay range"}</dt><dd className="font-semibold">{base}</dd></>}
                 <dt className="muted">Equity</dt><dd>{j.equityMentioned ? "Mentioned in posting" : "Not mentioned"}</dd>
-                {j.commissionNotes && <><dt className="muted">Variable</dt><dd className="text-xs">{j.commissionNotes}</dd></>}
-                {j.compText && <><dt className="muted">Source text</dt><dd className="text-xs text-slate-500">“{j.compText}”</dd></>}
+                {j.commissionNotes && <><dt className="muted">Variable</dt><dd className="text-[13px]">{j.commissionNotes}</dd></>}
+                {j.compText && <><dt className="muted">Source text</dt><dd className="text-[13px] text-slate-500">“{j.compText}”</dd></>}
               </dl>
             ) : <p className="text-sm text-slate-500">The employer has not published pay for this role. No estimate is shown here; record recruiter-provided figures on the application.</p>}
           </Card>
           <Card title="Your ranking override"><OverrideControl id={j.id} tier={j.overrideTier} score={j.overrideScore} note={j.overrideNote} aiScore={j.score} aiTier={j.tier} favorite={j.favorite} dismissed={j.dismissed} /></Card>
           <Card title="Sources">
-            <ul className="space-y-2 text-sm">{j.sources.map((s) => <li key={s.id}><a href={s.url} target="_blank" rel="noopener noreferrer" className="link">{s.provider.toLowerCase()} posting ↗</a><div className="text-xs text-slate-500">first seen {dateTime(s.firstSeenAt)} · last seen {dateTime(s.lastSeenAt)}</div></li>)}</ul>
+            <ul className="space-y-2 text-sm">{j.sources.map((s) => <li key={s.id}><a href={s.url} target="_blank" rel="noopener noreferrer" className="link">{s.provider.toLowerCase()} posting ↗</a><div className="text-[13px] text-slate-500">first seen {dateTime(s.firstSeenAt)} · last seen {dateTime(s.lastSeenAt)}</div></li>)}</ul>
           </Card>
           <Card title="History">
-            <ul className="space-y-1.5 text-xs">{j.events.map((e) => <li key={e.id}><span className="font-medium capitalize">{e.kind}</span> · {dateTime(e.at)}{e.detail ? <div className="text-slate-500">{e.detail}</div> : null}</li>)}</ul>
+            <ul className="space-y-1.5 text-[13px]">{j.events.map((e) => <li key={e.id}><span className="font-medium capitalize">{e.kind}</span> · {dateTime(e.at)}{e.detail ? <div className="text-slate-500">{e.detail}</div> : null}</li>)}</ul>
           </Card>
         </div>
       </div>

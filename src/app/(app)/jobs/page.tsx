@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, StatusDot } from "@/components/ui";
 import RefreshButton from "@/components/RefreshButton";
-import { ago } from "@/lib/format";
+import { ago, titleCase } from "@/lib/format";
 import JobsTable from "@/components/JobsTable";
 import SavedFilters from "@/components/SavedFilters";
 import { capApplies, jobOrder, jobWhere, RANKINGS, type JobParams } from "@/lib/jobFilters";
@@ -10,6 +10,7 @@ import { companyCap, PER_COMPANY, withinCap } from "@/lib/companyCap";
 import { FAMILY_LABEL } from "@/lib/roles";
 import { CATEGORIES } from "@/data/companies";
 import { JOB_ROW_INCLUDE, toRow } from "@/lib/jobRows";
+import { feedHealth, feedVerdict, type FeedHealth } from "@/lib/feedHealth";
 
 export const metadata = { title: "Discover Jobs" };
 const PER = 50;
@@ -27,34 +28,38 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   ]);
   const qs = (o: Partial<JobParams>) => { const u = new URLSearchParams(Object.entries({ ...p, ...o }).filter(([, v]) => v) as [string, string][]); return `/jobs?${u}`; };
   const rows = jobs.map(toRow);
+  // Feed Check on the plain feed: where the other open roles went. It opens by itself when the feed is short.
+  const health = cap && !p.view && !p.q?.trim() && !p.family ? await feedHealth(prisma, total, cap.hidden) : null;
+  const ON = "bg-white text-[#5D36FF] font-semibold shadow-sm", OFF = "bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25";
 
   return (
     <>
-      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "verified open"} roles from first-party employer job boards. Every link opens the employer's own posting.`} actions={<><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>} />
-      <p className="-mt-2 mb-3 flex items-center gap-2 text-xs text-slate-500"><StatusDot status={lastRun?.status} />Job feeds last refreshed {lastRun?.finishedAt ? `${ago(lastRun.finishedAt)} (${lastRun.status}, ${lastRun.created} new, ${lastRun.closed} closed, ${lastRun.errors} feed errors)` : lastRun ? "— refresh in progress" : "— never. Run the first refresh to load live openings."}</p>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        <Link href="/jobs" className={`chip px-3 py-1 ${!p.view && !p.category ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Your feed</Link>
-        {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} className={`chip px-3 py-1 ${p.view === k ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>{r.label}</Link>)}
-        <Link href="/jobs?category=EXCLUDED" className={`chip px-3 py-1 ${p.category === "EXCLUDED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Excluded</Link>
-        <Link href="/jobs?category=DISMISSED" className={`chip px-3 py-1 ${p.category === "DISMISSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Not a fit</Link>
-        <Link href="/jobs?category=DUPLICATE" className={`chip px-3 py-1 ${p.category === "DUPLICATE" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Duplicates</Link>
-        <Link href="/jobs?status=CLOSED&category=ALL" className={`chip px-3 py-1 ${p.status === "CLOSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Closed (history)</Link>
+      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} /><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
+      <div className="flex flex-wrap gap-1.5 mb-2.5">
+        <Link href="/jobs" className={`chip px-3 py-1 text-[13px] ${!p.view && !p.category ? ON : OFF}`}>Your Feed</Link>
+        {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 text-[13px] ${p.view === k ? ON : OFF}`}>{titleCase(r.short)}</Link>)}
+        <Link href="/jobs?category=EXCLUDED" className={`chip px-3 py-1 text-[13px] ${p.category === "EXCLUDED" ? ON : OFF}`}>Excluded</Link>
+        <Link href="/jobs?category=DISMISSED" className={`chip px-3 py-1 text-[13px] ${p.category === "DISMISSED" ? ON : OFF}`}>Not a Fit</Link>
+        <Link href="/jobs?category=DUPLICATE" className={`chip px-3 py-1 text-[13px] ${p.category === "DUPLICATE" ? ON : OFF}`}>Duplicates</Link>
+        <Link href="/jobs?status=CLOSED&category=ALL" className={`chip px-3 py-1 text-[13px] ${p.status === "CLOSED" ? ON : OFF}`}>Closed</Link>
       </div>
-      <form className="card p-3 mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-9 gap-2 items-end" action="/jobs">
+      <form className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-9 gap-2 items-center" action="/jobs">
         {p.view && <input type="hidden" name="view" value={p.view} />}
         {p.category && <input type="hidden" name="category" value={p.category} />}
         {p.status && <input type="hidden" name="status" value={p.status} />}
-        <div className="col-span-2"><label className="label">Search</label><input name="q" defaultValue={p.q} placeholder="Title, company, location, keyword" className="input" /></div>
-        <div><label className="label">Tier</label><select name="tier" defaultValue={p.tier ?? ""} className="input"><option value="">All</option><option value="TIER1">Tier 1</option><option value="TIER2">Tier 2</option><option value="TIER3">Tier 3</option></select></div>
-        <div><label className="label">Company</label><select name="company" defaultValue={p.company ?? ""} className="input"><option value="">All</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-        <div><label className="label">Industry</label><select name="industry" defaultValue={p.industry ?? ""} className="input"><option value="">All</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div><label className="label">Role type</label><select name="family" defaultValue={p.family ?? ""} className="input"><option value="">All</option>{Object.entries(FAMILY_LABEL).filter(([k]) => !["NOT_RELEVANT", "SDR_IC"].includes(k)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-        <div><label className="label">Min pay (published)</label><select name="minComp" defaultValue={p.minComp ?? ""} className="input"><option value="">Any</option>{[150000, 200000, 250000, 300000, 350000].map((n) => <option key={n} value={n}>${n / 1000}K+</option>)}</select></div>
-        <div><label className="label">Sort</label><select name="sort" defaultValue={p.sort ?? ""} className="input"><option value="">Most recent</option><option value="score">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="company">Company</option><option value="location">Location</option></select></div>
-        <div className="flex gap-3 items-center text-sm"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
+        <div className="col-span-2"><input name="q" defaultValue={p.q} placeholder="Search" aria-label="Search title, company, location or keyword" className="input" /></div>
+        <div><select name="tier" aria-label="Tier" defaultValue={p.tier ?? ""} className="input"><option value="">All tiers</option><option value="TIER1">Tier 1</option><option value="TIER2">Tier 2</option><option value="TIER3">Tier 3</option></select></div>
+        <div><select name="company" aria-label="Company" defaultValue={p.company ?? ""} className="input"><option value="">All companies</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+        <div><select name="industry" aria-label="Industry" defaultValue={p.industry ?? ""} className="input"><option value="">All industries</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+        <div><select name="family" aria-label="Role type" defaultValue={p.family ?? ""} className="input"><option value="">All role types</option>{Object.entries(FAMILY_LABEL).filter(([k]) => !["NOT_RELEVANT", "SDR_IC"].includes(k)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+        <div><select name="minComp" aria-label="Minimum published pay" defaultValue={p.minComp ?? ""} className="input"><option value="">Any pay</option>{[150000, 200000, 250000, 300000, 350000].map((n) => <option key={n} value={n}>${n / 1000}K+</option>)}</select></div>
+        <div><select name="sort" aria-label="Sort" defaultValue={p.sort ?? ""} className="input"><option value="">Most recent</option><option value="score">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="company">Company</option><option value="location">Location</option></select></div>
+        <div className="flex gap-3 items-center text-sm text-white"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
       </form>
-      {cap && cap.hidden > 0 && <p className="mb-2 text-xs text-slate-500">Showing up to {PER_COMPANY} roles per company, counting roles you already applied to. {cap.hidden} more {cap.hidden === 1 ? "role is" : "roles are"} held back. <Link className="link" href={qs({ all: "1", page: "" })}>Show all</Link></p>}
-      {p.all === "1" && <p className="mb-2 text-xs text-slate-500">Showing every role, without the {PER_COMPANY}-per-company limit. <Link className="link" href={qs({ all: "", page: "" })}>Back to the limited feed</Link></p>}
+      </PageHeader>
+      {cap && cap.hidden > 0 && <p className="mb-2 text-[13px] text-slate-500">{PER_COMPANY} per company · <Link className="link" href={qs({ all: "1", page: "" })}>Show {cap.hidden} more</Link></p>}
+      {p.all === "1" && <p className="mb-2 text-[13px] text-slate-500"><Link className="link" href={qs({ all: "", page: "" })}>Back to {PER_COMPANY} per company</Link></p>}
+      {health && <FeedCheck h={health} short={total < 10} showAll={qs({ all: "1", page: "" })} />}
       <SavedFilters page="jobs" />
       <JobsTable rows={rows} />
       <div className="flex items-center justify-between mt-3 text-sm">
@@ -65,5 +70,45 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
     </>
+  );
+}
+
+/** Feed health as one small pill in the banner: a status dot and how long ago the feeds were read. */
+function FeedStatus({ run }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null }) {
+  const text = !run ? "Never refreshed" : run.finishedAt ? ago(run.finishedAt) : "Refreshing…";
+  const title = run?.finishedAt ? `Last refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
+  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={run?.status} />{text}</span>;
+}
+
+/** Where every open role went, counted once each, with a one-line verdict: broken refresh, or quiet market plus her own filters. */
+function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showAll: string }) {
+  const v = feedVerdict(h);
+  const items: [string, number, string][] = [
+    ["In your feed", h.inFeed, "/jobs"],
+    ["New this week", h.foundThisWeek, "/jobs?sort=new"],
+    ["Posted over 30 days ago", h.aged, "/jobs?category=EXCLUDED"],
+    ["Outside your location rules", h.location, "/jobs?category=EXCLUDED"],
+    ["Other screen-outs", h.otherScreened, "/jobs?category=EXCLUDED"],
+    ["Over 3 per company", h.heldByCap, showAll],
+    ["Saved to Ready to Apply", h.saved, "/apply"],
+    ["Applied", h.applied, "/applications?view=table&applied=1"],
+    ["Not a Fit", h.notAFit, "/jobs?category=DISMISSED"],
+    ["Duplicates", h.duplicates, "/jobs?category=DUPLICATE"],
+  ];
+  return (
+    <details open={short || !v.ok} className={`card mb-3 px-4 py-3 ${v.ok ? "" : "ring-2 ring-rose-300"}`}>
+      <summary className="cursor-pointer select-none text-[15px] font-semibold text-navy-950"><StatusDot status={v.ok ? "ok" : "error"} /> <span className="ml-1">Feed Check</span><span className="ml-2 text-[13px] font-normal text-slate-500">{v.text}</span></summary>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {items.map(([label, n, href]) => (
+          <Link key={label} href={href} className="rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-200 hover:bg-slate-100">
+            <div className="text-[22px] font-semibold leading-tight tabular-nums text-navy-950">{n.toLocaleString()}</div>
+            <div className="text-[13px] text-slate-600">{label}</div>
+          </Link>
+        ))}
+      </div>
+      <p className="mt-2 text-[13px] text-slate-500">
+        Job boards: {h.feedsOk} reading fine, <Link className="link" href="/settings">{h.feedsFailed} failing</Link>, {h.noFeed} with no public job feed, out of {h.companies} companies. {h.foundToday} new matching role{h.foundToday === 1 ? "" : "s"} in the last 24 hours.
+      </p>
+    </details>
   );
 }

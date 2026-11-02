@@ -17,7 +17,7 @@ export default async function Documents() {
   const groups = Object.keys(KIND_LABEL).map((k) => [k, docs.filter((d) => d.kind === k)] as const).filter(([, v]) => v.length);
   return (
     <>
-      <PageHeader title="Resume Library" sub={`${unique} unique resume${unique === 1 ? "" : "s"} · ${docs.length} documents. Files are stored privately in your database; text is extracted for ATS checks and job matching. Resumes and letters from an Application Kit stay with their company and application.`} />
+      <PageHeader title="Resume Library" sub={`${unique} resume${unique === 1 ? "" : "s"} · ${docs.length} documents`} />
       <Card title="Upload" className="mb-4"><UploadDocument /></Card>
       {groups.length === 0 ? <Empty>No documents yet. Upload your resume to enable ATS checks, job matching and submission tracking.</Empty> : groups.map(([k, list]) => (
         <Card key={k} title={KIND_LABEL[k]} className="mb-4">
@@ -29,13 +29,13 @@ export default async function Documents() {
               const ats = d.atsReport as { score: number } | null;
               return (
                 <tr key={d.id}>
-                  <td><Link href={`/documents/${d.id}`} className="font-medium hover:underline">{d.name}</Link>{d.isTailored && <span className="chip ml-1 bg-violet-50 text-violet-700">tailored</span>}<div className="text-xs text-slate-400">{d.fileName} · {Math.round(d.size / 1024)} KB</div></td>
+                  <td><Link href={`/documents/${d.id}`} className="font-medium hover:underline">{d.name}</Link>{d.isTailored && <span className="chip ml-1 bg-violet-50 text-violet-700">tailored</span>}<div className="text-[13px] text-slate-400">{d.fileName} · {Math.round(d.size / 1024)} KB</div></td>
                   <td>{d.version}</td><td>{d.industry ?? "—"}</td><td>{d.roleType ?? "—"}</td>
                   {k === "resume" && <td>{ats ? <span className={`font-semibold ${ats.score >= 80 ? "text-emerald-700" : ats.score >= 60 ? "text-amber-700" : "text-red-700"}`}>{ats.score}%</span> : "—"}</td>}
                   <td>{used} application{used === 1 ? "" : "s"}</td>
                   <td>{d._count.submittedAs ? `${Math.round((progressed / d._count.submittedAs) * 100)}%` : "—"}</td>
                   <td className="whitespace-nowrap">{date(d.createdAt)}</td>
-                  <td className="whitespace-nowrap text-xs"><a className="link" href={`/api/documents/${d.id}/download`}>Original</a> · <a className="link" href={`/api/documents/${d.id}/export?format=docx`}>Word</a> · <a className="link" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a> · <DeleteDocument compact id={d.id} name={d.name} /></td>
+                  <td className="whitespace-nowrap text-[13px]"><a className="link" href={`/api/documents/${d.id}/download`}>Original</a> · <a className="link" href={`/api/documents/${d.id}/export?format=docx`}>Word</a> · <a className="link" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a> · <DeleteDocument compact id={d.id} name={d.name} /></td>
                 </tr>
               );
             })}</tbody>

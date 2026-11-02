@@ -20,11 +20,11 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
       <PageHeader title={`Search: “${q}”`} />
       {none ? <Empty>Nothing matched.</Empty> : (
         <div className="grid lg:grid-cols-2 gap-4">
-          {companies.length > 0 && <Card title={`Companies (${companies.length})`}><ul className="text-sm space-y-1">{companies.map((c) => <li key={c.id}><Link className="link" href={`/companies/${c.id}`}>{c.name}</Link> <span className="text-xs text-slate-500">{c.category}</span></li>)}</ul></Card>}
-          {jobs.length > 0 && <Card title={`Open jobs (${jobs.length})`}><ul className="text-sm space-y-1">{jobs.map((j) => <li key={j.id}><Link className="link" href={`/jobs/${j.id}`}>{j.title}</Link> <span className="text-xs text-slate-500">{j.company.name} · {j.score}</span></li>)}</ul></Card>}
+          {companies.length > 0 && <Card title={`Companies (${companies.length})`}><ul className="text-sm space-y-1">{companies.map((c) => <li key={c.id}><Link className="link" href={`/companies/${c.id}`}>{c.name}</Link> <span className="text-[13px] text-slate-500">{c.category}</span></li>)}</ul></Card>}
+          {jobs.length > 0 && <Card title={`Open jobs (${jobs.length})`}><ul className="text-sm space-y-1">{jobs.map((j) => <li key={j.id}><Link className="link" href={`/jobs/${j.id}`}>{j.title}</Link> <span className="text-[13px] text-slate-500">{j.company.name} · {j.score}</span></li>)}</ul></Card>}
           {apps.length > 0 && <Card title={`Applications (${apps.length})`}><ul className="text-sm space-y-1">{apps.map((a) => <li key={a.id}><Link className="link" href={`/applications/${a.id}`}>{a.company.name}: {a.title}</Link></li>)}</ul></Card>}
-          {contacts.length > 0 && <Card title={`Contacts (${contacts.length})`}><ul className="text-sm space-y-1">{contacts.map((c) => <li key={c.id}><Link className="link" href={`/contacts/${c.id}`}>{c.firstName} {c.lastName}</Link> <span className="text-xs text-slate-500">{c.title} {c.companyName}</span></li>)}</ul></Card>}
-          {docs.length > 0 && <Card title={`Documents (${docs.length})`}><ul className="text-sm space-y-1">{docs.map((d) => <li key={d.id}><Link className="link" href={`/documents/${d.id}`}>{d.name}</Link> <span className="text-xs text-slate-500">{d.kind}</span></li>)}</ul></Card>}
+          {contacts.length > 0 && <Card title={`Contacts (${contacts.length})`}><ul className="text-sm space-y-1">{contacts.map((c) => <li key={c.id}><Link className="link" href={`/contacts/${c.id}`}>{c.firstName} {c.lastName}</Link> <span className="text-[13px] text-slate-500">{c.title} {c.companyName}</span></li>)}</ul></Card>}
+          {docs.length > 0 && <Card title={`Documents (${docs.length})`}><ul className="text-sm space-y-1">{docs.map((d) => <li key={d.id}><Link className="link" href={`/documents/${d.id}`}>{d.name}</Link> <span className="text-[13px] text-slate-500">{d.kind}</span></li>)}</ul></Card>}
         </div>
       )}
     </>

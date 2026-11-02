@@ -1,8 +1,9 @@
 // Scheduled daily job: refresh every company feed (revalidating open listings and closing removed ones),
-// rescore, then generate and email the morning briefing from the refreshed records.
+// rescore, read Outlook for recruiter replies, then generate and email the morning briefing from the refreshed records.
 import { PrismaClient } from "@prisma/client";
 import { runIngestion, rescoreAll } from "../src/lib/ingest/run";
 import { generateAndSendBriefing } from "../src/lib/briefing";
+import { syncMailbox } from "../src/lib/mail/sync";
 import { seed } from "./seed";
 const db = new PrismaClient();
 (async () => {
@@ -10,6 +11,8 @@ const db = new PrismaClient();
   const r = await runIngestion(db, { trigger: "cron" });
   console.log(`Ingestion ${r.status}: ${r.created} new, ${r.updated} updated, ${r.closed} closed, ${r.errors} errors across ${r.companies} companies`);
   await rescoreAll(db);
+  const m = await syncMailbox(db).catch((e: Error) => ({ note: `failed: ${e.message}` }));
+  console.log(`Outlook: ${m ? m.note : "not connected"}`);
   const b = await generateAndSendBriefing(db);
   console.log(`Briefing ${b.id}: email ${b.emailStatus}`);
   await db.$disconnect();

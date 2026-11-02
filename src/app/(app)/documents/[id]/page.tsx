@@ -23,7 +23,7 @@ export default async function DocPage({ params }: { params: Promise<{ id: string
       <PageHeader title={d.name} sub={`${d.kind.replace("_", " ")} · ${d.version ?? ""} · added ${date(d.createdAt)}`} actions={<><a className="btn-ghost" href={`/api/documents/${d.id}/download`}>Download original</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=docx`}>Word</a><a className="btn-ghost" href={`/api/documents/${d.id}/export?format=pdf`}>PDF</a><DeleteDocument id={d.id} name={d.name} /></>} />
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <Card title="Extracted text"><pre className="max-h-[520px] overflow-auto whitespace-pre-wrap font-sans text-xs text-slate-700">{d.text || "No text could be extracted."}</pre></Card>
+          <Card title="Extracted text"><pre className="max-h-[520px] overflow-auto whitespace-pre-wrap font-sans text-[13px] text-slate-700">{d.text || "No text could be extracted."}</pre></Card>
           {kit
             ? <Card title="Make changes"><p className="text-sm text-slate-600">This document belongs to an Application Kit. To change it, open the kit, pick its tab and click Edit. Your changes save into the kit and into the Word and PDF downloads.</p><Link className="btn-primary mt-3" href={`/jobs/${kit.jobId}#kit`}>Edit in the Application Kit</Link></Card>
             : <Card title="Create a tailored version"><NewVersion parentId={d.id} name={d.name} text={d.text ?? ""} /></Card>}
@@ -37,9 +37,9 @@ export default async function DocPage({ params }: { params: Promise<{ id: string
               <AutoField endpoint={ep} field="roleType" label="Role type" value={d.roleType} />
             </div>
           </Card>
-          {ats && <Card title={`ATS readability · ${ats.score}%`}><ul className="space-y-1.5 text-xs">{ats.checks.map((c) => <li key={c.label}><span className={c.pass ? "text-emerald-600" : "text-red-600"}>{c.pass ? "✓" : "✕"}</span> <b>{c.label}</b>{c.detail && <div className="ml-4 text-slate-500">{c.detail}</div>}</li>)}</ul></Card>}
-          <Card title="Submitted to">{used.length ? <ul className="text-sm space-y-1">{used.map((a) => <li key={a.id}><Link className="link" href={`/applications/${a.id}`}>{a.company.name}: {a.title}</Link> <span className="text-xs text-slate-500">{STAGE_LABEL[a.stage]}</span></li>)}</ul> : <p className="text-sm text-slate-500">Not yet used on an application.</p>}</Card>
-          <Card title="Versions"><ul className="text-sm space-y-1">{versions.map((v) => <li key={v.id}>{v.id === d.id ? <b>{v.name} {v.version}</b> : <Link className="link" href={`/documents/${v.id}`}>{v.name} {v.version}</Link>} <span className="text-xs text-slate-400">{date(v.createdAt)}</span></li>)}</ul></Card>
+          {ats && <Card title={`ATS readability · ${ats.score}%`}><ul className="space-y-1.5 text-[13px]">{ats.checks.map((c) => <li key={c.label}><span className={c.pass ? "text-emerald-600" : "text-red-600"}>{c.pass ? "✓" : "✕"}</span> <b>{c.label}</b>{c.detail && <div className="ml-4 text-slate-500">{c.detail}</div>}</li>)}</ul></Card>}
+          <Card title="Submitted to">{used.length ? <ul className="text-sm space-y-1">{used.map((a) => <li key={a.id}><Link className="link" href={`/applications/${a.id}`}>{a.company.name}: {a.title}</Link> <span className="text-[13px] text-slate-500">{STAGE_LABEL[a.stage]}</span></li>)}</ul> : <p className="text-sm text-slate-500">Not yet used on an application.</p>}</Card>
+          <Card title="Versions"><ul className="text-sm space-y-1">{versions.map((v) => <li key={v.id}>{v.id === d.id ? <b>{v.name} {v.version}</b> : <Link className="link" href={`/documents/${v.id}`}>{v.name} {v.version}</Link>} <span className="text-[13px] text-slate-400">{date(v.createdAt)}</span></li>)}</ul></Card>
         </div>
       </div>
     </>

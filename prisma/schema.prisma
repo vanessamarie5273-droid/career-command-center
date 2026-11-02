@@ -32,6 +32,9 @@ enum AtsProvider {
   ASHBY
   SMARTRECRUITERS
   WORKDAY
+  WORKABLE
+  AMAZON
+  ORACLE
   NONE
 }
 
@@ -74,6 +77,7 @@ model User {
   lastLoginAt    DateTime?
   alertEmail     String?
   alertMinScore  Int       @default(80)
+  instantAlerts  Boolean   @default(true) // email high-fit roles within the hour, not just in the morning briefing
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   savedFilters   SavedFilter[]
@@ -115,6 +119,8 @@ model Company {
   // AI assessments (0-100), labelled as such everywhere they are shown.
   marketPositionScore Int?
   equityUpsideScore   Int?
+  growthScore         Int?         // potential for very fast growth (AI assessment)
+  growthThesis        String?
   compCompetitiveness Int?
   assessmentRationale String?
   risks               String?
@@ -226,6 +232,9 @@ model Job {
   dismissedAt       DateTime?
   dismissReason     String?    // "not_fit" or "duplicate"
   favorite          Boolean    @default(false)
+  alertedAt         DateTime?  // when she was told about it (instant alert or morning briefing)
+  fitBrief          Json?      // briefing assessment: { why[2], blocker, position, action, source }
+  fitBriefAt        DateTime?
 
   sources           JobSource[]
   events            JobEvent[]
@@ -241,7 +250,7 @@ model JobSource {
   id          String      @id @default(cuid())
   jobId       String
   job         Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  provider    String      // GREENHOUSE / LEVER / ASHBY / SMARTRECRUITERS / WORKDAY / MANUAL / LINKEDIN
+  provider    String      // GREENHOUSE / LEVER / ASHBY / SMARTRECRUITERS / WORKDAY / WORKABLE / AMAZON / ORACLE / MANUAL / LINKEDIN
   externalId  String
   url         String
   firstSeenAt DateTime    @default(now())
@@ -517,4 +526,44 @@ model InterviewPrep {
   updatedAt     DateTime    @updatedAt
 
   @@index([applicationId, createdAt])
+}
+
+// Her job-search mailbox (Outlook), connected with Microsoft sign-in. One row ("outlook"). Tokens are
+// encrypted with SESSION_SECRET and never included in backups.
+model MailAccount {
+  id            String    @id @default("outlook")
+  email         String
+  refreshToken  String    // encrypted
+  accessToken   String?   // encrypted
+  expiresAt     DateTime?
+  scopes        String
+  lastSyncAt    DateTime?
+  lastSyncNote  String?
+  status        String    @default("connected") // connected / error
+  connectedAt   DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// An email from a company she is in process with, read from her mailbox, and what the app did with it.
+model EmailEvent {
+  id            String       @id @default(cuid())
+  providerId    String       @unique // the mailbox's message id
+  threadId      String               // conversation id
+  applicationId String?
+  companyId     String?
+  fromName      String?
+  fromEmail     String
+  subject       String
+  snippet       String?
+  receivedAt    DateTime
+  kind          String       // confirmation / reply / interview / rejection / offer
+  action        String?      // what changed, in words
+  prevStage     Stage?
+  newStage      Stage?
+  prevApplied   Boolean?
+  undone        Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+
+  @@index([applicationId, receivedAt])
+  @@index([createdAt])
 }

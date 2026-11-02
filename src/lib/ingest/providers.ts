@@ -4,6 +4,9 @@ import { fetchLever } from "./lever";
 import { fetchAshby } from "./ashby";
 import { fetchSmartRecruiters } from "./smartrecruiters";
 import { fetchWorkday } from "./workday";
+import { fetchWorkable } from "./workable";
+import { fetchAmazon } from "./amazon";
+import { fetchOracle } from "./oracle";
 import { BoardNotFound, type BoardResult, type FetchLike } from "./types";
 
 export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = fetch): Promise<BoardResult> {
@@ -13,11 +16,16 @@ export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = 
     case "ASHBY": return fetchAshby(token, f);
     case "SMARTRECRUITERS": return fetchSmartRecruiters(token, f);
     case "WORKDAY": return fetchWorkday(token, f);
+    case "WORKABLE": return fetchWorkable(token, f);
+    case "AMAZON": return fetchAmazon(token, f);
+    case "ORACLE": return fetchOracle(token, f);
     default: throw new Error("No supported job feed configured");
   }
 }
 
-const PREFIX: Record<string, AtsProvider> = { greenhouse: "GREENHOUSE", lever: "LEVER", ashby: "ASHBY", smartrecruiters: "SMARTRECRUITERS", workday: "WORKDAY" };
+const PREFIX: Record<string, AtsProvider> = { greenhouse: "GREENHOUSE", lever: "LEVER", ashby: "ASHBY", smartrecruiters: "SMARTRECRUITERS", workday: "WORKDAY", workable: "WORKABLE", amazon: "AMAZON", oracle: "ORACLE" };
+/** Boards found from the company's name alone: every provider with a public, keyless job API. */
+const PROBED: AtsProvider[] = ["GREENHOUSE", "ASHBY", "LEVER", "SMARTRECRUITERS", "WORKABLE"];
 
 /** Candidate (provider, token) pairs: explicit hints first, then slug variants on the public-API providers. */
 export function candidates(slug: string, name: string, hints: string[]): { provider: AtsProvider; token: string }[] {
@@ -30,7 +38,7 @@ export function candidates(slug: string, name: string, hints: string[]): { provi
   }
   if (hints.includes("none")) return out;
   const variants = [...new Set([slug, slug.replace(/-/g, ""), name.toLowerCase().replace(/[^a-z0-9]/g, "")])];
-  for (const v of variants) for (const p of ["GREENHOUSE", "ASHBY", "LEVER"] as AtsProvider[]) if (!out.some((o) => o.provider === p && o.token === v)) out.push({ provider: p, token: v });
+  for (const v of variants) for (const p of PROBED) if (!out.some((o) => o.provider === p && o.token === v)) out.push({ provider: p, token: v });
   return out;
 }
 

@@ -15,6 +15,7 @@
     "job:ingest": "tsx scripts/ingest.ts",
     "job:briefing": "tsx scripts/briefing.ts",
     "job:daily": "tsx scripts/daily.ts",
+    "job:hourly": "tsx scripts/hourly.ts",
     "job:rescore": "tsx scripts/rescore.ts"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "bcryptjs": "3.0.3",
     "docx": "9.11.0",
     "jose": "6.2.12",
+    "jszip": "^3.10.2",
     "mammoth": "1.13.0",
     "next": "15.5.27",
     "pdf-lib": "1.17.1",

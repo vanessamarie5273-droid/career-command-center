@@ -11,11 +11,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s) redirect("/login");
   const unread = await prisma.alert.count({ where: { read: false } });
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen lg:bg-[linear-gradient(to_right,#A100C2_14rem,transparent_14rem)]">
       <Sidebar alerts={unread} />
-      <div className="lg:pl-64">
-        <Topbar email={s.email} />
-        <main className="px-4 lg:px-8 py-6 max-w-[1500px]">{children}</main>
+      <div className="lg:pl-56">
+        <Topbar alerts={unread} />
+        <main className="px-3 lg:px-5 py-4">{children}</main>
       </div>
     </div>
   );
