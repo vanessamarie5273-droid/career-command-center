@@ -11,6 +11,8 @@ import { assistantConfigured, MODEL } from "@/lib/assistant";
 import { dateTime } from "@/lib/format";
 import { outlookConfigured } from "@/lib/mail/outlook";
 import { OutlookControls } from "@/components/MailWidgets";
+import { googleJobsConfigured } from "@/lib/ingest/googleJobs";
+import { nextScheduledRefresh } from "@/lib/ingest/run";
 
 export const metadata = { title: "Settings & Integrations" };
 
@@ -32,7 +34,12 @@ export default async function Settings({ searchParams }: { searchParams: Promise
   const integrations = [
     { name: "Database (PostgreSQL)", status: "connected", detail: "Persistent storage for all records and files", action: null },
     ...["greenhouse", "lever", "ashby", "smartrecruiters", "workday"].map((id) => ({ name: `${id[0].toUpperCase()}${id.slice(1)} job boards`, status: st(id)?.status ?? "not_configured", detail: st(id)?.detail ?? "Public first-party job board API; no credentials needed", action: null })),
-    { name: "Google Jobs (via SerpApi)", status: st("google_jobs")?.status ?? "not_configured", detail: st("google_jobs") ? `${st("google_jobs")!.detail ?? ""}${st("google_jobs")!.status !== "not_configured" ? ` · last search ${dateTime(st("google_jobs")!.checkedAt)}` : ""}` : "Set SERPAPI_API_KEY to add Phoenix and remote sales roles from Google Jobs", action: st("google_jobs")?.status === "connected" ? "Searches once a day" : "Free key at serpapi.com (see SETUP.md)" },
+    // The key lives on the web server too, so a key that is set but has not searched yet reads as waiting, not "not configured".
+    !st("google_jobs") || st("google_jobs")!.status === "not_configured"
+      ? googleJobsConfigured()
+        ? { name: "Google Jobs (via SerpApi)", status: "degraded", detail: `Key added. The first search runs when the next scheduled refresh finishes (next starts ${nextScheduledRefresh().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" })}).`, action: null }
+        : { name: "Google Jobs (via SerpApi)", status: "not_configured", detail: "Set SERPAPI_API_KEY to add Phoenix and remote sales roles from Google Jobs", action: "Free key at serpapi.com (see SETUP.md)" }
+      : { name: "Google Jobs (via SerpApi)", status: st("google_jobs")!.status, detail: `${st("google_jobs")!.detail ?? ""} · last search ${dateTime(st("google_jobs")!.checkedAt)}`, action: st("google_jobs")!.status === "connected" ? "Searches once a day" : null },
     { name: "Scheduled daily refresh", status: lastRun && lastRun.startedAt > new Date(Date.now() - 36 * 3600_000) ? "connected" : "not_configured", detail: lastRun ? `Last run ${dateTime(lastRun.startedAt)} (${lastRun.trigger}, ${lastRun.status})` : "No run yet", action: "Configured as a cron job on the host (see SETUP.md)" },
     { name: "Outlook (job inbox)", status: !outlookConfigured() ? "not_configured" : !mail ? "not_configured" : mail.status === "error" ? "error" : "connected", detail: !outlookConfigured() ? "Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET" : mail ? `${mail.email} · ${mail.lastSyncNote ?? "connected"}` : "Not connected", action: !outlookConfigured() ? "Register the app with Microsoft (SETUP.md, Connect Outlook)" : !mail || mail.status === "error" ? "Connect Outlook below" : null },
     { name: "Instant job alerts", status: !user?.instantAlerts ? "not_configured" : lastHourly && lastHourly.startedAt > new Date(Date.now() - 18 * 3600_000) ? "connected" : "degraded", detail: user?.instantAlerts ? `Hourly 7 AM–9 PM Arizona for new roles scoring ${user.alertMinScore}+ · ${lastHourly ? `last hourly run ${dateTime(lastHourly.startedAt)} (${lastHourly.status})` : "no hourly run yet"}` : "Off: new roles wait for the morning briefing", action: user?.instantAlerts && !lastHourly ? "Runs from the ccc-hourly cron job (see SETUP.md)" : null },
