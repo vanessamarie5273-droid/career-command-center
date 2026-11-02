@@ -185,4 +185,16 @@ export const GROWTH: Record<string, [score: number, thesis: string]> = {
   "blue-yonder": [58, "Scottsdale-based supply chain software with steady growth"],
   webpt: [52, "Phoenix-based rehab therapy software with modest growth"],
   nextiva: [62, "Scottsdale-based communications platform pushing into contact center AI"],
+  // Arizona technology employers (2026-11-02)
+  onsemi: [62, "Silicon carbide for EVs and AI data center power; demand is cyclical"],
+  microchip: [50, "Recovering from a deep inventory downturn; steady, not explosive"],
+  avnet: [40, "Large component distributor tied to the chip cycle; slow growth"],
+  intel: [40, "Turnaround under new leadership; foundry and AI must prove out"],
+  "first-solar": [72, "U.S. solar maker helped by domestic content rules and power demand"],
+  keap: [35, "Small business CRM inside Thryv; slow growth"],
+  infosys: [45, "Large IT services firm with low single-digit growth; AI services are the upside"],
+  axway: [40, "Mature API and file transfer software; slow growth"],
+  "digital-air-strike": [55, "AI engagement tools for car dealers; modest growth"],
+  sonatafy: [58, "Nearshore engineering firm growing with AI demand"],
+  parchment: [55, "Credentials platform inside Instructure; steady growth"],
 };
