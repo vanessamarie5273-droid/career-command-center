@@ -14,7 +14,7 @@ export default function NewJobForm({ companies }: { companies: { id: string; nam
   }
   return (
     <form onSubmit={submit} className="grid md:grid-cols-2 gap-3 max-w-3xl">
-      <div><label className="label">Company</label><select required name="companyId" className="input">{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><p className="text-xs text-slate-500 mt-1">Not listed? Add it in Company Intelligence first.</p></div>
+      <div><label className="label">Company</label><select required name="companyId" className="input">{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><p className="text-[13px] text-slate-500 mt-1">Not listed? Add it in Company Intelligence first.</p></div>
       <div><label className="label">Source</label><select name="source" className="input"><option value="MANUAL">Employer site</option><option value="LINKEDIN">LinkedIn</option><option value="REFERRAL">Referral</option></select></div>
       <div className="md:col-span-2"><label className="label">Exact job title</label><input required name="title" className="input" /></div>
       <div className="md:col-span-2"><label className="label">Posting URL</label><input required type="url" name="url" className="input" placeholder="https://…/jobs/12345" /></div>

@@ -66,13 +66,13 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
         {KIT_PARTS.map((p) => (
-          <button key={p} onClick={() => pick(p)} className={`-mb-px border-b-2 px-3 py-1.5 text-xs font-medium ${tab === p ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
+          <button key={p} onClick={() => pick(p)} className={`-mb-px border-b-2 px-3 py-1.5 text-[13px] font-medium ${tab === p ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
             {KIT_LABEL[p]}{kit.checks[p]?.length ? <span className="ml-1 chip bg-amber-50 text-amber-800">{kit.checks[p].length}</span> : null}
           </button>
         ))}
       </div>
       {issues.length ? (
-        <ul className="space-y-1 rounded-lg bg-amber-50/70 p-3 text-xs ring-1 ring-amber-200">
+        <ul className="space-y-1 rounded-lg bg-amber-50/70 p-3 text-[13px] ring-1 ring-amber-200">
           {issues.map((x, i) => {
             const f = fixes[fixKey(i)];
             return (
@@ -84,18 +84,18 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
                     <p className="whitespace-pre-wrap text-slate-400 line-through">{f.find}</p>
                     <p className="whitespace-pre-wrap text-slate-800">{f.replace}</p>
                     {f.why && <p className="text-slate-500">{f.why}</p>}
-                    <div className="flex gap-2"><button className="btn-primary !py-1 !text-xs" disabled={busy} onClick={() => applyFix(f)}>{busy ? "Applying…" : "Apply"}</button><button className="btn-ghost !py-1 !text-xs" disabled={busy} onClick={() => suggest(i)}>Try another</button><button className="btn-ghost !py-1 !text-xs" disabled={busy} onClick={() => setFixes((m) => { const n = { ...m }; delete n[fixKey(i)]; return n; })}>Dismiss</button></div>
+                    <div className="flex gap-2"><button className="btn-primary !py-1 !text-[13px]" disabled={busy} onClick={() => applyFix(f)}>{busy ? "Applying…" : "Apply"}</button><button className="btn-ghost !py-1 !text-[13px]" disabled={busy} onClick={() => suggest(i)}>Try another</button><button className="btn-ghost !py-1 !text-[13px]" disabled={busy} onClick={() => setFixes((m) => { const n = { ...m }; delete n[fixKey(i)]; return n; })}>Dismiss</button></div>
                   </div>
                 )}
               </li>
             );
           })}
         </ul>
-      ) : <p className="text-xs text-emerald-700">✓ Passes the language and fact checks.</p>}
+      ) : <p className="text-[13px] text-emerald-700">✓ Passes the language and fact checks.</p>}
       {draft == null ? (
-        <pre className="max-h-[560px] overflow-auto rounded-lg bg-slate-50 p-4 text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{kit.parts[tab]}</pre>
+        <pre className="max-h-[560px] overflow-auto rounded-lg bg-slate-50 p-4 text-[14px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{kit.parts[tab]}</pre>
       ) : (
-        <textarea className="input min-h-[420px] text-[13px] leading-relaxed" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={`Edit ${KIT_LABEL[tab]}`} />
+        <textarea className="input min-h-[420px] text-[14px] leading-relaxed" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={`Edit ${KIT_LABEL[tab]}`} />
       )}
       <div className="flex flex-wrap gap-2">
         {draft == null ? (
@@ -104,13 +104,13 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
             <button className="btn-ghost" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
             <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=docx`}>Word</a>
             <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=pdf`}>PDF</a>
-            {saved && <span className="self-center text-xs text-emerald-700">✓ Saved. Your downloads now use this version.</span>}
+            {saved && <span className="self-center text-[13px] text-emerald-700">✓ Saved. Your downloads now use this version.</span>}
           </>
         ) : (
           <>
             <button className="btn-primary" disabled={busy || !draft.trim()} onClick={() => save()}>{busy ? "Saving and checking…" : "Save changes"}</button>
             <button className="btn-ghost" disabled={busy} onClick={() => setDraft(null)}>Cancel</button>
-            <span className="self-center text-xs text-slate-500">Saving re-runs the checks. Keep every title, date, employer and result true to your resume.</span>
+            <span className="self-center text-[13px] text-slate-500">Saving re-runs the checks. Keep every title, date, employer and result true to your resume.</span>
           </>
         )}
       </div>
@@ -119,7 +119,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
   if (embedded) return <div className="space-y-3 text-sm">{err && <p className="text-red-700">{err}</p>}{review}</div>;
   return (
     <section id="kit" className="card scroll-mt-4 border-gold-500/50">
-      <div className="card-h"><h2 className="card-t">Application Kit</h2>{kit && <span className="text-xs text-slate-500">Built {dateTime(kit.createdAt)}</span>}</div>
+      <div className="card-h"><h2 className="card-t">Application Kit</h2>{kit && <span className="text-[13px] text-slate-500">Built {dateTime(kit.createdAt)}</span>}</div>
       <div className="px-5 pb-5 space-y-3 text-sm">
         <p className="text-slate-600">One click writes a tailored resume, a Why Me letter, a point of view with a 30-60-90 plan, notes for each person on the hiring team, and copy-ready form answers. It uses only facts from your resume; the checks flag anything that is not there and any language your brief rules out.</p>
         {!configured ? <p className="text-amber-700">Add ANTHROPIC_API_KEY to the web service to turn this on.</p> : resumes.length === 0 ? <p className="muted">Upload your resume in the <Link className="link" href="/documents">Resume Library</Link> first.</p> : (

@@ -19,7 +19,7 @@ export default function SavedFilters({ page }: { page: string }) {
   }
   async function del(id: string) { await fetch(`/api/saved-filters?id=${id}`, { method: "DELETE" }); load(); }
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-3 text-xs">
+    <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[13px]">
       <span className="text-slate-500">Saved filters:</span>
       {items.map((f) => (
         <span key={f.id} className="chip bg-white ring-1 ring-slate-200 gap-1">

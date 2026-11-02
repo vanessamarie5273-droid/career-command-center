@@ -33,7 +33,7 @@ export default async function ApplyPage() {
                 <div className="flex-1 min-w-[220px]">
                   <Link className="font-semibold text-navy-950 hover:underline" href={`/jobs/${j.id}`}>{j.title}</Link>
                   <div className="text-sm text-slate-500">{j.company.name}{j.location ? ` · ${j.location}` : ""}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px]">
                     <TierBadge tier={effectiveTier(j)} /><ScorePill score={effectiveScore(j)} />
                     {kit ? <><span className="muted">Kit built {dateTime(kit.createdAt)}</span>{issues ? <span className="chip bg-amber-50 text-amber-800">{issues} check{issues > 1 ? "s" : ""} to review</span> : <span className="chip bg-emerald-50 text-emerald-700">Checks pass</span>}</> : <span className="muted">Saved {date(app.createdAt)} · no kit yet</span>}
                   </div>

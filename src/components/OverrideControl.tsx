@@ -14,7 +14,7 @@ export default function OverrideControl(p: { id: string; tier: string | null; sc
   }
   return (
     <div className="space-y-2 text-sm">
-      <p className="text-xs text-slate-500">AI result stays on record: {p.aiScore ?? "—"} pts, {p.aiTier?.replace("TIER", "Tier ") ?? "—"}.</p>
+      <p className="text-[13px] text-slate-500">AI result stays on record: {p.aiScore ?? "—"} pts, {p.aiTier?.replace("TIER", "Tier ") ?? "—"}.</p>
       <div className="grid grid-cols-2 gap-2">
         <div><label className="label">Tier</label><select className="input" value={tier} onChange={(e) => setTier(e.target.value)}><option value="">Use AI tier</option><option value="TIER1">Tier 1</option><option value="TIER2">Tier 2</option><option value="TIER3">Tier 3</option></select></div>
         <div><label className="label">Score</label><input className="input" type="number" min={0} max={100} placeholder="AI" value={score} onChange={(e) => setScore(e.target.value)} /></div>
@@ -28,7 +28,7 @@ export default function OverrideControl(p: { id: string; tier: string | null; sc
           <button className="btn-ghost" onClick={() => save({ dismissed: true, dismissReason: "duplicate" })}>Duplicate</button>
         </>}
       </div>
-      {saved && <p className="text-xs text-emerald-700">{saved}</p>}
+      {saved && <p className="text-[13px] text-emerald-700">{saved}</p>}
     </div>
   );
 }

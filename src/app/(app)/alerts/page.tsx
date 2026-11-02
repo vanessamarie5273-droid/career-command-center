@@ -90,7 +90,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
           </div>
           {alerts.length === 0 ? <Empty>Nothing here yet.</Empty> : days.map((d) => (
             <div key={d.label}>
-              <div className="sticky top-14 z-[1] -mx-1 mb-1 mt-3 bg-white/95 px-1 py-1 text-[13px] font-semibold text-navy-950 first:mt-0">{d.label}</div>
+              <div className="sticky top-14 z-[1] -mx-1 mb-1 mt-3 bg-white/95 px-1 py-1 text-[14px] font-semibold text-navy-950 first:mt-0">{d.label}</div>
               <ul className="space-y-0.5">{d.items.map((a) => <AlertRow key={a.id} a={a} company={logoFor(a.link)} />)}</ul>
             </div>
           ))}
@@ -98,18 +98,18 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
 
         <div className="flex flex-col gap-3 xl:col-span-4">
           {b && b.actions.length > 0 && (
-            <Card title="Do Today" icon="flame" dark action={<Link className="link text-xs" href="/briefing">Full briefing →</Link>}>
-              <ol className="space-y-2">{b.actions.map((x, i) => <li key={x} className="flex gap-2.5 text-[13.5px] leading-snug text-white/95"><span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-[#5D36FF]">{i + 1}</span><span>{x}</span></li>)}</ol>
+            <Card title="Do Today" icon="flame" dark action={<Link className="link text-[13px]" href="/briefing">Full briefing →</Link>}>
+              <ol className="space-y-2">{b.actions.map((x, i) => <li key={x} className="flex gap-2.5 text-[15px] leading-snug text-white/95"><span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-semibold text-[#5D36FF]">{i + 1}</span><span>{x}</span></li>)}</ol>
             </Card>
           )}
           {b && b.tier1.length > 0 && (
-            <Card title="Tier 1 Open" icon="trophy" tone="gold" action={<Link className="link text-xs" href="/jobs?tier=TIER1">All {b.tier1.length} →</Link>}>
+            <Card title="Tier 1 Open" icon="trophy" tone="gold" action={<Link className="link text-[13px]" href="/jobs?tier=TIER1">All {b.tier1.length} →</Link>}>
               <ul className="space-y-0.5">{b.tier1.slice(0, 6).map((j) => {
                 const c = jobs.find((x) => x.id === j.id)?.company;
                 return (
                   <li key={j.id}><Link href={`/jobs/${j.id}`} className="row-link">
                     <Logo src={c?.logoUrl} name={j.company} size={30} />
-                    <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] font-medium text-navy-950">{j.title}</span><span className="block truncate text-xs text-slate-500">{j.company}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium text-navy-950">{j.title}</span><span className="block truncate text-[13px] text-slate-500">{j.company}</span></span>
                     <ScoreBadge score={j.score} size={32} />
                   </Link></li>
                 );
@@ -130,14 +130,14 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
                 ))}
               </div>
             )}
-            {runs.length > 0 && <div className="mt-2 flex gap-3 text-[11.5px] text-slate-500"><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-[#5D36FF]" />New</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-slate-400" />Closed</span></div>}
+            {runs.length > 0 && <div className="mt-2 flex gap-3 text-[12.5px] text-slate-500"><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-[#5D36FF]" />New</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-slate-400" />Closed</span></div>}
           </Card>
         </div>
       </div>
 
       <details className="card group" open={Boolean(p.q || p.kind || page > 1)}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <span className="flex items-center gap-2.5"><span className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-slate-500/10 text-slate-500"><Icon name="history" size={16} /></span><span className="text-[16.5px] font-semibold text-navy-950">Job History</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-slate-500">{evCount.toLocaleString()}</span></span>
+          <span className="flex items-center gap-2.5"><span className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-slate-500/10 text-slate-500"><Icon name="history" size={16} /></span><span className="text-[16.5px] font-semibold text-navy-950">Job History</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[12.5px] font-semibold tabular-nums text-slate-500">{evCount.toLocaleString()}</span></span>
           <svg className="text-slate-400 transition group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
         </summary>
         <div className="px-4 pb-4">
@@ -147,7 +147,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
             <button className="btn-primary">Filter</button>
           </form>
           <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>When</th><th>Event</th><th>Job</th><th>Detail</th></tr></thead>
-            <tbody>{events.map((e) => <tr key={e.id}><td className="whitespace-nowrap text-xs">{dateTime(e.at)}</td><td><span className={`chip capitalize ${e.kind === "closed" ? "bg-slate-100 text-slate-600" : e.kind === "discovered" ? "bg-emerald-50 text-emerald-700" : "bg-navy-500/10 text-navy-700"}`}>{e.kind}</span></td><td><Link className="link" href={`/jobs/${e.jobId}`}>{e.job.title}</Link> <span className="text-xs text-slate-500">{e.job.company.name}</span></td><td className="text-xs text-slate-500">{e.detail}</td></tr>)}</tbody>
+            <tbody>{events.map((e) => <tr key={e.id}><td className="whitespace-nowrap text-[13px]">{dateTime(e.at)}</td><td><span className={`chip capitalize ${e.kind === "closed" ? "bg-slate-100 text-slate-600" : e.kind === "discovered" ? "bg-emerald-50 text-emerald-700" : "bg-navy-500/10 text-navy-700"}`}>{e.kind}</span></td><td><Link className="link" href={`/jobs/${e.jobId}`}>{e.job.title}</Link> <span className="text-[13px] text-slate-500">{e.job.company.name}</span></td><td className="text-[13px] text-slate-500">{e.detail}</td></tr>)}</tbody>
           </table></div>
           <div className="mt-2 flex gap-2">{page > 1 && <Link className="btn-ghost" href={`/alerts?${new URLSearchParams({ ...p, page: String(page - 1) } as Record<string, string>)}`}>← Newer</Link>}{page * 100 < evCount && <Link className="btn-ghost" href={`/alerts?${new URLSearchParams({ ...p, page: String(page + 1) } as Record<string, string>)}`}>Older →</Link>}</div>
         </div>
@@ -157,7 +157,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
 }
 
 function Chip({ href, on, label, n }: { href: string; on: boolean; label: string; n: number }) {
-  return <Link href={href} scroll={false} className={`rounded-full px-3 py-1 text-[12.5px] font-medium transition ${on ? "bg-navy-900 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{label}<span className={`ml-1.5 tabular-nums ${on ? "text-gold-300" : "text-slate-400"}`}>{n}</span></Link>;
+  return <Link href={href} scroll={false} className={`rounded-full px-3 py-1 text-[13.5px] font-medium transition ${on ? "bg-navy-900 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{label}<span className={`ml-1.5 tabular-nums ${on ? "text-gold-300" : "text-slate-400"}`}>{n}</span></Link>;
 }
 
 /** One alert: company logo (or the alert's icon), who and what in one line, the email or detail underneath, and a score or time on the right. */
@@ -174,10 +174,10 @@ function AlertRow({ a, company }: { a: { id: string; kind: string; title: string
         {company && <span className={`absolute -bottom-1 -right-1 inline-flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-white ${tone}`}><Icon name={icon} size={10} stroke={2.4} /></span>}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] text-navy-950">{who && <b className="font-semibold">{who} </b>}<span className={who ? "text-slate-700" : "font-medium"}>{what}</span></span>
-        {a.body && !m && <span className="block truncate text-xs text-slate-500" title={a.body}>{a.body.split("\n")[0]}</span>}
+        <span className="block truncate text-[15px] text-navy-950">{who && <b className="font-semibold">{who} </b>}<span className={who ? "text-slate-700" : "font-medium"}>{what}</span></span>
+        {a.body && !m && <span className="block truncate text-[13px] text-slate-500" title={a.body}>{a.body.split("\n")[0]}</span>}
       </span>
-      {m ? <ScoreBadge score={Number(m[1])} size={32} /> : <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400">{a.createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ })}</span>}
+      {m ? <ScoreBadge score={Number(m[1])} size={32} /> : <span className="shrink-0 text-[12.5px] tabular-nums text-slate-400">{a.createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ })}</span>}
       {!a.read && <span className="h-2 w-2 shrink-0 rounded-full bg-gold-500" aria-label="Unread" />}
     </>
   );

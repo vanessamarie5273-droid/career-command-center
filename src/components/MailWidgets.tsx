@@ -29,7 +29,7 @@ export function OutlookControls({ connected }: { connected: boolean }) {
         <a className="btn-ghost" href="/api/mail/connect">Reconnect</a>
         <button className="btn-ghost" disabled={!!busy} onClick={() => act("disconnect")}>Disconnect</button>
       </div>
-      {msg && <p className="text-xs text-slate-600">{msg}</p>}
+      {msg && <p className="text-[13px] text-slate-600">{msg}</p>}
     </div>
   );
 }
@@ -37,7 +37,7 @@ export function OutlookControls({ connected }: { connected: boolean }) {
 export function UndoEmail({ id }: { id: string }) {
   const r = useRouter();
   const [busy, setBusy] = useState(false);
-  return <button className="text-xs link shrink-0" disabled={busy} onClick={async () => { setBusy(true); try { await post(`/api/mail/events/${id}/undo`, {}); r.refresh(); } catch (e) { alert((e as Error).message); } setBusy(false); }}>{busy ? "Undoing…" : "Undo"}</button>;
+  return <button className="text-[13px] link shrink-0" disabled={busy} onClick={async () => { setBusy(true); try { await post(`/api/mail/events/${id}/undo`, {}); r.refresh(); } catch (e) { alert((e as Error).message); } setBusy(false); }}>{busy ? "Undoing…" : "Undo"}</button>;
 }
 
 type Draft = { subject: string; body: string; linkedin: string; issues: { text: string; detail: string }[]; to: string | null; inThread: boolean; webLink: string };
@@ -46,15 +46,15 @@ function DraftResult({ d }: { d: Draft }) {
   const [copied, setCopied] = useState<string | null>(null);
   const copy = (k: string, t: string) => { navigator.clipboard.writeText(t); setCopied(k); setTimeout(() => setCopied(null), 1500); };
   return (
-    <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-3 text-[13px]">
+    <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-3 text-[14px]">
       <div className="flex flex-wrap items-center gap-2">
         <span className="chip bg-emerald-50 text-emerald-700">Saved to Outlook Drafts</span>
-        <span className="text-xs text-slate-500">{d.inThread ? "As a reply in their thread" : d.to ? `To ${d.to}` : "No recipient yet: add one in Outlook"}</span>
+        <span className="text-[13px] text-slate-500">{d.inThread ? "As a reply in their thread" : d.to ? `To ${d.to}` : "No recipient yet: add one in Outlook"}</span>
         <a className="btn-gold ml-auto" href={d.webLink} target="_blank" rel="noopener noreferrer">Open in Outlook ↗</a>
       </div>
       <div><b>Subject:</b> {d.subject}</div>
       <pre className="whitespace-pre-wrap font-sans text-slate-800">{d.body}</pre>
-      {d.issues.length > 0 && <ul className="text-xs text-amber-800 list-disc ml-4">{d.issues.map((i, k) => <li key={k}><b>{i.text}</b>: {i.detail}</li>)}</ul>}
+      {d.issues.length > 0 && <ul className="text-[13px] text-amber-800 list-disc ml-4">{d.issues.map((i, k) => <li key={k}><b>{i.text}</b>: {i.detail}</li>)}</ul>}
       {d.linkedin && (
         <div className="border-t border-slate-200 pt-2">
           <div className="label">LinkedIn version</div>
@@ -80,7 +80,7 @@ export function DraftButton({ applicationId, kind, prepId, label, to }: { applic
   return (
     <div>
       <button className="btn-primary" disabled={busy} onClick={go}>{busy ? "Writing and saving…" : d ? `${label} again` : label}</button>
-      {err && <p className="mt-1 text-xs text-red-700">{err}</p>}
+      {err && <p className="mt-1 text-[13px] text-red-700">{err}</p>}
       {d && <DraftResult d={d} />}
     </div>
   );

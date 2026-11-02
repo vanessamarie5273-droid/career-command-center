@@ -13,9 +13,9 @@ export default function NewVersion({ parentId, name, text }: { parentId: string;
   }
   return (
     <div className="space-y-2">
-      <p className="text-xs text-slate-500">Edit wording and emphasis only. Keep every title, date, employer and result exactly as true; the library never adds achievements for you.</p>
+      <p className="text-[13px] text-slate-500">Edit wording and emphasis only. Keep every title, date, employer and result exactly as true; the library never adds achievements for you.</p>
       <input className="input" value={n} onChange={(e) => setN(e.target.value)} />
-      <textarea className="input font-mono text-xs" rows={16} value={t} onChange={(e) => setT(e.target.value)} />
+      <textarea className="input font-mono text-[13px]" rows={16} value={t} onChange={(e) => setT(e.target.value)} />
       <button className="btn-primary" onClick={save}>Save as new version</button>
     </div>
   );

@@ -39,11 +39,11 @@ export default function ResumeMatch({ jobId, resumes }: { jobId: string; resumes
             <p><span className="text-2xl font-semibold tabular-nums">{res.matchScore ?? "—"}%</span> <span className="muted">coverage of this posting&apos;s key terms (required terms count double)</span></p>
             <div><div className="label">Already in your resume</div><div className="flex flex-wrap gap-1">{res.matched.map((t) => <span key={t} className="chip bg-emerald-50 text-emerald-700">{t}</span>)}</div></div>
             <div><div className="label">Gaps and recommended revisions</div>
-              <ul className="space-y-1">{res.recommendations.map((r) => <li key={r.term} className="text-xs"><span className={`chip mr-1 ${r.importance === "required" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>{r.importance}</span><b>{r.term}</b>: {r.advice}</li>)}</ul>
+              <ul className="space-y-1">{res.recommendations.map((r) => <li key={r.term} className="text-[13px]"><span className={`chip mr-1 ${r.importance === "required" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>{r.importance}</span><b>{r.term}</b>: {r.advice}</li>)}</ul>
             </div>
             <div className="flex gap-2"><button className="btn-ghost" onClick={() => setSide(!side)}>{side ? "Hide" : "Show"} side-by-side</button><button className="btn-ghost" disabled={busy} onClick={aiTailor}>AI tailoring suggestions</button></div>
-            {side && <div className="grid md:grid-cols-2 gap-3"><pre className="h-96 overflow-auto rounded-lg bg-slate-50 p-3 text-xs whitespace-pre-wrap font-sans">{res.jdText}</pre><pre className="h-96 overflow-auto rounded-lg bg-slate-50 p-3 text-xs whitespace-pre-wrap font-sans">{res.resumeText}</pre></div>}
-            {tailor && <pre className="rounded-lg bg-violet-50/60 p-3 text-xs whitespace-pre-wrap font-sans ring-1 ring-violet-200">{tailor}</pre>}
+            {side && <div className="grid md:grid-cols-2 gap-3"><pre className="h-96 overflow-auto rounded-lg bg-slate-50 p-3 text-[13px] whitespace-pre-wrap font-sans">{res.jdText}</pre><pre className="h-96 overflow-auto rounded-lg bg-slate-50 p-3 text-[13px] whitespace-pre-wrap font-sans">{res.resumeText}</pre></div>}
+            {tailor && <pre className="rounded-lg bg-violet-50/60 p-3 text-[13px] whitespace-pre-wrap font-sans ring-1 ring-violet-200">{tailor}</pre>}
           </div>
         )}
       </div>
