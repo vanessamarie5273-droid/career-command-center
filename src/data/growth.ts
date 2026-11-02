@@ -171,4 +171,18 @@ export const GROWTH: Record<string, [score: number, thesis: string]> = {
   samsara: [82, "Connected operations cloud growing fast with public sector fleets"],
   nvidia: [90, "AI computing leader with enterprise software and DGX Cloud sales"],
   anduril: [92, "Defense technology growing very fast on autonomous systems"],
+  // Phoenix-area and remote enterprise sales employers
+  gusto: [70, "Payroll and HR leader growing steadily with a mid-market push"],
+  gitlab: [66, "DevSecOps platform with solid growth; AI agents are the upside"],
+  motive: [80, "AI platform for physical operations growing fast"],
+  boomi: [55, "Established integration platform with moderate growth"],
+  qualtrics: [58, "Experience management leader with steady growth"],
+  toast: [74, "Restaurant platform still growing fast, expanding into retail and enterprise"],
+  workiva: [60, "Office of the CFO reporting platform with steady growth"],
+  socure: [70, "Identity verification leader growing with fraud and government demand"],
+  godaddy: [55, "Tempe-based; steady growth, mostly small-business customers"],
+  "insight-enterprises": [45, "Large Chandler-based integrator with slow growth"],
+  "blue-yonder": [58, "Scottsdale-based supply chain software with steady growth"],
+  webpt: [52, "Phoenix-based rehab therapy software with modest growth"],
+  nextiva: [62, "Scottsdale-based communications platform pushing into contact center AI"],
 };

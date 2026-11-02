@@ -6,6 +6,7 @@ import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
 import type { FetchLike, RawPosting } from "./types";
 import { range } from "../format";
+import { runGoogleJobs } from "./googleJobs";
 
 export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
@@ -89,6 +90,13 @@ export async function upsertPosting(db: PrismaClient, company: Company, p: RawPo
   if (job && !p.descriptionHtml && !p.descriptionText && (job.description || job.descriptionText)) {
     data = buildJobData(company, { ...p, descriptionHtml: job.description, descriptionText: job.descriptionText });
   }
+  // A Google Jobs result for a role the employer's own board already lists only counts as another sighting:
+  // the employer's posting keeps its link and full description.
+  if (job && p.provider === "GOOGLE_JOBS" && (await db.jobSource.count({ where: { jobId: job.id, provider: { not: "GOOGLE_JOBS" } } }))) {
+    if (existingSource) await db.jobSource.update({ where: { id: existingSource.id }, data: { lastSeenAt: now } });
+    else await db.jobSource.create({ data: { jobId: job.id, provider: p.provider, externalId: p.externalId, url: p.applyUrl, firstSeenAt: now, lastSeenAt: now } });
+    return "verified";
+  }
   const scored = applyScore(data, company, job?.firstSeenAt ?? now);
   if (!job) {
     const created = await db.job.create({
@@ -140,7 +148,8 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
       }
       const d = await discoverBoard(company.slug, company.name, company.atsHints, f);
       if (!d.provider || !d.result) {
-        await db.company.update({ where: { id: company.id }, data: { atsStatus: "not_found", atsCheckedAt: new Date(), atsError: d.errors.length ? d.errors.slice(0, 3).join("; ") : "No public Greenhouse, Lever, Ashby, SmartRecruiters or Workable board found for this company" } });
+        // Employers found through Google Jobs are looked up once; without a public board they stay on Google results.
+        await db.company.update({ where: { id: company.id }, data: { ...(company.addedBy === "job-site" ? { atsHints: ["none"] } : {}), atsStatus: "not_found", atsCheckedAt: new Date(), atsError: d.errors.length ? d.errors.slice(0, 3).join("; ") : "No public Greenhouse, Lever, Ashby, SmartRecruiters or Workable board found for this company" } });
         return { ...out, status: d.errors.length ? "error" : "not_found", error: d.errors[0] };
       }
       provider = d.provider; token = d.token;
@@ -184,6 +193,9 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   // Two boards at a time: the refresh runs inside the web server, which has little memory to spare.
   const outcomes = await pool(companies, 2, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));
   const tot = outcomes.reduce((a, o) => ({ fetched: a.fetched + o.fetched, relevant: a.relevant + o.relevant, created: a.created + o.created, updated: a.updated + o.updated, closed: a.closed + o.closed, errors: a.errors + (o.status === "error" ? 1 : 0) }), { fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, errors: 0 });
+  // Google Jobs adds employers that are not on the list yet; only on a full refresh, at most once a day.
+  const googleJobs = opts.companyIds ? null : await runGoogleJobs(db, { fetchImpl: opts.fetchImpl, now: run.startedAt });
+  if (googleJobs) { tot.relevant += googleJobs.relevant; tot.created += googleJobs.created; tot.closed += googleJobs.closed; }
   const status = tot.errors === 0 ? "ok" : tot.errors < companies.length ? "partial" : "failed";
   await db.ingestionRun.update({ where: { id: run.id }, data: { ...tot, companies: companies.length, finishedAt: new Date(), status, log: outcomes } });
 
@@ -213,7 +225,8 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
     create: { id: "discovery", name: "Board discovery", status: dStatus, detail: dDetail },
     update: { status: dStatus, detail: dDetail, checkedAt: new Date() },
   });
-  return { runId: run.id, status, ...tot, companies: companies.length, outcomes };
+  if (googleJobs?.status === "error") await db.alert.create({ data: { kind: "integration_error", title: "Google Jobs search failed", body: googleJobs.error, link: "/settings" } });
+  return { runId: run.id, status, ...tot, companies: companies.length, outcomes, googleJobs };
 }
 
 /** Recompute scores after company assessments or the profile change. */

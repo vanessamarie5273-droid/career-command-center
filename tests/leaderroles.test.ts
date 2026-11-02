@@ -33,3 +33,20 @@ describe("Business and sales development leadership roles", () => {
     expect(capApplies({ q: "  " })).toBe(true);
   });
 });
+
+describe("Phoenix area filter", () => {
+  let db: PrismaClient;
+  beforeAll(() => { db = testDb(); });
+  afterAll(() => db.$disconnect());
+
+  it("keeps Phoenix-metro and remote roles, not other cities", async () => {
+    const c = await makeCompany(db, { atsToken: "phxarea" });
+    await ingestCompany(db, c, mockFetch({ "boards-api.greenhouse.io": greenhouseBoard([
+      { id: 801, title: "Enterprise Account Executive", location: "Scottsdale, AZ" },
+      { id: 802, title: "Strategic Account Executive", location: "Remote - US" },
+      { id: 803, title: "Enterprise Account Executive, West", location: "Costa Mesa, CA" },
+    ]) }), new Date());
+    const rows = await db.job.findMany({ where: { AND: [jobWhere({ near: "phx", all: "1" }), { companyId: c.id }] }, orderBy: { title: "asc" } });
+    expect(rows.map((r) => r.location)).toEqual(["Scottsdale, AZ", "Remote - US"]);
+  });
+});

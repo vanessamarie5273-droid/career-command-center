@@ -9,6 +9,7 @@
 | Microsoft (Azure free account), optional | Lets the app read your Outlook job inbox, save follow-up drafts and send your alerts | Free (app registrations cost nothing) |
 | Resend (resend.com), optional | Sends email alerts and the 6:00 AM briefing. Not needed once Outlook is connected | Free tier is enough |
 | Anthropic Console (console.anthropic.com), optional | Powers the assistant, the tailoring suggestions and the Application Kit | Pay per use (a kit is five Claude calls) |
+| SerpApi (serpapi.com), optional | Searches Google Jobs once a day for Phoenix and remote sales roles at employers not on your company list | The app uses about 180 searches a month; check the free plan's monthly limit and upgrade if it is lower |
 
 The app works without Resend and Anthropic. Without them, briefings are still generated and shown in the app, and the assistant page says it is not configured.
 
@@ -32,6 +33,16 @@ The app works without Resend and Anthropic. Without them, briefings are still ge
    The password must be at least 12 characters. Running the command again with the same email resets the password.
 5. Sign in. Go to **Command Center → Refresh job feeds** to load live openings now, instead of waiting for 6:00 AM.
 6. Optional: add a custom domain in **ccc-web → Settings → Custom Domains**, then update `APP_URL`.
+
+### Add Google Jobs (optional)
+
+Google has no public jobs feed, so the app reads Google Jobs results through SerpApi.
+
+1. Sign up at **serpapi.com** and copy your **API key** from the dashboard.
+2. In Render, open **Environment Groups → ccc-shared → Edit**, add a variable named `SERPAPI_API_KEY` with the key as its value, and save. The web app and both cron jobs share this group, so this is the only place it is needed.
+3. In the app, click **Refresh job feeds**. **Settings → Integrations → Google Jobs** shows how many roles were found.
+
+The app searches once a day (six searches: enterprise and strategic AE, business development director, sales development manager and regional sales director in the Phoenix area, plus remote enterprise AE). Each result is matched to a company on your list, or the employer is added under "Found on Google Jobs". Staffing-agency posts are skipped. The employer's own apply link is used when Google has one. A role the employer's job board already lists keeps the employer's posting.
 
 ### Other hosts
 
