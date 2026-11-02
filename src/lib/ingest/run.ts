@@ -51,8 +51,9 @@ export function buildJobData(company: Pick<Company, "id">, p: RawPosting) {
   };
 }
 
-export function applyScore(data: ReturnType<typeof buildJobData>, company: Company) {
-  const s = scoreJob({ ...data, company });
+export function applyScore(data: ReturnType<typeof buildJobData>, company: Company, firstSeenAt?: Date) {
+  // firstSeenAt dates the age limit for boards that publish no posted date, the same way the rescore does.
+  const s = scoreJob({ ...data, firstSeenAt, company });
   return { score: s.score, scoreBreakdown: s.breakdown, scoreReasons: s.reasons, confidence: s.confidence, tier: s.tier, category: s.category, excludedReason: s.excludedReason ?? null };
 }
 
@@ -81,10 +82,14 @@ export function jobChanges(old: Comparable, next: Comparable): string[] {
 
 /** Persist one posting with cross-source deduplication. Returns what happened. */
 export async function upsertPosting(db: PrismaClient, company: Company, p: RawPosting, now: Date): Promise<"created" | "updated" | "verified"> {
-  const data = buildJobData(company, p);
-  const scored = applyScore(data, company);
+  let data = buildJobData(company, p);
   const existingSource = await db.jobSource.findUnique({ where: { provider_externalId: { provider: p.provider, externalId: p.externalId } }, include: { job: true } });
   const job = existingSource?.job ?? (await db.job.findUnique({ where: { fingerprint: data.fingerprint } }));
+  // A description call that failed this time (timeout, rate limit) must not wipe the description saved last time.
+  if (job && !p.descriptionHtml && !p.descriptionText && (job.description || job.descriptionText)) {
+    data = buildJobData(company, { ...p, descriptionHtml: job.description, descriptionText: job.descriptionText });
+  }
+  const scored = applyScore(data, company, job?.firstSeenAt ?? now);
   if (!job) {
     const created = await db.job.create({
       data: { ...data, ...scored, companyId: company.id, firstSeenAt: now, lastVerifiedAt: now, sources: { create: { provider: p.provider, externalId: p.externalId, url: p.applyUrl, firstSeenAt: now, lastSeenAt: now } }, events: { create: { kind: "discovered", detail: `Found on ${p.provider} board`, at: now } } },
