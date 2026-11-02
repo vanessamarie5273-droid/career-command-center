@@ -8,7 +8,7 @@ import { bestAccomplishment, ensureFitBriefs, type FitBrief, type FitChecks } fr
 import { FAMILY_LABEL, type RoleFamily } from "./roles";
 import { KIND_LABEL } from "./mail/sync";
 import { PROFILE } from "./profile";
-import { STAGE_LABEL, range } from "./format";
+import { STAGE_LABEL, range, titleCase } from "./format";
 
 const DAY = 86400000;
 const ACTIVE_STAGES = ["APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER"] as const;
@@ -263,36 +263,38 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const az = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso).toLocaleString("en-US", { ...o, timeZone: "America/Phoenix" });
-const NAVY = "#0b1730", GOLD = "#c9a24a", MUTED = "#64748b", LINE = "#e2e8f0";
-const ACTION_COLOR: Record<string, string> = { Apply: "#047857", "Seek a referral": "#1d4ed8", "Research further": "#b45309", Pass: "#b91c1c" };
+// Purple / magenta palette. Solid colours come first so Outlook desktop, which drops gradients, still shows the brand.
+const BRAND = "#5D36FF", MAGENTA = "#A100C2", DEEP = "#2b17a6", INK = "#1a0f4d", MUTED = "#64748b", LINE = "#e4dcff";
+const GRAD = (c1: string, c2: string, deg = 120) => `background-color:${c1};background-image:linear-gradient(${deg}deg,${c1} 0%,${c2} 100%)`;
+const ACTION_COLOR: Record<string, string> = { Apply: BRAND, "Seek a referral": MAGENTA, "Research further": "#b45309", Pass: "#b91c1c" };
 
 export function briefingHtml(b: BriefingContent, base = "") {
   const v = b.v2;
   if (!v) return `<p>Open the Command Center to see today's briefing.</p>`;
-  const stat = (n: string | number, l: string) => `<td style="padding:10px 12px;background:#13234a;border-radius:8px;text-align:center"><div style="font-size:22px;font-weight:700;color:#fff">${n}</div><div style="font-size:11px;color:#cbd5e1">${l}</div></td>`;
-  const sec = (t: string) => `<div style="margin:18px 0 8px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${NAVY};border-bottom:2px solid ${GOLD};padding-bottom:4px">${t}</div>`;
-  const pri = v.priorities.map((p, i) => `<tr><td style="vertical-align:top;padding:6px 10px 6px 0"><div style="width:26px;height:26px;border-radius:13px;background:${NAVY};color:${GOLD};font-weight:700;text-align:center;line-height:26px">${i + 1}</div></td><td style="padding:6px 0"><a href="${p.href}" style="color:${NAVY};font-weight:700;text-decoration:none">${esc(p.title)}</a><div style="color:${MUTED};font-size:13px">${esc(p.reason)}</div></td></tr>`).join("");
-  const opp = (o: Opportunity) => `<div style="border:1px solid ${LINE};border-radius:10px;padding:12px 14px;margin-bottom:10px">
-    <table width="100%" style="border-collapse:collapse"><tr><td><a href="${o.href}" style="color:${NAVY};font-weight:700;font-size:15px;text-decoration:none">${esc(o.title)}</a><div style="font-size:13px;color:#334155">${esc(o.company)}${o.pay ? ` · <b>${esc(o.pay)}</b>` : " · pay not published"} · ${esc(o.location ?? "Location not listed")}${o.remote ? " (remote)" : ""}</div>
+  const stat = (n: string | number, l: string) => `<td style="padding:10px 12px;background-color:#7a52ff;background-color:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:10px;text-align:center"><div style="font-size:22px;font-weight:700;color:#fff">${n}</div><div style="font-size:11px;color:#f1eaff">${l}</div></td>`;
+  const sec = (t: string) => `<div style="margin:18px 0 8px;font-size:16px;font-weight:700;color:${INK};border-left:4px solid ${MAGENTA};padding-left:8px">${titleCase(t)}</div>`;
+  const pri = v.priorities.map((p, i) => `<tr><td style="vertical-align:top;padding:6px 10px 6px 0"><div style="width:26px;height:26px;border-radius:13px;background:#ffffff;color:${BRAND};font-weight:700;text-align:center;line-height:26px">${i + 1}</div></td><td style="padding:6px 0"><a href="${p.href}" style="color:#ffffff;font-weight:700;text-decoration:none">${esc(p.title)}</a><div style="color:#e6defe;font-size:13px">${esc(p.reason)}</div></td></tr>`).join("");
+  const opp = (o: Opportunity) => `<div style="border:1px solid ${LINE};border-top:4px solid ${BRAND};border-radius:10px;padding:12px 14px;margin-bottom:10px">
+    <table width="100%" style="border-collapse:collapse"><tr><td><a href="${o.href}" style="color:${INK};font-weight:700;font-size:15px;text-decoration:none">${esc(o.title)}</a><div style="font-size:13px;color:#334155">${esc(o.company)}${o.pay ? ` · <b style="color:${BRAND}">${esc(o.pay)}</b>` : " · pay not published"} · ${esc(o.location ?? "Location not listed")}${o.remote ? " (remote)" : ""}</div>
     <div style="font-size:12px;color:${MUTED}">${o.postedAt ? `Posted ${az(o.postedAt, { month: "short", day: "numeric" })} · ` : ""}Found ${az(o.firstSeenAt, { month: "short", day: "numeric" })} · Verified ${az(o.verifiedAt, { month: "short", day: "numeric", hour: "numeric" })}${o.isNew ? "" : " · still open"}</div></td>
-    <td style="text-align:right;vertical-align:top;white-space:nowrap"><span style="display:inline-block;padding:3px 9px;border-radius:12px;background:${ACTION_COLOR[o.fit.action]};color:#fff;font-size:12px;font-weight:700">${o.fit.action}</span><div style="margin-top:6px;font-size:12px"><a href="${esc(o.applyUrl)}" style="color:${NAVY}">Apply link</a></div></td></tr></table>
-    <div style="font-size:13px;margin-top:6px"><b style="color:#047857">Why it fits:</b> ${o.fit.why.map(esc).join(" ")}</div>
-    <div style="font-size:13px"><b style="color:#b91c1c">Could block you:</b> ${esc(o.fit.blocker)}</div>
-    <div style="font-size:13px"><b style="color:${NAVY}">Lead with:</b> ${esc(o.fit.position)}</div>
-    <div style="font-size:13px"><b style="color:${NAVY}">Today:</b> ${esc(o.fit.action)}. ${esc(o.fit.reason)}</div></div>`;
-  const tone = { good: "#047857", bad: "#b91c1c", info: "#1d4ed8" };
+    <td style="text-align:right;vertical-align:top;white-space:nowrap"><span style="display:inline-block;padding:3px 9px;border-radius:12px;background:${ACTION_COLOR[o.fit.action]};color:#fff;font-size:12px;font-weight:700">${o.fit.action}</span><div style="margin-top:6px;font-size:12px"><a href="${esc(o.applyUrl)}" style="color:${MAGENTA};font-weight:600">Apply link</a></div></td></tr></table>
+    <div style="font-size:13px;margin-top:6px"><b style="color:${BRAND}">Why It Fits:</b> ${o.fit.why.map(esc).join(" ")}</div>
+    <div style="font-size:13px"><b style="color:#b91c1c">Could Block You:</b> ${esc(o.fit.blocker)}</div>
+    <div style="font-size:13px"><b style="color:${MAGENTA}">Lead With:</b> ${esc(o.fit.position)}</div>
+    <div style="font-size:13px"><b style="color:${INK}">Today:</b> ${esc(o.fit.action)}. ${esc(o.fit.reason)}</div></div>`;
+  const tone = { good: "#047857", bad: "#b91c1c", info: BRAND };
   const urgent = v.urgent.length ? v.urgent.map((u) => `<div style="font-size:13px;padding:3px 0"><span style="color:${tone[u.tone]}">●</span> <a href="${u.href}" style="color:#0f172a;text-decoration:none">${esc(u.text)}</a></div>`).join("") : `<div style="color:${MUTED};font-size:13px">Nothing urgent.</div>`;
   const more: [string, number][] = [["Changes to tracked jobs", v.changes.length], ["Application progress", v.progress.moved.length + v.progress.needsAction.length], ["Waiting on a reply", v.progress.waiting.length], ["People to contact", v.people.length], ["Follow-ups due", v.followUps.length], ["Upcoming interviews", v.interviews.length], ["Company developments", v.news.length]];
   return `<div style="font-family:Inter,Segoe UI,Arial,sans-serif;max-width:680px;color:#0f172a">
-  <div style="background:${NAVY};padding:18px 20px;border-radius:12px 12px 0 0"><div style="color:${GOLD};font-size:12px;font-weight:700;letter-spacing:.08em">DAILY BRIEFING · ${az(b.generatedAt, { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</div>
-  <table style="margin-top:12px;border-collapse:separate;border-spacing:6px 0"><tr>${stat(v.stats.active, "active")}${stat(v.stats.waiting, "waiting")}${stat(v.stats.interviews, "interviews")}${stat(v.stats.responseRate == null ? "—" : `${v.stats.responseRate}%`, "reply rate")}${stat(v.stats.strongNew, "strong new")}</tr></table></div>
+  <div style="${GRAD(BRAND, MAGENTA)};padding:18px 20px;border-radius:12px 12px 0 0"><div style="color:#ffffff;font-size:20px;font-weight:700">Daily Briefing</div><div style="color:#f1eaff;font-size:13px;font-weight:600">${az(b.generatedAt, { weekday: "long", month: "long", day: "numeric" })}</div>
+  <table style="margin-top:12px;border-collapse:separate;border-spacing:6px 0"><tr>${stat(v.stats.active, "Active")}${stat(v.stats.waiting, "Waiting")}${stat(v.stats.interviews, "Interviews")}${stat(v.stats.responseRate == null ? "—" : `${v.stats.responseRate}%`, "Reply Rate")}${stat(v.stats.strongNew, "Strong New")}</tr></table></div>
   <div style="padding:6px 20px 18px;border:1px solid ${LINE};border-top:0;border-radius:0 0 12px 12px">
-  ${sec("Today's top three")}<table style="border-collapse:collapse">${pri || `<tr><td style="color:${MUTED}">Nothing pressing today.</td></tr>`}</table>
+  <div style="${GRAD(DEEP, "#7a14d0", 155)};border-radius:12px;padding:12px 16px;margin-top:14px"><div style="color:#ffffff;font-size:16px;font-weight:700;margin-bottom:4px">Today's Top Three</div><table style="border-collapse:collapse">${pri || `<tr><td style="color:#e6defe">Nothing pressing today.</td></tr>`}</table></div>
   ${sec(v.noStrongMatches ? "Opportunities · no strong new matches today" : "Best new opportunities")}
   ${v.noStrongMatches ? `<div style="font-size:13px;color:${MUTED};margin-bottom:8px">No new role scored ${v.minScore}+ since yesterday.${v.opportunities.length ? " Best ones still open:" : ""}</div>` : ""}${v.opportunities.map(opp).join("")}
   ${sec("Urgent updates")}${urgent}
   ${sec("More in the app")}<table style="font-size:13px;border-collapse:collapse">${more.map(([l, n]) => `<tr><td style="padding:2px 16px 2px 0">${l}</td><td style="font-weight:700">${n}</td></tr>`).join("")}</table>
-  <p style="margin-top:14px"><a href="${base}/briefing" style="display:inline-block;background:${NAVY};color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open the full briefing</a></p>
+  <p style="margin-top:14px"><a href="${base}/briefing" style="display:inline-block;${GRAD(BRAND, MAGENTA, 90)};color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open the full briefing</a></p>
   <p style="font-size:11px;color:${MUTED}">Listings verified ${b.lastRun?.at ? az(b.lastRun.at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—"} (Arizona). Fit notes are ${v.opportunities.some((o) => o.fit.source === "ai") ? "AI-written from your resume" : "rule-based from your resume"}; check them against the posting.</p>
   </div></div>`;
 }

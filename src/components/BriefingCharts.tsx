@@ -1,7 +1,7 @@
 "use client";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const COLORS = ["#3d5591", "#2a4078", "#c4a254", "#d6bc72", "#10b981", "#047857"];
+const COLORS = ["#5D36FF", "#A100C2", "#7458FF", "#D522BF", "#9D85FF", "#f0a6e6"];
 
 export function PipelineDonut({ data }: { data: { label: string; count: number }[] }) {
   const total = data.reduce((a, d) => a + d.count, 0);
@@ -16,7 +16,7 @@ export function PipelineDonut({ data }: { data: { label: string; count: number }
             <Tooltip formatter={(v: number, n: string) => [v, n]} />
           </PieChart>
         </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-bold text-navy-950">{total}</span><span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">active</span></div>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-bold text-navy-950">{total}</span><span className="text-[11px] font-semibold text-slate-500">Active</span></div>
       </div>
       <ul className="min-w-0 space-y-1 text-[13px]">
         {data.map((d, i) => <li key={d.label} className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: COLORS[i % COLORS.length] }} /><span className="truncate">{d.label}</span><b className="ml-auto pl-2 tabular-nums">{d.count}</b></li>)}
@@ -34,8 +34,8 @@ export function ReplyBars({ data }: { data: { label: string; sent: number; respo
           <XAxis type="number" hide allowDecimals={false} />
           <YAxis type="category" dataKey="label" width={150} tick={{ fontSize: 12, fill: "#334155" }} axisLine={false} tickLine={false} />
           <Tooltip formatter={(v: number, n: string) => [v, n === "responded" ? "Replied" : "No reply"]} />
-          <Bar dataKey="responded" stackId="a" fill="#10b981" radius={[4, 0, 0, 4]} barSize={18} isAnimationActive={false} />
-          <Bar dataKey="waiting" stackId="a" fill="#cbd5e1" radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={false} />
+          <Bar dataKey="responded" stackId="a" fill="#5D36FF" radius={[4, 0, 0, 4]} barSize={18} isAnimationActive={false} />
+          <Bar dataKey="waiting" stackId="a" fill="#e4dcff" radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -98,7 +98,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
 
         <div className="flex flex-col gap-3 xl:col-span-4">
           {b && b.actions.length > 0 && (
-            <Card title="Do Today" icon="flame" dark>
+            <Card title="Do Today" icon="flame" dark action={<Link className="link text-xs" href="/briefing">Full briefing →</Link>}>
               <ol className="space-y-2">{b.actions.map((x, i) => <li key={x} className="flex gap-2.5 text-[13.5px] leading-snug text-white/95"><span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-[#5D36FF]">{i + 1}</span><span>{x}</span></li>)}</ol>
             </Card>
           )}

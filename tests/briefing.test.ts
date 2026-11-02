@@ -95,7 +95,7 @@ describe("daily briefing", () => {
 
     const html = briefingHtml(b, "https://app.test");
     expect(html).toContain(strong.title);
-    expect(html).toContain("Why it fits");
+    expect(html).toContain("Why It Fits");
     expect(html).toContain("https://app.test/briefing");
   });
 });
