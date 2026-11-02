@@ -55,34 +55,36 @@ const TASK: Record<KitPart, string> = {
 - Open with a SUMMARY of two or three sentences aimed at the core problem this role exists to solve.
 - Lead each bullet with a result. Use the posting's own terms where her experience genuinely matches them.
 - Use plain ATS-safe headings in ALL CAPS: SUMMARY, EXPERIENCE, EDUCATION, SKILLS (and any others already in the resume).`,
-  letter: `Write her cover letter for this role in her own style. HER EXAMPLE LETTERS below are the model: match their structure, tone, sentence rhythm and length (about 280 to 380 words between greeting and sign-off). Write it fresh for this role and company; never reuse an example's company-specific sentences.
+  letter: `Write her cover letter for this role. ${LETTER_PRINCIPLE}
 
 FIRST, WORK OUT (silently; do not output this):
-- What this role exists to achieve for the company, from JOB POSTING and COMPANY: the segment, buyers, motion, territory or team it owns.
-- The posting's top requirements, in its own words.
-- Which of her SAP experience in RESUME answers them best. For sales development, team or GTM leadership roles, lead with the North America Digital Hub. For AE and account roles, lead with full-cycle selling, self-sourced pipeline, buying committees and Public Sector results.
-- How she would actually run this role at this company: the specific behaviors she would bring (what she would focus on, coach, inspect in pipeline reviews, build with partners or champions), tied to what the posting asks for.
+- The real problem behind this role that the posting does not say outright: what the buyer struggles with, who actually signs, what the company competes against (often the status quo or an incumbent system), or where deals in this segment stall. Use COMPANY, recent developments, the segment and the buyers. This is her point of view; make it sharp and specific to this company.
+- The one angle in RESUME that makes her the person to solve that problem: for example, she sold the incumbent systems this company competes with or connects to, she sells to that buyer, she sells in that sector, or she built that kind of motion.
+- One or two results from RESUME that prove that angle. No more.
+- The one first move she would make in this role that follows from her point of view.
 
-THEN WRITE:
+THEN WRITE, in exactly this shape:
 Dear <company name> Hiring Team,
 
-Five or six paragraphs, in this order. ${LETTER_PRINCIPLE}
-${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name}: ${g.purpose}. ${g.change}.`).join("\n")}
+Four short paragraphs:
+${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name.toUpperCase()}: ${g.purpose}. ${g.change}.`).join("\n")}
 
 ${LETTER_SIGNOFF}
 
 RULES:
-- Paragraph 1 names the role and one specific thing about this company's business, product or mandate, then the contribution she sees for herself. No generic praise.
-- Every paragraph must read as written for this role. Describe her experience with the posting's language where it genuinely matches.
-- The "At <company>, I would" paragraph is the heart of the letter: concrete operating behaviors, not adjectives. It may run to two paragraphs, as in her first example.
-- Facts about her come only from RESUME and her proof stories. Numbers only from RESUME; never quote figures from the posting or company, and never add a quota, deal size or result she has not stated.
-- Professional, confident and warm. Her letters may open "I am interested in the ... role because ..." or "The ... role offers ...". Never "passionate", "excited", "thrilled", "grateful", "proven track record", "results-driven" or "I believe I would be a great fit".
+- She is competing in a saturated market against many qualified sellers. Write with the authority of a recognized expert in this space: the point of view should be an insight only a seasoned seller who has worked these buyers would have, stated plainly and without hedging. Nothing a generic candidate could also write.
+- 170 to 230 words between greeting and sign-off. Executive register: an expert talking to a peer.
+- Never repeat the posting back. Do not restate the role's duties, requirements, territory description or company tagline, and do not copy phrases from JOB POSTING. The reader wrote it.
+- Never summarize her career. Leave out anything that does not serve the point of view: other roles, awards, tools, and stories that do not fit. At most two figures in the whole letter, only from RESUME.
+- Do not open with "I am interested in" or with her; open with the point of view.
+- The point of view is her read, so state it with confidence but never invent company facts, figures, customers or people.
+- Never "passionate", "excited", "thrilled", "grateful", "proven track record", "results-driven" or "I believe I would be a great fit".
 
-HER PROOF STORIES (use one nearly word for word when it fits the role, and not both):
+HER PROOF STORIES (one result from one of these may support the point of view; never paste a story whole):
 ${Object.entries(LETTER_ACCOMPLISHMENTS).map(([k, v]) => `${k}:\n${v}`).join("\n\n")}
 
-HER EXAMPLE LETTERS (model for style only; their companies and roles are not this one):
-${LETTER_EXAMPLES.map((e, i) => `<example_${i + 1}>\n${e}\n</example_${i + 1}>`).join("\n\n")}
+HER MODEL LETTER (match its shape, voice and length; its company and argument are not this one's):
+${LETTER_EXAMPLES.map((e) => `<example>\n${e}\n</example>`).join("\n\n")}
 
 Output only the finished letter.`,
   pov: `Write a one-page point of view she can send to the hiring manager or bring to the interview. Under 450 words. Sections:
@@ -196,9 +198,9 @@ const sentences = (t: string) => t.replace(/\n-\s/g, "\n").split(/(?<=[.!?])\s+|
 
 const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9$%.\s]/g, " ").split(/\s+/).filter(Boolean);
 
-/** The first run of `n` or more words the letter copies straight from her resume, if any. */
-export function copiedFromResume(text: string, resumeText: string, n = 12) {
-  const r = words(resumeText);
+/** The first run of `n` or more words the text copies straight from a source (her resume, the posting), if any. */
+export function copiedFrom(text: string, source: string, n: number) {
+  const r = words(source);
   const grams = new Set<string>();
   for (let i = 0; i + n <= r.length; i++) grams.add(r.slice(i, i + n).join(" "));
   const t = words(text);
@@ -220,23 +222,27 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
     const sources = p === "resume" || p === "letter" ? herFacts : `${herFacts}\n${src.contextText}`;
     for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: p === "resume" || p === "letter" ? "Not in your resume. Verify it or remove it." : "Not in your resume, the posting or the company record. Verify it or remove it." });
     if (p !== "resume") {
-      const max = p === "letter" ? 40 : 30; // her own letters run longer sentences than the notes
+      const max = p === "letter" ? 35 : 30;
       const long = sentences(text).filter((s) => s.split(/\s+/).length > max);
       if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over ${max} words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
     }
     if (p === "letter" && /\[[^\]]+\]/.test(text)) issues.push({ kind: "language", text: text.match(/\[[^\]]+\]/)![0], detail: "A template placeholder was left in. Fill it in before sending." });
     if (p === "letter" && text) {
       const body = letterBody(text);
-      if (body.length < 4 || body.length > 7) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: "Your letters run five or six paragraphs: why this role, SAP proof, how you work, a proof story when it fits, how you would run it there, and the close." });
+      if (body.length < 3 || body.length > 5) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: `The letter uses four short paragraphs: ${LETTER_GUIDE.map((g) => g.name.toLowerCase()).join(", ")}.` });
+      if (/^(I am|I'm) (very |really )?interested in\b/i.test(body[0] ?? "")) issues.push({ kind: "structure", text: "Opens with interest", detail: "Open with your point of view on their business, not with your interest in the role." });
       const name = src.input?.company.name;
-      const first = name?.split(/[\s,]+/)[0].toLowerCase();
-      if (name && first && !text.toLowerCase().includes(first)) issues.push({ kind: "structure", text: "Company not named", detail: `The letter never mentions ${name}. It should read as written for them only.` });
-      else if (name && first && !body.some((b) => b.toLowerCase().startsWith(`at ${first}`))) issues.push({ kind: "structure", text: `No “At ${name}, I would…”`, detail: "Your letters show how you would run the role there. Add that paragraph." });
-      const copied = copiedFromResume(body.join("\n"), herFacts);
-      if (copied) issues.push({ kind: "structure", text: "Copies your resume", detail: `“${copied}…” is a resume line pasted in. Frame it for this role instead.` });
+      if (name && !text.toLowerCase().includes(name.split(/[\s,]+/)[0].toLowerCase())) issues.push({ kind: "structure", text: "Company not named", detail: `The letter never mentions ${name}. It should read as written for them only.` });
+      const posting = src.input ? [src.input.job.descriptionText, src.input.job.requiredQuals, src.input.job.preferredQuals].filter(Boolean).join("\n") : "";
+      const echoed = posting ? copiedFrom(body.join("\n"), posting, 7) : null;
+      if (echoed) issues.push({ kind: "structure", text: "Repeats the posting", detail: `“${echoed}…” comes straight from the job description. They wrote it; tell them something they don't know.` });
+      const copied = copiedFrom(body.join("\n"), herFacts, 10);
+      if (copied) issues.push({ kind: "structure", text: "Copies your resume", detail: `“${copied}…” is a resume line pasted in. Say what it proves for this role instead.` });
+      const figures = new Set(text.match(/\$\d+(?:\.\d+)?\s?[MKB]?|\d+(?:\.\d+)?%/gi) ?? []);
+      if (figures.size > 2) issues.push({ kind: "structure", text: `${figures.size} figures`, detail: "Use one or two proof points that back your point of view, not a list of results." });
       const count = text.split(/\s+/).filter(Boolean).length;
-      if (count > LETTER_MAX_WORDS) issues.push({ kind: "length", text: `${count} words`, detail: `Your letters run about 330 words; this one is much longer.` });
-      if (src.input && postingWords(src.input.job) < THIN_POSTING) issues.push({ kind: "source", text: "No job description", detail: "The app has little or none of this posting's description, so the letter can't tie to its requirements. Rebuild the kit once the description shows on the job page." });
+      if (count > LETTER_MAX_WORDS) issues.push({ kind: "length", text: `${count} words`, detail: `Executives skim. Keep it under ${LETTER_MAX_WORDS}.` });
+      if (src.input && postingWords(src.input.job) < THIN_POSTING) issues.push({ kind: "source", text: "No job description", detail: "The app has little or none of this posting's description, so the letter can't tie to the role. Rebuild the kit once the description shows on the job page." });
     }
     out[p] = issues;
   }
