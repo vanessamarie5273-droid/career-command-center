@@ -4,7 +4,6 @@ import { getSession } from "@/lib/auth";
 import { PageHeader, Card, StatusDot } from "@/components/ui";
 import AutoField from "@/components/AutoField";
 import { RestoreForm, PasswordForm, RescoreButton } from "@/components/SettingsWidgets";
-import RefreshButton from "@/components/RefreshButton";
 import { PROFILE } from "@/lib/profile";
 import { WEIGHTS, CRITERION_LABEL, type Criterion } from "@/lib/scoring";
 import { emailConfigured } from "@/lib/email";
@@ -76,7 +75,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           <div>{outlookConfigured() ? <OutlookControls connected={!!mail} /> : <p className="text-[13px] text-slate-600">One-time setup first: register the Command Center with Microsoft and add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to Render. Steps are in SETUP.md under “Connect Outlook”.</p>}</div>
         </div>
       </Card>
-      <Card title={`Job feeds by company · ${byStatus("ok")} live · ${byStatus("error")} errors · ${byStatus("not_found")} no public board · ${byStatus("unsupported")} careers-site only · ${byStatus("pending")} pending`} className="mb-4" action={<RefreshButton />}>
+      <Card title={`Job feeds by company · ${byStatus("ok")} live · ${byStatus("error")} errors · ${byStatus("not_found")} no public board · ${byStatus("unsupported")} careers-site only · ${byStatus("pending")} pending`} sub="Every board refreshes on its own each hour, 6 AM to 9 PM Arizona time. Refresh one company now from its page." className="mb-4">
         <div className="max-h-[420px] overflow-auto"><table className="tbl"><thead><tr><th>Company</th><th>Provider</th><th>Status</th><th>Openings</th><th>Checked</th><th>Error / note</th></tr></thead>
           <tbody>{feeds.map((f) => <tr key={f.id}><td><Link className="link" href={`/companies/${f.id}`}>{f.name}</Link></td><td className="text-[13px]">{f.atsProvider === "NONE" ? "—" : `${f.atsProvider.toLowerCase()} · ${f.atsToken}`}</td><td className="text-[13px] whitespace-nowrap"><StatusDot status={f.atsStatus} /> {f.atsStatus ?? "pending"}</td><td>{f.totalOpenings ?? "—"}</td><td className="text-[13px] whitespace-nowrap">{dateTime(f.atsCheckedAt)}</td><td className="text-[13px] text-slate-500 max-w-md">{f.atsError}{(f.atsStatus === "not_found" || f.atsStatus === "unsupported") && f.careersUrl && <> · <a className="link" href={f.careersUrl} target="_blank" rel="noopener noreferrer">check careers site ↗</a></>}</td></tr>)}</tbody>
         </table></div>

@@ -3,6 +3,8 @@ import { alertAddress, deliver } from "./notify";
 import { effectiveScore, effectiveTier } from "./scoring";
 import { companyCap } from "./companyCap";
 import { FEED_CATEGORIES, NOT_APPLIED } from "./queries";
+import { postedWithin } from "./jobFilters";
+import { NEW_POSTING_DAYS } from "./instantAlerts";
 import { appBase } from "./appUrl";
 import { bestAccomplishment, ensureFitBriefs, type FitBrief, type FitChecks } from "./briefingFit";
 import { FAMILY_LABEL, type RoleFamily } from "./roles";
@@ -93,7 +95,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   const lastRun = await db.ingestionRun.findFirst({ where: { finishedAt: { not: null } }, orderBy: { startedAt: "desc" } });
   const cap = await companyCap(db);
   const feed: Prisma.JobWhereInput = { id: { in: cap.ids }, status: "OPEN", category: { in: FEED_CATEGORIES }, dismissed: false, ...NOT_APPLIED };
-  const newJobs = await db.job.findMany({ where: { ...feed, firstSeenAt: { gte: since } }, include: { company: true }, orderBy: { score: "desc" }, take: 25 });
+  const newJobs = await db.job.findMany({ where: { ...feed, firstSeenAt: { gte: since }, AND: [postedWithin(NEW_POSTING_DAYS, now)] }, include: { company: true }, orderBy: { score: "desc" }, take: 25 });
   const openRanked = await db.job.findMany({ where: feed, include: { company: true, applications: true }, orderBy: { score: "desc" }, take: 200 });
   const tier1 = openRanked.filter((j) => effectiveTier(j) === "TIER1").slice(0, 15);
   const closedJobs = await db.job.findMany({ where: { closedAt: { gte: since } }, include: { company: true }, take: 25 });
@@ -124,7 +126,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   const opportunities: Opportunity[] = picks.map((j) => ({
     id: j.id, title: j.title, company: j.company.name, logo: j.company.logoUrl, pay: payOf(j), location: j.location, remote: j.isRemote,
     postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(), verifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl, href: `${base}/jobs/${j.id}`,
-    score: effectiveScore(j), tier: effectiveTier(j), isNew: j.firstSeenAt >= since, connections: connections.get(j.companyId) ?? 0, fit: fits.get(j.id)!.fit, checks: fits.get(j.id)!.checks,
+    score: effectiveScore(j), tier: effectiveTier(j), isNew: j.firstSeenAt >= since && (j.postedAt ?? j.firstSeenAt).getTime() >= now.getTime() - NEW_POSTING_DAYS * DAY, connections: connections.get(j.companyId) ?? 0, fit: fits.get(j.id)!.fit, checks: fits.get(j.id)!.checks,
   }));
 
   // ---- Changes to tracked jobs (applied, saved or starred)
