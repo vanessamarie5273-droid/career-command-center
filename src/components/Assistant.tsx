@@ -14,22 +14,51 @@ const EXAMPLES = [
   "Which applications are overdue for follow-up?",
 ];
 
-// Minimal, safe markdown: links (internal or https), bold, bullets. Everything else is text.
+// Minimal, safe markdown: links (internal or https), bold (which may hold links), bullets, headings and tables. Everything else is text.
+function inline(text: string, key = 0): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\(((?:\/[\w\-/?=&%.#]*)|(?:https:\/\/[^\s)]+))\)/g;
+  let last = 0, m: RegExpExecArray | null, k = key;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1] != null) parts.push(<b key={k++}>{inline(m[1], k * 100)}</b>);
+    else parts.push(m[3].startsWith("/") ? <Link key={k++} className="link" href={m[3]}>{m[2]}</Link> : <a key={k++} className="link" href={m[3]} target="_blank" rel="noopener noreferrer">{m[2]} ↗</a>);
+    last = m.index + m[0].length;
+  }
+  parts.push(text.slice(last));
+  return parts;
+}
+
+const cells = (row: string) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+
 function render(md: string) {
-  return md.split("\n").map((line, i) => {
-    const parts: React.ReactNode[] = [];
-    const re = /\[([^\]]+)\]\(((?:\/[\w\-/?=&%.]*)|(?:https:\/\/[^\s)]+))\)|\*\*([^*]+)\*\*/g;
-    let last = 0, m: RegExpExecArray | null, k = 0;
-    while ((m = re.exec(line))) {
-      if (m.index > last) parts.push(line.slice(last, m.index));
-      if (m[1]) parts.push(m[2].startsWith("/") ? <Link key={k++} className="link" href={m[2]}>{m[1]}</Link> : <a key={k++} className="link" href={m[2]} target="_blank" rel="noopener noreferrer">{m[1]} ↗</a>);
-      else parts.push(<b key={k++}>{m[3]}</b>);
-      last = m.index + m[0].length;
+  const lines = md.split("\n");
+  const out: React.ReactNode[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*\|/.test(line)) {
+      const rows: string[] = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++]);
+      i--;
+      const [head, ...rest] = rows.map(cells).filter((r) => !r.every((c) => /^:?-{2,}:?$/.test(c)));
+      out.push(
+        <div key={i} className="my-2 overflow-x-auto rounded-xl ring-1 ring-slate-200">
+          <table className="w-full text-[14px]">
+            <thead className="bg-slate-50 text-left text-[13px] font-semibold text-slate-600"><tr>{head?.map((c, j) => <th key={j} className="px-3 py-2">{inline(c)}</th>)}</tr></thead>
+            <tbody>{rest.map((r, ri) => <tr key={ri} className="border-t border-slate-100 align-top">{r.map((c, j) => <td key={j} className="px-3 py-2">{inline(c)}</td>)}</tr>)}</tbody>
+          </table>
+        </div>,
+      );
+      continue;
     }
-    parts.push(line.slice(last));
-    const bullet = /^\s*([-*•]|\d+\.)\s+/.test(line);
-    return <div key={i} className={bullet ? "pl-4 -indent-3" : line.startsWith("#") ? "font-semibold mt-2" : ""}>{bullet ? parts.map((p, j) => (j === 0 && typeof p === "string" ? p.replace(/^\s*[-*•]\s+/, "• ") : p)) : line.startsWith("#") ? line.replace(/^#+\s*/, "") : parts}{line === "" ? " " : null}</div>;
-  });
+    if (/^#+\s/.test(line)) { out.push(<div key={i} className="mt-3 text-[15px] font-semibold text-navy-950">{inline(line.replace(/^#+\s*/, ""))}</div>); continue; }
+    const bullet = line.match(/^\s*(?:[-*•])\s+(.*)$/);
+    if (bullet) { out.push(<div key={i} className="flex gap-2 pl-1"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gold-500" /><span>{inline(bullet[1])}</span></div>); continue; }
+    const num = line.match(/^\s*(\d+)\.\s+(.*)$/);
+    if (num) { out.push(<div key={i} className="mt-3 flex gap-2"><span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-navy-900 text-[12px] font-semibold text-gold-300">{num[1]}</span><span className="font-medium text-navy-950">{inline(num[2])}</span></div>); continue; }
+    out.push(line.trim() === "" ? <div key={i} className="h-2" /> : <div key={i}>{inline(line)}</div>);
+  }
+  return out;
 }
 
 export default function Assistant({ enabled }: { enabled: boolean }) {
@@ -58,7 +87,7 @@ export default function Assistant({ enabled }: { enabled: boolean }) {
           {msgs.length === 0 && <p className="text-sm text-slate-500">Ask anything about your companies, jobs, applications or documents.</p>}
           {msgs.map((m, i) => (
             <div key={i} className={m.role === "user" ? "ml-auto max-w-[85%] rounded-xl bg-navy-900 px-4 py-2 text-sm text-white" : "max-w-[95%] text-sm leading-relaxed text-slate-800"}>
-              {m.role === "user" ? m.content : <>{render(m.content)}<div className="mt-2"><button disabled={m.saved} onClick={() => save(i)} className="btn-ghost !py-0.5 text-xs">{m.saved ? "Saved to CRM (activity + task)" : "Save recommendation to CRM"}</button></div></>}
+              {m.role === "user" ? m.content : <>{render(m.content)}<div className="mt-2"><button disabled={m.saved} onClick={() => save(i)} className="btn-ghost !py-0.5 text-[13px]">{m.saved ? "Saved to CRM (activity + task)" : "Save recommendation to CRM"}</button></div></>}
             </div>
           ))}
           {busy && <p className="text-sm text-slate-500 animate-pulse">Checking your records…</p>}

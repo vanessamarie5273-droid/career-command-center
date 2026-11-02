@@ -9,6 +9,11 @@ import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import { TaskList, NoteForm, TouchForm, AttachDocument, DeleteApplication } from "@/components/CrmWidgets";
 import InterviewPrep, { type PrepRow } from "@/components/InterviewPrep";
 import { assistantConfigured } from "@/lib/assistant";
+import FollowUpEmails from "@/components/FollowUpEmails";
+import { UndoEmail } from "@/components/MailWidgets";
+import { outreachPlan } from "@/lib/outreach";
+import { outlookConfigured } from "@/lib/mail/outlook";
+import { KIND_LABEL } from "@/lib/mail/sync";
 
 export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,13 +22,17 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     include: { company: { include: { contacts: true } }, job: true, tasks: { orderBy: [{ done: "asc" }, { dueAt: "asc" }] }, activities: { orderBy: { at: "desc" } }, touches: { include: { contact: true }, orderBy: { sentAt: "desc" } }, documents: { select: { id: true, name: true, kind: true, version: true } }, stageHistory: { orderBy: { at: "desc" } } },
   });
   if (!a) notFound();
-  const [all, kitDocs, jobDocs, audit, preps] = await Promise.all([
+  const [all, kitDocs, jobDocs, audit, preps, plan, emails, mail] = await Promise.all([
     prisma.document.findMany({ select: { id: true, name: true, kind: true, version: true }, orderBy: { createdAt: "desc" } }),
     kitDocIds(prisma),
     a.jobId ? kitDocIds(prisma, { jobId: a.jobId }) : new Set<string>(),
     prisma.auditLog.findMany({ where: { entity: "Application", entityId: id }, orderBy: { at: "desc" }, take: 40 }),
     prisma.interviewPrep.findMany({ where: { applicationId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
+    outreachPlan(prisma, id),
+    prisma.emailEvent.findMany({ where: { applicationId: id }, orderBy: { receivedAt: "desc" }, take: 20 }),
+    prisma.mailAccount.findUnique({ where: { id: "outlook" }, select: { id: true } }),
   ]);
+  const outlook = !!mail && outlookConfigured();
   // Your library plus this job's kit documents; other companies' kit documents stay out of the lists.
   const docs = libraryOnly(all, kitDocs, [...jobDocs, a.resumeId, a.coverLetterId]);
   const ep = `/api/applications/${a.id}`;
@@ -64,7 +73,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
               <AutoField endpoint={ep} field="introText" type="textarea" label="Introduction / note sent with application" value={a.introText} className="sm:col-span-2" />
             </div>
             <div className="mt-3"><div className="label">Other documents & attachments</div>
-              <ul className="text-sm mb-2">{a.documents.map((d) => <li key={d.id}><a className="link" href={`/api/documents/${d.id}/download`}>{d.name}</a> <span className="text-xs text-slate-400">{d.kind}</span></li>)}</ul>
+              <ul className="text-sm mb-2">{a.documents.map((d) => <li key={d.id}><a className="link" href={`/api/documents/${d.id}/download`}>{d.name}</a> <span className="text-[13px] text-slate-400">{d.kind}</span></li>)}</ul>
               <AttachDocument applicationId={a.id} />
             </div>
           </Card>
@@ -75,18 +84,31 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
               <AutoField endpoint={ep} field="linkedinActivity" type="textarea" label="LinkedIn networking activity" value={a.linkedinActivity} className="sm:col-span-2" />
             </div>
             <div className="mt-4"><div className="label">Outreach history</div>
-              <ul className="space-y-1.5 text-sm mb-3">{a.touches.map((t) => <li key={t.id}><b>{t.contact.firstName} {t.contact.lastName}</b> · {t.channel} · {date(t.sentAt)}{t.replied ? " · replied" : ""}{t.followUpAt ? ` · follow up ${date(t.followUpAt)}` : ""}{t.message && <div className="text-xs text-slate-500 line-clamp-2">{t.message}</div>}</li>)}</ul>
+              <ul className="space-y-1.5 text-sm mb-3">{a.touches.map((t) => <li key={t.id}><b>{t.contact.firstName} {t.contact.lastName}</b> · {t.channel} · {date(t.sentAt)}{t.replied ? " · replied" : ""}{t.followUpAt ? ` · follow up ${date(t.followUpAt)}` : ""}{t.message && <div className="text-[13px] text-slate-500 line-clamp-2">{t.message}</div>}</li>)}</ul>
               <TouchForm applicationId={a.id} contacts={a.company.contacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName ?? ""}`.trim() }))} />
             </div>
           </Card>
-          <InterviewPrep applicationId={a.id} preps={JSON.parse(JSON.stringify(preps)) as PrepRow[]} configured={assistantConfigured()} />
+          <FollowUpEmails plan={plan} outlook={outlook} ai={assistantConfigured()} />
+          {emails.length > 0 && (
+            <Card title="Emails from the company" icon="mail" sub="Read from your Outlook">
+              <ul className="space-y-2 text-sm">{emails.map((e) => (
+                <li key={e.id} className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate"><b>{e.fromName ?? e.fromEmail}</b> · {e.subject}</div>
+                    <div className="text-[13px] text-slate-500">{dateTime(e.receivedAt)} · {KIND_LABEL[e.kind as keyof typeof KIND_LABEL] ?? e.kind} · {e.undone ? <s>{e.action}</s> : e.action}{e.undone ? " (undone)" : ""}</div>
+                  </div>
+                  {e.newStage && !e.undone && <UndoEmail id={e.id} />}
+                </li>))}</ul>
+            </Card>
+          )}
+          <InterviewPrep applicationId={a.id} preps={JSON.parse(JSON.stringify(preps)) as PrepRow[]} configured={assistantConfigured()} outlook={outlook} />
           <Card title="Interview notes"><AutoField endpoint={ep} field="interviewNotes" type="textarea" rows={6} value={a.interviewNotes} placeholder="Who you met, questions asked, signals, next steps" /></Card>
           <Card title="Notes & activity">
             <NoteForm applicationId={a.id} />
-            <ul className="mt-3 space-y-2 text-sm">{a.activities.map((n) => <li key={n.id} className="border-l-2 border-gold-500/60 pl-3"><div className="text-xs text-slate-500">{n.kind.replace(/_/g, " ")} · {dateTime(n.at)}</div><div className="whitespace-pre-wrap">{n.body}</div></li>)}</ul>
+            <ul className="mt-3 space-y-2 text-sm">{a.activities.map((n) => <li key={n.id} className="border-l-2 border-gold-500/60 pl-3"><div className="text-[13px] text-slate-500">{n.kind.replace(/_/g, " ")} · {dateTime(n.at)}</div><div className="whitespace-pre-wrap">{n.body}</div></li>)}</ul>
             <AutoField endpoint={ep} field="personalNotes" type="textarea" label="Personal notes (private)" value={a.personalNotes} className="mt-4" />
           </Card>
-          {a.jdSnapshot && <Card title={`Job description snapshot (saved ${date(a.jdSnapshotAt)})`}><pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-xs text-slate-700">{a.jdSnapshot}</pre></Card>}
+          {a.jdSnapshot && <Card title={`Job description snapshot (saved ${date(a.jdSnapshotAt)})`}><pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-[13px] text-slate-700">{a.jdSnapshot}</pre></Card>}
         </div>
         <div className="space-y-4">
           <Card title="Follow-up tasks"><TaskList applicationId={a.id} tasks={a.tasks.map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt?.toISOString() ?? null, done: t.done }))} /></Card>
@@ -111,10 +133,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             <AutoField endpoint={ep} field="outcomeReason" type="textarea" label="Reason" value={a.outcomeReason} className="mt-2" />
           </Card>
           <Card title="History">
-            <ul className="space-y-1 text-xs">
+            <ul className="space-y-1 text-[13px]">
               {a.stageHistory.map((s) => <li key={s.id}>{s.from ? `${STAGE_LABEL[s.from]} → ` : "Created in "}<b>{STAGE_LABEL[s.to]}</b> · {dateTime(s.at)}</li>)}
             </ul>
-            <details className="mt-3 text-xs"><summary className="cursor-pointer text-slate-500">Audit trail ({audit.length})</summary>
+            <details className="mt-3 text-[13px]"><summary className="cursor-pointer text-slate-500">Audit trail ({audit.length})</summary>
               <ul className="mt-2 space-y-1">{audit.map((x) => <li key={x.id}>{dateTime(x.at)} · {x.action} <span className="text-slate-500">{Object.keys((x.changes as object) ?? {}).join(", ")}</span></li>)}</ul>
             </details>
           </Card>

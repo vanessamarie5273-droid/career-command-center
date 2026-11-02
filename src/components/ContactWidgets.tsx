@@ -12,16 +12,17 @@ export function ContactImport() {
     setBusy(true);
     const fd = new FormData(); fd.append("file", f);
     const res = await fetch("/api/contacts/import", { method: "POST", body: fd });
-    const j = await res.json();
+    const j = await res.json().catch(() => ({ error: "Upload failed. Try again." }));
     setBusy(false);
+    e.target.value = "";
     setMsg(res.ok ? `Imported ${j.rows} connections (${j.created} new, ${j.updated} updated). ${j.matched} work at target companies.` : j.error);
     r.refresh();
   }
   return (
     <div className="text-sm space-y-2">
-      <p className="text-xs text-slate-500">Upload Connections.csv from LinkedIn&apos;s official data export.</p>
-      <label className="btn-primary cursor-pointer">{busy ? "Importing…" : "Choose Connections.csv"}<input type="file" accept=".csv" className="hidden" onChange={up} /></label>
-      {msg && <p className="text-xs">{msg}</p>}
+      <p className="text-[13px] text-slate-500">Upload LinkedIn&apos;s data export: the .zip as downloaded, or Connections.csv from inside it.</p>
+      <label className="btn-primary cursor-pointer">{busy ? "Importing…" : "Choose LinkedIn export"}<input type="file" accept=".csv,.zip,text/csv,application/zip,application/x-zip-compressed" className="hidden" onChange={up} /></label>
+      {msg && <p className="text-[13px]">{msg}</p>}
     </div>
   );
 }
@@ -59,7 +60,7 @@ export function OutreachDraft({ contactId, name, company, title, role }: { conta
   }
   return (
     <div className="space-y-2">
-      <p className="text-xs text-slate-500">Drafted from your stated experience only. Edit freely, then copy into LinkedIn or email and log it below.</p>
+      <p className="text-[13px] text-slate-500">Drafted from your stated experience only. Edit freely, then copy into LinkedIn or email and log it below.</p>
       <textarea className="input" rows={9} value={text} onChange={(e) => setText(e.target.value)} />
       <div className="flex gap-2"><button className="btn-ghost" onClick={() => navigator.clipboard.writeText(text)}>Copy</button><button className="btn-ghost" disabled={busy} onClick={ai}>{busy ? "Personalizing…" : "Personalize with AI"}</button></div>
     </div>
@@ -68,5 +69,5 @@ export function OutreachDraft({ contactId, name, company, title, role }: { conta
 
 export function ReplyToggle({ id, replied }: { id: string; replied: boolean }) {
   const r = useRouter();
-  return <label className="text-xs inline-flex items-center gap-1 mt-1"><input type="checkbox" checked={replied} onChange={async (e) => { await fetch(`/api/touches/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ replied: e.target.checked }) }); r.refresh(); }} />Replied</label>;
+  return <label className="text-[13px] inline-flex items-center gap-1 mt-1"><input type="checkbox" checked={replied} onChange={async (e) => { await fetch(`/api/touches/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ replied: e.target.checked }) }); r.refresh(); }} />Replied</label>;
 }

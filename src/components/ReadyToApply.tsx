@@ -1,9 +1,10 @@
 "use client";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import ApplicationKit, { type KitRow } from "@/components/ApplicationKit";
 import MarkApplied from "@/components/MarkApplied";
 
-export default function ReadyToApply({ jobId, applyUrl, kit }: { jobId: string; applyUrl: string; kit: KitRow }) {
+export default function ReadyToApply({ jobId, applyUrl, kit, extra }: { jobId: string; applyUrl: string; kit: KitRow; extra?: ReactNode }) {
   const { id: kitId, parts, resumeDocId, letterDocId } = kit;
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -21,6 +22,7 @@ export default function ReadyToApply({ jobId, applyUrl, kit }: { jobId: string; 
       <button className="btn-ghost" onClick={() => copy("letter")}>{copied === "letter" ? "Copied" : "Copy letter"}</button>
       <button className="btn-ghost" onClick={() => copy("answers")}>{copied === "answers" ? "Copied" : "Copy answers"}</button>
       <MarkApplied jobId={jobId} kitId={kitId} />
+      {extra}
     </div>
     {open && <div className="basis-full border-t border-slate-100 pt-3"><ApplicationKit jobId={jobId} resumes={[]} kits={[kit]} configured embedded /></div>}
     </>

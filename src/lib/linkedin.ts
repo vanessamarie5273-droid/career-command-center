@@ -1,4 +1,16 @@
 // Parser for LinkedIn's official "Connections.csv" data export (Settings → Data privacy → Get a copy of your data).
+import JSZip from "jszip";
+
+// Accepts the export exactly as LinkedIn delivers it (a .zip) or the Connections.csv inside it,
+// so a phone user never has to unzip first.
+export async function connectionsText(buf: Buffer): Promise<string> {
+  if (buf[0] !== 0x50 || buf[1] !== 0x4b) return buf.toString("utf8"); // not a zip ("PK")
+  let zip: JSZip;
+  try { zip = await JSZip.loadAsync(buf); } catch { throw new Error("Couldn't open that .zip file. Try downloading the export from LinkedIn again."); }
+  const entry = Object.values(zip.files).find((f) => !f.dir && /(^|\/)connections\.csv$/i.test(f.name));
+  if (!entry) throw new Error("That .zip has no Connections.csv. Request LinkedIn's export with Connections ticked (or the full archive).");
+  return entry.async("string");
+}
 
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

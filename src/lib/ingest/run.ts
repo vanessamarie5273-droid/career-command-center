@@ -1,10 +1,11 @@
-import type { Company, PrismaClient } from "@prisma/client";
+import type { Company, Job, PrismaClient } from "@prisma/client";
 import { classifyTitle, isRelevantFamily } from "../roles";
 import { htmlToText, parseCompensation, parseLocation, parseYearsRequired, requiresClearance, splitQualifications, extractTravel, extractRelocation, extractTerritory } from "../normalize";
 import { jobFingerprint, contentHash } from "../dedupe";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
 import type { FetchLike, RawPosting } from "./types";
+import { range } from "../format";
 
 export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
@@ -50,17 +51,45 @@ export function buildJobData(company: Pick<Company, "id">, p: RawPosting) {
   };
 }
 
-export function applyScore(data: ReturnType<typeof buildJobData>, company: Company) {
-  const s = scoreJob({ ...data, company });
+export function applyScore(data: ReturnType<typeof buildJobData>, company: Company, firstSeenAt?: Date) {
+  // firstSeenAt dates the age limit for boards that publish no posted date, the same way the rescore does.
+  const s = scoreJob({ ...data, firstSeenAt, company });
   return { score: s.score, scoreBreakdown: s.breakdown, scoreReasons: s.reasons, confidence: s.confidence, tier: s.tier, category: s.category, excludedReason: s.excludedReason ?? null };
+}
+
+type Comparable = { title: string; location: string | null; salaryMin: number | null; salaryMax: number | null; oteMin: number | null; oteMax: number | null; requiredQuals: string | null; preferredQuals: string | null; travelNotes: string | null; requiresClearance: boolean };
+const pay = (j: Pick<Comparable, "salaryMin" | "salaryMax" | "oteMin" | "oteMax">) => {
+  const ote = range(j.oteMin, j.oteMax), base = range(j.salaryMin, j.salaryMax);
+  return ote ? `${ote} OTE` : base;
+};
+const squash = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** What a re-fetch changed that she would care about, in plain words, for the briefing's "changes to tracked jobs". */
+export function jobChanges(old: Comparable, next: Comparable): string[] {
+  const out: string[] = [];
+  const a = pay(old), b = pay(next);
+  if (!a && b) out.push(`Pay now published: ${b}`);
+  else if (a && b && a !== b) out.push(`Pay changed: ${a} → ${b}`);
+  else if (a && !b) out.push("Pay range removed from the posting");
+  if (squash(old.requiredQuals) !== squash(next.requiredQuals) && (old.requiredQuals || next.requiredQuals)) out.push("Required qualifications revised");
+  if (squash(old.preferredQuals) !== squash(next.preferredQuals) && (old.preferredQuals || next.preferredQuals)) out.push("Preferred qualifications revised");
+  if (squash(old.title) !== squash(next.title)) out.push(`Title changed: ${old.title} → ${next.title}`);
+  if (squash(old.location) !== squash(next.location)) out.push(`Location changed: ${old.location ?? "none"} → ${next.location ?? "none"}`);
+  if (squash(old.travelNotes) !== squash(next.travelNotes) && next.travelNotes) out.push(`Travel now listed: ${next.travelNotes.slice(0, 80)}`);
+  if (!old.requiresClearance && next.requiresClearance) out.push("Now requires a security clearance");
+  return out;
 }
 
 /** Persist one posting with cross-source deduplication. Returns what happened. */
 export async function upsertPosting(db: PrismaClient, company: Company, p: RawPosting, now: Date): Promise<"created" | "updated" | "verified"> {
-  const data = buildJobData(company, p);
-  const scored = applyScore(data, company);
+  let data = buildJobData(company, p);
   const existingSource = await db.jobSource.findUnique({ where: { provider_externalId: { provider: p.provider, externalId: p.externalId } }, include: { job: true } });
   const job = existingSource?.job ?? (await db.job.findUnique({ where: { fingerprint: data.fingerprint } }));
+  // A description call that failed this time (timeout, rate limit) must not wipe the description saved last time.
+  if (job && !p.descriptionHtml && !p.descriptionText && (job.description || job.descriptionText)) {
+    data = buildJobData(company, { ...p, descriptionHtml: job.description, descriptionText: job.descriptionText });
+  }
+  const scored = applyScore(data, company, job?.firstSeenAt ?? now);
   if (!job) {
     const created = await db.job.create({
       data: { ...data, ...scored, companyId: company.id, firstSeenAt: now, lastVerifiedAt: now, sources: { create: { provider: p.provider, externalId: p.externalId, url: p.applyUrl, firstSeenAt: now, lastSeenAt: now } }, events: { create: { kind: "discovered", detail: `Found on ${p.provider} board`, at: now } } },
@@ -76,8 +105,10 @@ export async function upsertPosting(db: PrismaClient, company: Company, p: RawPo
   await db.job.update({ where: { id: job.id }, data: { ...rest, ...scored, status: "OPEN", closedAt: null, lastVerifiedAt: now } });
   if (existingSource) await db.jobSource.update({ where: { id: existingSource.id }, data: { lastSeenAt: now, url: p.applyUrl } });
   else await db.jobSource.create({ data: { jobId: job.id, provider: p.provider, externalId: p.externalId, url: p.applyUrl, firstSeenAt: now, lastSeenAt: now } });
-  await db.jobEvent.create({ data: { jobId: job.id, kind: reopened ? "reopened" : changed ? "updated" : "verified", detail: existingSource ? undefined : `Merged duplicate from ${p.provider}`, at: now } });
-  return changed || reopened ? "updated" : "verified";
+  const diffs = jobChanges(job, data);
+  const detail = [reopened ? "Reposted after being taken down" : null, ...diffs, existingSource ? null : `Merged duplicate from ${p.provider}`].filter(Boolean).join("; ") || undefined;
+  await db.jobEvent.create({ data: { jobId: job.id, kind: reopened ? "reopened" : changed || diffs.length ? "updated" : "verified", detail, at: now } });
+  return changed || reopened || diffs.length ? "updated" : "verified";
 }
 
 /** Close jobs from this company/provider not seen in a successful fetch. Never called after a failed fetch. */
@@ -150,7 +181,8 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   const run = await db.ingestionRun.create({ data: { trigger: opts.trigger } });
   const companies = await db.company.findMany({ where: opts.companyIds ? { id: { in: opts.companyIds } } : {} });
   const before = new Set((await db.job.findMany({ where: { status: "OPEN" }, select: { id: true } })).map((j) => j.id));
-  const outcomes = await pool(companies, 6, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));
+  // Two boards at a time: the refresh runs inside the web server, which has little memory to spare.
+  const outcomes = await pool(companies, 2, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));
   const tot = outcomes.reduce((a, o) => ({ fetched: a.fetched + o.fetched, relevant: a.relevant + o.relevant, created: a.created + o.created, updated: a.updated + o.updated, closed: a.closed + o.closed, errors: a.errors + (o.status === "error" ? 1 : 0) }), { fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, errors: 0 });
   const status = tot.errors === 0 ? "ok" : tot.errors < companies.length ? "partial" : "failed";
   await db.ingestionRun.update({ where: { id: run.id }, data: { ...tot, companies: companies.length, finishedAt: new Date(), status, log: outcomes } });
@@ -186,7 +218,19 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
 
 /** Recompute scores after company assessments or the profile change. */
 export async function rescoreAll(db: PrismaClient) {
-  const jobs = await db.job.findMany({ include: { company: true } });
+  // In pages, so every job and its description is never in memory at once.
+  let count = 0;
+  for (let cursor: string | undefined; ; ) {
+    const jobs = await db.job.findMany({ include: { company: true }, orderBy: { id: "asc" }, take: 200, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });
+    if (!jobs.length) break;
+    await rescorePage(db, jobs);
+    count += jobs.length;
+    cursor = jobs[jobs.length - 1].id;
+  }
+  return count;
+}
+
+async function rescorePage(db: PrismaClient, jobs: (Job & { company: Company })[]) {
   for (const j of jobs) {
     const s = scoreJob({ ...j, company: j.company });
     // Role type and seniority are stored for the Role type filter, so they follow title-rule changes too.
@@ -196,5 +240,4 @@ export async function rescoreAll(db: PrismaClient) {
       await db.jobEvent.create({ data: { jobId: j.id, kind: "rescored", detail: `${j.score ?? "–"} → ${s.score}` } });
     }
   }
-  return jobs.length;
 }

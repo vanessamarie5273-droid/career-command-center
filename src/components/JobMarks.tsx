@@ -22,7 +22,7 @@ export default function JobMarks({ id }: { id: string }) {
     else { setError(true); setBusy(null); }
   }
   return (
-    <div className="flex shrink-0 flex-col gap-1 text-[11px] leading-none text-slate-500">
+    <div className="flex shrink-0 flex-col gap-1 text-[12px] leading-none text-slate-500">
       {MARKS.map((m) => (
         <label key={m.key} className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap" title={m.title}>
           <input type="checkbox" checked={busy === m.key} disabled={!!busy} onChange={() => mark(m.key)} className="h-3.5 w-3.5 cursor-pointer accent-navy-900" />
