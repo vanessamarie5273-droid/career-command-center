@@ -52,7 +52,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         </Card>
         <Card title="Alerts">
           <div className="space-y-3">
-            <AutoField endpoint="/api/settings" field="alertEmail" label="Briefing & alert email" value={user?.alertEmail} />
+            {mail?.email
+              ? <div><div className="label">Briefing &amp; alert email</div><div className="flex items-center gap-2 rounded-lg bg-[#f1edff] px-3 py-2 text-[14px] font-semibold text-[#4424e6] ring-1 ring-[#d4c8ff]"><StatusDot status="connected" />{mail.email}<span className="ml-auto text-[12px] font-medium text-slate-500">Outlook</span></div></div>
+              : <AutoField endpoint="/api/settings" field="alertEmail" label="Briefing & alert email" value={user?.alertEmail} />}
             <AutoField endpoint="/api/settings" field="alertMinScore" type="number" label="Alert me for new jobs scoring at least" value={user?.alertMinScore} />
             <AutoField endpoint="/api/settings" field="instantAlerts" type="checkbox" label="Email me within the hour when a role at or above that score is posted" value={user?.instantAlerts} />
             <p className="text-[13px] text-slate-500">Feeds refresh every hour from 7 AM to 9 PM Arizona. Roles found overnight are in the 6 AM briefing.</p>
