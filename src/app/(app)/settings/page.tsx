@@ -44,11 +44,11 @@ export default async function Settings({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader title="Settings & Integrations" />
-      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
         <Card title="Integration health" className="lg:col-span-2">
-          <table className="tbl"><thead><tr><th>Integration</th><th>Status</th><th>Detail</th><th>Required action</th></tr></thead>
+          <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>Integration</th><th>Status</th><th>Detail</th><th>Required action</th></tr></thead>
             <tbody>{integrations.map((i) => <tr key={i.name}><td className="font-medium">{i.name}</td><td className="whitespace-nowrap"><StatusDot status={i.status} /> {i.status.replace("_", " ")}</td><td className="text-xs text-slate-600">{i.detail}</td><td className="text-xs">{i.action ?? "—"}</td></tr>)}</tbody>
-          </table>
+          </table></div>
         </Card>
         <Card title="Alerts">
           <div className="space-y-3">
@@ -63,7 +63,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
       <Card title="Outlook (your job inbox)" icon="mail" tone="sky" className="mb-4" action={mail ? <span className="text-xs text-slate-500">{mail.email}</span> : null}>
         {sp.outlook === "connected" && <p className="mb-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Outlook connected. {sp.note}</p>}
         {sp.outlook_error && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{sp.outlook_error}</p>}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <div className="lg:col-span-2 text-sm text-slate-700 space-y-1.5">
             <p>When a company you&apos;re in process with emails you, the app reads it and moves the application: confirmation → Applied, a recruiter reply or interview request → Recruiter contact or Interviewing, an offer → Offer, a rejection → Rejected. Each move shows on the Command Center with an Undo.</p>
             <p>People who write to you are saved as contacts, and follow-ups you draft from an application go to your Outlook Drafts, as replies in the recruiter&apos;s thread when there is one. Nothing is ever sent for you: you review and send every email. The only emails the app sends are your own alerts, to you.</p>
@@ -78,7 +78,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           <tbody>{feeds.map((f) => <tr key={f.id}><td><Link className="link" href={`/companies/${f.id}`}>{f.name}</Link></td><td className="text-xs">{f.atsProvider === "NONE" ? "—" : `${f.atsProvider.toLowerCase()} · ${f.atsToken}`}</td><td className="text-xs whitespace-nowrap"><StatusDot status={f.atsStatus} /> {f.atsStatus ?? "pending"}</td><td>{f.totalOpenings ?? "—"}</td><td className="text-xs whitespace-nowrap">{dateTime(f.atsCheckedAt)}</td><td className="text-xs text-slate-500 max-w-md">{f.atsError}{(f.atsStatus === "not_found" || f.atsStatus === "unsupported") && f.careersUrl && <> · <a className="link" href={f.careersUrl} target="_blank" rel="noopener noreferrer">check careers site ↗</a></>}</td></tr>)}</tbody>
         </table></div>
       </Card>
-      <div className="grid lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card title="Data export & restore">
           <div className="space-y-2 text-sm">
             <a className="btn-primary" href="/api/export">Download full backup (JSON)</a>

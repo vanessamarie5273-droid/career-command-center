@@ -4,8 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: { 950: "#060d1f", 900: "#0b1730", 800: "#12224a", 700: "#1b2f5e", 600: "#2a4078", 500: "#3d5591" },
-        gold: { 300: "#e6d39b", 400: "#d6bc72", 500: "#c4a254", 600: "#a5853c" },
+        // Purple / magenta palette (2026-11-02): brand #5D36FF, accent #A100C2. The names stay navy/gold so existing classes keep working.
+        navy: { 950: "#1a0f4d", 900: "#2b17a6", 800: "#4424e6", 700: "#5D36FF", 600: "#714FFF", 500: "#7458FF" },
+        gold: { 300: "#f6d0f2", 400: "#D522BF", 500: "#A100C2", 600: "#8a00a8" },
         ink: { 900: "#0f172a", 700: "#334155", 500: "#64748b", 300: "#cbd5e1", 100: "#f1f5f9" },
       },
       fontFamily: {

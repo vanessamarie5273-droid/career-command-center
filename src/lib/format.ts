@@ -20,3 +20,17 @@ export const STAGES = [
 export type StageKey = (typeof STAGES)[number][0];
 export const STAGE_LABEL = { RESEARCHING: "Ready to Apply", PRIORITIZED: "Ready to Apply", RESUME_PREP: "Ready to Apply", ...Object.fromEntries(STAGES) } as Record<StageKey | "RESEARCHING" | "PRIORITIZED" | "RESUME_PREP", string>;
 export const TIER_LABEL: Record<string, string> = { TIER1: "Tier 1 · Pursue Immediately", TIER2: "Tier 2 · Strategic Target", TIER3: "Tier 3 · Monitor" };
+
+// Headings and labels in Title Case (2026-11-02): every word capitalized except short joining words
+// in the middle; words that already carry capitals (AI, LinkedIn, OTE) are left as written.
+const SMALL = new Set(["a", "an", "and", "as", "at", "by", "for", "in", "of", "on", "or", "per", "the", "to", "vs", "via"]);
+export function titleCase(s: string) {
+  const words = s.split(" ");
+  return words.map((w, i) => w.split("-").map((part, j) => {
+    const lead = part.match(/^[(“"']*/)?.[0] ?? "";
+    const core = part.slice(lead.length);
+    if (!core || /[A-Z]/.test(core.slice(1)) || /^[^a-z]/.test(core)) return part;
+    if (i > 0 && i < words.length - 1 && j === 0 && SMALL.has(core.toLowerCase())) return part;
+    return lead + core.charAt(0).toUpperCase() + core.slice(1);
+  }).join("-")).join(" ");
+}
