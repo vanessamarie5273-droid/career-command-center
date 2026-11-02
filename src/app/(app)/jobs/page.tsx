@@ -10,6 +10,7 @@ import { companyCap, PER_COMPANY, withinCap } from "@/lib/companyCap";
 import { FAMILY_LABEL } from "@/lib/roles";
 import { CATEGORIES } from "@/data/companies";
 import { JOB_ROW_INCLUDE, toRow } from "@/lib/jobRows";
+import { feedHealth, feedVerdict, type FeedHealth } from "@/lib/feedHealth";
 
 export const metadata = { title: "Discover Jobs" };
 const PER = 50;
@@ -27,6 +28,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   ]);
   const qs = (o: Partial<JobParams>) => { const u = new URLSearchParams(Object.entries({ ...p, ...o }).filter(([, v]) => v) as [string, string][]); return `/jobs?${u}`; };
   const rows = jobs.map(toRow);
+  // Feed Check on the plain feed: where the other open roles went. It opens by itself when the feed is short.
+  const health = cap && !p.view && !p.q?.trim() && !p.family ? await feedHealth(prisma, total, cap.hidden) : null;
   const ON = "bg-white text-[#5D36FF] font-semibold shadow-sm", OFF = "bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25";
 
   return (
@@ -56,6 +59,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       </PageHeader>
       {cap && cap.hidden > 0 && <p className="mb-2 text-[13px] text-slate-500">{PER_COMPANY} per company · <Link className="link" href={qs({ all: "1", page: "" })}>Show {cap.hidden} more</Link></p>}
       {p.all === "1" && <p className="mb-2 text-[13px] text-slate-500"><Link className="link" href={qs({ all: "", page: "" })}>Back to {PER_COMPANY} per company</Link></p>}
+      {health && <FeedCheck h={health} short={total < 10} showAll={qs({ all: "1", page: "" })} />}
       <SavedFilters page="jobs" />
       <JobsTable rows={rows} />
       <div className="flex items-center justify-between mt-3 text-sm">
@@ -74,4 +78,37 @@ function FeedStatus({ run }: { run: { status: string; finishedAt: Date | null; c
   const text = !run ? "Never refreshed" : run.finishedAt ? ago(run.finishedAt) : "Refreshing…";
   const title = run?.finishedAt ? `Last refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
   return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={run?.status} />{text}</span>;
+}
+
+/** Where every open role went, counted once each, with a one-line verdict: broken refresh, or quiet market plus her own filters. */
+function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showAll: string }) {
+  const v = feedVerdict(h);
+  const items: [string, number, string][] = [
+    ["In your feed", h.inFeed, "/jobs"],
+    ["New this week", h.foundThisWeek, "/jobs?sort=new"],
+    ["Posted over 30 days ago", h.aged, "/jobs?category=EXCLUDED"],
+    ["Outside your location rules", h.location, "/jobs?category=EXCLUDED"],
+    ["Other screen-outs", h.otherScreened, "/jobs?category=EXCLUDED"],
+    ["Over 3 per company", h.heldByCap, showAll],
+    ["Saved to Ready to Apply", h.saved, "/apply"],
+    ["Applied", h.applied, "/applications?view=table&applied=1"],
+    ["Not a Fit", h.notAFit, "/jobs?category=DISMISSED"],
+    ["Duplicates", h.duplicates, "/jobs?category=DUPLICATE"],
+  ];
+  return (
+    <details open={short || !v.ok} className={`card mb-3 px-4 py-3 ${v.ok ? "" : "ring-2 ring-rose-300"}`}>
+      <summary className="cursor-pointer select-none text-[15px] font-semibold text-navy-950"><StatusDot status={v.ok ? "ok" : "error"} /> <span className="ml-1">Feed Check</span><span className="ml-2 text-[13px] font-normal text-slate-500">{v.text}</span></summary>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {items.map(([label, n, href]) => (
+          <Link key={label} href={href} className="rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-200 hover:bg-slate-100">
+            <div className="text-[22px] font-semibold leading-tight tabular-nums text-navy-950">{n.toLocaleString()}</div>
+            <div className="text-[13px] text-slate-600">{label}</div>
+          </Link>
+        ))}
+      </div>
+      <p className="mt-2 text-[13px] text-slate-500">
+        Job boards: {h.feedsOk} reading fine, <Link className="link" href="/settings">{h.feedsFailed} failing</Link>, {h.noFeed} with no public job feed, out of {h.companies} companies. {h.foundToday} new matching role{h.foundToday === 1 ? "" : "s"} in the last 24 hours.
+      </p>
+    </details>
+  );
 }

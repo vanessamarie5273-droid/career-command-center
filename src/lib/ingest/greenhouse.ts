@@ -27,7 +27,8 @@ export async function fetchGreenhouse(token: string, f: FetchLike = fetch): Prom
       location,
       descriptionHtml: detail?.content ?? null,
       applyUrl: j.absolute_url,
-      postedAt: j.first_published ? new Date(j.first_published) : null,
+      // The posted date comes from the list; the detail call is the fallback in case a board's list leaves it out.
+      postedAt: (j.first_published ?? detail?.first_published) ? new Date((j.first_published ?? detail?.first_published)!) : null,
     });
   }
   return { postings, total: data.meta?.total ?? postings.length };
