@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, StatusDot } from "@/components/ui";
 import RefreshButton from "@/components/RefreshButton";
-import { ago } from "@/lib/format";
+import { ago, titleCase } from "@/lib/format";
 import JobsTable from "@/components/JobsTable";
 import SavedFilters from "@/components/SavedFilters";
 import { capApplies, jobOrder, jobWhere, RANKINGS, type JobParams } from "@/lib/jobFilters";
@@ -32,10 +32,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     <>
       <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} /><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>} />
       <div className="flex flex-wrap gap-1.5 mb-3">
-        <Link href="/jobs" className={`chip px-3 py-1 ${!p.view && !p.category ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Your feed</Link>
-        {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 ${p.view === k ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>{r.short}</Link>)}
+        <Link href="/jobs" className={`chip px-3 py-1 ${!p.view && !p.category ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Your Feed</Link>
+        {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 ${p.view === k ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>{titleCase(r.short)}</Link>)}
         <Link href="/jobs?category=EXCLUDED" className={`chip px-3 py-1 ${p.category === "EXCLUDED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Excluded</Link>
-        <Link href="/jobs?category=DISMISSED" className={`chip px-3 py-1 ${p.category === "DISMISSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Not a fit</Link>
+        <Link href="/jobs?category=DISMISSED" className={`chip px-3 py-1 ${p.category === "DISMISSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Not a Fit</Link>
         <Link href="/jobs?category=DUPLICATE" className={`chip px-3 py-1 ${p.category === "DUPLICATE" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Duplicates</Link>
         <Link href="/jobs?status=CLOSED&category=ALL" className={`chip px-3 py-1 ${p.status === "CLOSED" ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>Closed</Link>
       </div>
@@ -71,5 +71,5 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 function FeedStatus({ run }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null }) {
   const text = !run ? "Never refreshed" : run.finishedAt ? ago(run.finishedAt) : "Refreshing…";
   const title = run?.finishedAt ? `Last refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
-  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-200"><StatusDot status={run?.status} />{text}</span>;
+  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-3 py-1.5 text-sm text-white ring-1 ring-white/30 backdrop-blur-md"><StatusDot status={run?.status} />{text}</span>;
 }

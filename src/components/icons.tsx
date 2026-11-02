@@ -42,7 +42,7 @@ export function Icon({ name, size = 18, className = "", stroke = 1.8 }: { name: 
 /** Sidebar tabs, in order. A tab can hold several pages; its `tabs` show as a switcher in the top bar. */
 export const NAV: { href: string; label: string; icon: IconName; match: string[]; tabs?: { href: string; label: string }[] }[] = [
   { href: "/", label: "Command Center", icon: "home", match: ["/"] },
-  { href: "/jobs", label: "Jobs", icon: "briefcase", match: ["/jobs", "/apply"], tabs: [{ href: "/jobs", label: "Discover" }, { href: "/apply", label: "Ready to apply" }] },
+  { href: "/jobs", label: "Jobs", icon: "briefcase", match: ["/jobs", "/apply"], tabs: [{ href: "/jobs", label: "Discover" }, { href: "/apply", label: "Ready to Apply" }] },
   { href: "/applications", label: "Applications", icon: "board", match: ["/applications"] },
   { href: "/companies", label: "Accounts", icon: "building", match: ["/companies", "/contacts"], tabs: [{ href: "/companies", label: "Companies" }, { href: "/contacts", label: "Contacts" }] },
   { href: "/documents", label: "Resumes", icon: "doc", match: ["/documents"] },

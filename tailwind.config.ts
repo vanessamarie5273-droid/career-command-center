@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Violet / indigo palette (2026-11-02). The names stay navy/gold so existing classes keep working.
-        navy: { 950: "#1b1446", 900: "#2a1d7a", 800: "#3a29a8", 700: "#4834cc", 600: "#5b45e0", 500: "#6f5cf2" },
-        gold: { 300: "#e4d4ff", 400: "#c08cff", 500: "#a35cf5", 600: "#8b3fe0" },
+        // Purple / magenta palette (2026-11-02): brand #5D36FF, accent #A100C2. The names stay navy/gold so existing classes keep working.
+        navy: { 950: "#1a0f4d", 900: "#2b17a6", 800: "#4424e6", 700: "#5D36FF", 600: "#714FFF", 500: "#7458FF" },
+        gold: { 300: "#f6d0f2", 400: "#D522BF", 500: "#A100C2", 600: "#8a00a8" },
         ink: { 900: "#0f172a", 700: "#334155", 500: "#64748b", 300: "#cbd5e1", 100: "#f1f5f9" },
       },
       fontFamily: {

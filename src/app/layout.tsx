@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Private executive career intelligence and opportunity management",
   robots: { index: false, follow: false },
 };
-export const viewport: Viewport = { themeColor: "#0b1730", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#2b17a6", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

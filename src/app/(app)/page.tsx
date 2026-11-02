@@ -5,6 +5,7 @@ import { agenda, applicationSearch, feed, pipelineDashboard, QUIET_DAYS, SEARCH_
 import { Card, Empty, Logo, Icon, type IconName } from "@/components/ui";
 import { WeeklyLine } from "@/components/Charts";
 import ApplicationSearch from "@/components/ApplicationSearch";
+import Gem from "@/components/Gem";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import { STAGE_LABEL, ago, date } from "@/lib/format";
 import { UndoEmail } from "@/components/MailWidgets";
@@ -36,13 +37,13 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
     <>
       <Welcome>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
-          <Stat label="Active processes" value={t.active} href={table("active=1")} icon="flame" />
+          <Stat label="Active Processes" value={t.active} href={table("active=1")} icon="flame" />
           <Stat label="Applied" value={t.applied} href={table("applied=1")} icon="send" />
-          <Stat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
+          <Stat label="Moved Past Applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
           <Stat label="Interviews" value={t.interviews} href={table("interviews=1")} icon="calendar" />
           <Stat label="Offers" value={t.offers} href={table("stage=OFFER")} icon="trophy" />
-          <Stat label="Follow-ups due" value={t.followUps} href={table("followup=1")} icon="clock" />
-          <Stat label="Ready to apply" value={t.readyToApply} href="/apply" icon="check" />
+          <Stat label="Follow-Ups Due" value={t.followUps} href={table("followup=1")} icon="clock" />
+          <Stat label="Ready to Apply" value={t.readyToApply} href="/apply" icon="check" />
         </div>
         <div className="welcome-search mt-3"><ApplicationSearch by={by} q={q} /></div>
       </Welcome>
@@ -56,14 +57,14 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
       <Pipeline f={d.funnel} />
 
       <div className="mb-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-5">
-        <Card title={<Count n={todo.items.length + todo.nudges.length}>Your next moves</Count>} icon="clock" tone="amber" className="lg:col-span-3">
+        <Card title={<Count n={todo.items.length + todo.nudges.length}>Your Next Moves</Count>} icon="clock" tone="amber" className="lg:col-span-3">
           <NextMoves items={todo.items} nudges={todo.nudges} />
         </Card>
         <div className="flex flex-col gap-3 lg:col-span-2">
-          <Card title={<Count n={changes.items.length}>What changed</Count>} icon="arrows" tone="violet">
+          <Card title={<Count n={changes.items.length}>What Changed</Count>} icon="arrows" tone="violet">
             <Changes items={changes.items} logged={changes.logged} outlook={!!mail} checked={mail?.lastSyncAt ?? null} />
           </Card>
-          <Card title={<Count n={d.quiet.length}>Going quiet</Count>} icon="pause" tone="rose">
+          <Card title={<Count n={d.quiet.length}>Going Quiet</Count>} icon="pause" tone="rose">
             {d.quiet.length === 0 ? <AllClear>Every open application has moved in the last {QUIET_DAYS} days.</AllClear> : (
               <ul className="space-y-0.5">{d.quiet.map((a) => <Row key={a.id} href={`/applications/${a.id}`} company={a.company} title={a.company.name} sub={`${a.title} · ${STAGE_LABEL[a.stage]}`} right={<Chip tone="rose">{ago(a.updatedAt).replace(" ago", "")} quiet</Chip>} />)}</ul>
             )}
@@ -71,7 +72,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
         </div>
       </div>
 
-      <Card title="Weekly activity" icon="trend" tone="emerald"><WeeklyLine data={d.weeks} /></Card>
+      <Card title="Weekly Activity" icon="trend" tone="emerald"><WeeklyLine data={d.weeks} /></Card>
     </>
   );
 }
@@ -95,7 +96,7 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
                     {s.logos.map((c, j) => <span key={c.name} className={`rounded-md ring-2 ring-white ${j ? "-ml-1" : ""}`} title={c.name}><Logo src={c.logoUrl} name={c.name} size={22} /></span>)}
                     {s.count > s.logos.length && <span className="ml-1.5 text-[11px] font-medium text-slate-500">+{s.count - s.logos.length}</span>}
                   </span>
-                  <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-violet-200/60"><span className="block h-full rounded-full bg-gradient-to-r from-[#4f46e5] to-[#a855f7]" style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
+                  <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-violet-200/60"><span className="block h-full rounded-full bg-gradient-to-r from-[#5D36FF] to-[#A100C2]" style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
                 </Link>
               </li>
             );
@@ -116,7 +117,7 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
 const BUCKET: Record<AgendaItem["bucket"], { label: string; dot: string }> = {
   overdue: { label: "Overdue", dot: "bg-rose-500" },
   today: { label: "Today", dot: "bg-amber-500" },
-  soon: { label: "This week", dot: "bg-slate-400" },
+  soon: { label: "This Week", dot: "bg-slate-400" },
 };
 const SHOW = 7;
 
@@ -233,7 +234,7 @@ function Row({ href, company, title, sub, right, small }: { href?: string; compa
 /** The Command Center banner: violet gradient, a welcome line, a crystal on the right, and the headline numbers as glass tiles. */
 function Welcome({ children }: { children: ReactNode }) {
   return (
-    <section className="relative mb-3 overflow-hidden rounded-2xl bg-[linear-gradient(115deg,#2f22b8_0%,#4a2fd8_45%,#7b3fe4_80%,#5b45e0_100%)] px-4 py-4 text-white shadow-[0_18px_40px_-24px_rgba(76,45,210,0.8)] lg:px-6">
+    <section className="relative mb-3 overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#4a26ef_0%,#5D36FF_40%,#8a12d6_80%,#A100C2_100%)] px-4 py-4 text-white shadow-[0_18px_40px_-24px_rgba(93,54,255,0.8)] lg:px-6">
       <Gem className="pointer-events-none absolute -right-4 -top-14 hidden h-[210px] w-[420px] [mask-image:linear-gradient(to_bottom,black_50%,transparent_95%)] md:block" />
       <div className="relative flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -256,33 +257,3 @@ function Stat({ label, value, href, icon }: { label: string; value: ReactNode; h
   );
 }
 
-/** A faceted crystal in blues and violets, drawn in SVG. */
-function Gem({ className }: { className?: string }) {
-  const P = { L: "20,110", A: "95,30", T: "230,26", B: "365,30", R: "440,110", M1: "150,110", M2: "310,110", D: "230,300" };
-  const f = (pts: string[], fill: string) => <polygon points={pts.join(" ")} fill={fill} stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" strokeLinejoin="round" />;
-  return (
-    <svg viewBox="0 0 460 230" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4f7bff" /><stop offset="1" stopColor="#3b2bd6" /></linearGradient>
-        <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5b8cff" /><stop offset=".5" stopColor="#38bdf8" stopOpacity=".7" /><stop offset="1" stopColor="#6d4cf0" /></linearGradient>
-        <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c4a5ff" /><stop offset="1" stopColor="#7c3aed" /></linearGradient>
-        <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a78bfa" /><stop offset="1" stopColor="#c026d3" /></linearGradient>
-        <linearGradient id="g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#d946ef" /><stop offset="1" stopColor="#f0abfc" /></linearGradient>
-        <linearGradient id="g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3b2bd6" /><stop offset="1" stopColor="#1e1b8f" /></linearGradient>
-        <linearGradient id="g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6d4cf0" /><stop offset="1" stopColor="#8b5cf6" /></linearGradient>
-        <linearGradient id="g8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a855f7" /><stop offset="1" stopColor="#f5d0fe" /></linearGradient>
-        <filter id="glow"><feGaussianBlur stdDeviation="14" /></filter>
-      </defs>
-      <ellipse cx="230" cy="120" rx="200" ry="70" fill="#a855f7" opacity=".35" filter="url(#glow)" />
-      {f([P.L, P.A, P.M1], "url(#g1)")}
-      {f([P.A, P.T, P.M1], "url(#g2)")}
-      {f([P.T, P.M2, P.M1], "url(#g3)")}
-      {f([P.T, P.B, P.M2], "url(#g4)")}
-      {f([P.B, P.R, P.M2], "url(#g5)")}
-      {f([P.L, P.M1, P.D], "url(#g6)")}
-      {f([P.M1, P.M2, P.D], "url(#g7)")}
-      {f([P.M2, P.R, P.D], "url(#g8)")}
-      <polyline points={`${P.L} ${P.R}`} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
-    </svg>
-  );
-}

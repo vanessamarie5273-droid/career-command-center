@@ -21,7 +21,7 @@ const KIND: Record<string, [IconName, string]> = {
 const TYPES: Record<string, { label: string; kinds: string[] }> = {
   matches: { label: "Matches", kinds: ["new_high_score_job"] },
   email: { label: "Email", kinds: ["email_update"] },
-  todo: { label: "To do", kinds: ["follow_up_due", "interview"] },
+  todo: { label: "To Do", kinds: ["follow_up_due", "interview"] },
   closed: { label: "Closed", kinds: ["job_closed"] },
   errors: { label: "Errors", kinds: ["integration_error"] },
 };
@@ -74,9 +74,9 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
   return (
     <>
       <PageHeader title="Alerts" actions={<><AlertActions /><BriefingButton /></>}>
-        <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <HeroStat label="Unread" value={unread} icon="bell" highlight={unread > 0} />
-          <HeroStat label="New matches today" value={b ? b.newJobs.length : "—"} icon="spark" href="/jobs?sort=new" />
+          <HeroStat label="New Matches Today" value={b ? b.newJobs.length : "—"} icon="spark" href="/jobs?sort=new" />
           <HeroStat label="Tier 1 open" value={b ? b.tier1.length : "—"} icon="flame" href="/jobs?tier=TIER1" />
           <HeroStat label="Job feeds" value={last ? <span className="inline-flex items-center gap-2"><StatusDot status={last.status} />{ago(last.startedAt)}</span> : "—"} icon="refresh" />
         </div>
@@ -98,12 +98,12 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
 
         <div className="flex flex-col gap-3 xl:col-span-4">
           {b && b.actions.length > 0 && (
-            <Card title="Do today" icon="flame" tone="gold">
-              <ol className="space-y-2">{b.actions.map((x, i) => <li key={x} className="flex gap-2.5 text-[13.5px] leading-snug text-navy-950"><span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-navy-900 text-[11px] font-semibold text-gold-300">{i + 1}</span><span>{x}</span></li>)}</ol>
+            <Card title="Do Today" icon="flame" dark>
+              <ol className="space-y-2">{b.actions.map((x, i) => <li key={x} className="flex gap-2.5 text-[13.5px] leading-snug text-white/95"><span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-[#5D36FF]">{i + 1}</span><span>{x}</span></li>)}</ol>
             </Card>
           )}
           {b && b.tier1.length > 0 && (
-            <Card title="Tier 1 open" icon="trophy" tone="gold" action={<Link className="link text-xs" href="/jobs?tier=TIER1">All {b.tier1.length} →</Link>}>
+            <Card title="Tier 1 Open" icon="trophy" tone="gold" action={<Link className="link text-xs" href="/jobs?tier=TIER1">All {b.tier1.length} →</Link>}>
               <ul className="space-y-0.5">{b.tier1.slice(0, 6).map((j) => {
                 const c = jobs.find((x) => x.id === j.id)?.company;
                 return (
@@ -116,13 +116,13 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
               })}</ul>
             </Card>
           )}
-          <Card title="Job feeds" icon="refresh" tone="emerald">
+          <Card title="Job Feeds" icon="refresh" tone="emerald">
             {runs.length === 0 ? <Empty>No refresh yet.</Empty> : (
               <div className="flex h-28 items-end gap-1.5">
                 {[...runs].reverse().map((r) => (
                   <div key={r.id} className="flex flex-1 flex-col items-center gap-1" title={`${dateTime(r.startedAt)} · ${r.status} · ${r.created} new · ${r.closed} closed · ${r.errors} errors`}>
                     <div className="flex h-20 w-full items-end justify-center gap-0.5">
-                      <div className="w-1/2 max-w-3 rounded-t bg-gradient-to-t from-[#4f46e5] to-[#a78bfa]" style={{ height: `${Math.max(4, (r.created / runMax) * 100)}%` }} />
+                      <div className="w-1/2 max-w-3 rounded-t bg-gradient-to-t from-[#5D36FF] to-[#9D85FF]" style={{ height: `${Math.max(4, (r.created / runMax) * 100)}%` }} />
                       <div className="w-1/2 max-w-3 rounded-t bg-gradient-to-t from-slate-400 to-slate-300" style={{ height: `${Math.max(4, (r.closed / runMax) * 100)}%` }} />
                     </div>
                     <StatusDot status={r.status} />
@@ -130,14 +130,14 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
                 ))}
               </div>
             )}
-            {runs.length > 0 && <div className="mt-2 flex gap-3 text-[11.5px] text-slate-500"><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-[#5b45e0]" />New</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-slate-400" />Closed</span></div>}
+            {runs.length > 0 && <div className="mt-2 flex gap-3 text-[11.5px] text-slate-500"><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-[#5D36FF]" />New</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-slate-400" />Closed</span></div>}
           </Card>
         </div>
       </div>
 
       <details className="card group" open={Boolean(p.q || p.kind || page > 1)}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <span className="flex items-center gap-2.5"><span className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-slate-500/10 text-slate-500"><Icon name="history" size={16} /></span><span className="text-[16.5px] font-semibold text-navy-950">Job history</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-slate-500">{evCount.toLocaleString()}</span></span>
+          <span className="flex items-center gap-2.5"><span className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-slate-500/10 text-slate-500"><Icon name="history" size={16} /></span><span className="text-[16.5px] font-semibold text-navy-950">Job History</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-slate-500">{evCount.toLocaleString()}</span></span>
           <svg className="text-slate-400 transition group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
         </summary>
         <div className="px-4 pb-4">

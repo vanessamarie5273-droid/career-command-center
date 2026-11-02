@@ -56,7 +56,7 @@ export function briefingHtml(b: BriefingContent) {
   const base = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "";
   const li = (items: string[]) => (items.length ? `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>` : `<p style="color:#64748b">None</p>`);
   return `<div style="font-family:Inter,Arial,sans-serif;max-width:640px;color:#0f172a">
-  <div style="background:#0b1730;color:#e6d39b;padding:16px 20px;font-size:18px;font-weight:600">Career Command Center · Morning Briefing</div>
+  <div style="background:#2b17a6;color:#ffffff;padding:16px 20px;font-size:18px;font-weight:600">Career Command Center · Morning Briefing</div>
   <div style="padding:16px 20px">
   <p style="color:#64748b">Generated ${new Date(b.generatedAt).toLocaleString("en-US", { timeZone: "America/Phoenix" })} (Arizona). Last job refresh: ${b.lastRun?.at ? new Date(b.lastRun.at).toLocaleString("en-US", { timeZone: "America/Phoenix" }) : "never"}${b.lastRun ? `, ${b.lastRun.created} new, ${b.lastRun.closed} closed, ${b.lastRun.errors} feed errors` : ""}.</p>
   <h3>Recommended actions</h3>${li(b.actions.map(esc))}

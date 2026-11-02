@@ -27,11 +27,11 @@ export default async function Applications({ searchParams }: { searchParams: Pro
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const view = p.view === "table" ? "table" : "board";
-  const tab = (v: string) => `px-3 py-1.5 text-sm rounded-md ${view === v ? "bg-navy-900 text-white" : "text-slate-600 hover:bg-slate-100"}`;
+  const tab = (v: string) => `px-3 py-1.5 text-sm rounded-md ${view === v ? "bg-white text-[#5D36FF] font-medium" : "text-white/85 hover:bg-white/15"}`;
   return (
     <>
       <PageHeader title="My Applications"
-        actions={<><div className="card flex p-1"><Link className={tab("board")} href="/applications">Board</Link><Link className={tab("table")} href="/applications?view=table">Table</Link></div><NewApplication companies={companies} /></>} />
+        actions={<><div className="flex rounded-lg bg-white/15 p-1 ring-1 ring-white/25"><Link className={tab("board")} href="/applications">Board</Link><Link className={tab("table")} href="/applications?view=table">Table</Link></div><NewApplication companies={companies} /></>} />
       {apps.length === 0 ? <Empty>No applications yet. Save a role in Discover Jobs, then click “I applied” once you submit it, or start a company-level pursuit above.</Empty> : view === "board" ? (
         <Kanban stages={STAGES.map(([k, l]) => [k, l])} cards={apps.map((a) => ({ id: a.id, title: a.title, stage: a.stage, company: a.company.name, logo: a.company.logoUrl, score: a.job ? effectiveScore(a.job) : null, nextAction: a.nextAction && tidyAction(a.nextAction), due: a.nextActionDue?.toISOString() ?? null, applied: a.applied }))} />
       ) : (

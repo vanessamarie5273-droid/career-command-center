@@ -62,8 +62,8 @@ type Co = { name: string; logoUrl: string | null };
 
 // The stages an open application moves through, left to right. Pre-apply stages fold into Ready to Apply.
 export const FUNNEL = [
-  ["READY_TO_APPLY", "Ready to apply"], ["APPLIED", "Applied"], ["RECRUITER_CONTACT", "Recruiter"], ["HIRING_MANAGER", "Hiring manager"],
-  ["INTERVIEWING", "Interviewing"], ["FINAL_INTERVIEW", "Final round"], ["OFFER", "Offer"],
+  ["READY_TO_APPLY", "Ready to Apply"], ["APPLIED", "Applied"], ["RECRUITER_CONTACT", "Recruiter"], ["HIRING_MANAGER", "Hiring Manager"],
+  ["INTERVIEWING", "Interviewing"], ["FINAL_INTERVIEW", "Final Round"], ["OFFER", "Offer"],
 ] as const;
 const PRE = new Set(["RESEARCHING", "PRIORITIZED", "RESUME_PREP", "READY_TO_APPLY"]);
 

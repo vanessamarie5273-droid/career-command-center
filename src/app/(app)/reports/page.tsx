@@ -24,14 +24,14 @@ export default async function Reports() {
   const applied = apps.filter((a) => a.applied).length;
   const funnel = [
     { label: "Applied", value: applied, href: table("applied=1") },
-    { label: "Recruiter or manager", value: reached(["RECRUITER_CONTACT", "HIRING_MANAGER"]), href: table("active=1") },
+    { label: "Recruiter or Manager", value: reached(["RECRUITER_CONTACT", "HIRING_MANAGER"]), href: table("active=1") },
     { label: "Interviewing", value: reached(["INTERVIEWING", "FINAL_INTERVIEW"]), href: table("stage=INTERVIEWING") },
     { label: "Offer", value: reached(["OFFER", "ACCEPTED"]), href: table("stage=OFFER") },
   ];
   const tiers = [
-    { name: "Tier 1", value: charts.pipeline[0].value, color: "#a35cf5", href: "/jobs?tier=TIER1" },
-    { name: "Tier 2", value: charts.pipeline[1].value, color: "#4f46e5", href: "/jobs?tier=TIER2" },
-    { name: "Tier 3", value: charts.pipeline[2].value, color: "#c4b5fd", href: "/jobs?tier=TIER3" },
+    { name: "Tier 1", value: charts.pipeline[0].value, color: "#A100C2", href: "/jobs?tier=TIER1" },
+    { name: "Tier 2", value: charts.pipeline[1].value, color: "#5D36FF", href: "/jobs?tier=TIER2" },
+    { name: "Tier 3", value: charts.pipeline[2].value, color: "#9D85FF", href: "/jobs?tier=TIER3" },
   ];
 
   return (
@@ -54,7 +54,7 @@ export default async function Reports() {
           <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {bestCompanies.map((c, i) => (
               <li key={c.id}>
-                <Link href={`/companies/${c.id}`} className="flex h-full items-center gap-3 rounded-lg bg-slate-50 p-2.5 transition hover:bg-slate-100">
+                <Link href={`/companies/${c.id}`} className="flex h-full items-center gap-3 rounded-lg bg-violet-50 p-2.5 ring-1 ring-violet-100 transition hover:bg-violet-100">
                   <span className={`w-4 text-center text-xs font-bold tabular-nums ${i < 3 ? "text-gold-600" : "text-slate-300"}`}>{i + 1}</span>
                   <Logo src={c.logoUrl} name={c.name} size={32} />
                   <span className="min-w-0 flex-1">
@@ -82,15 +82,15 @@ export default async function Reports() {
 function Funnel({ steps }: { steps: { label: string; value: number; href: string }[] }) {
   const top = Math.max(1, steps[0].value);
   return (
-    <ol className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
+    <ol className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {steps.map((s, i) => {
         const pct = Math.round((s.value / top) * 100);
         return (
           <li key={s.label} className="relative">
-            <Link href={s.href} className={`block h-full rounded-lg px-3.5 py-2.5 transition hover:bg-slate-50 ${i === steps.length - 1 && s.value ? "bg-gold-300/25" : ""}`}>
-              <span className="block text-[12.5px] font-medium text-slate-500">{s.label}</span>
-              <span className="mt-0.5 flex items-baseline gap-2"><span className="text-[26px] font-semibold leading-tight tabular-nums text-navy-950">{s.value}</span>{i > 0 && <span className="text-sm font-semibold tabular-nums text-gold-600">{pct}%</span>}</span>
-              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-300" style={{ width: `${s.value ? Math.max(4, pct) : 0}%` }} /></span>
+            <Link href={s.href} className={`block h-full rounded-xl px-3.5 py-2.5 ring-1 backdrop-blur-sm transition hover:bg-white/20 ${i === steps.length - 1 && s.value ? "bg-white/25 ring-white/40" : "bg-white/[0.12] ring-white/20"}`}>
+              <span className="block text-[12.5px] font-medium text-white/80">{s.label}</span>
+              <span className="mt-0.5 flex items-baseline gap-2"><span className="text-[26px] font-semibold leading-tight tabular-nums">{s.value}</span>{i > 0 && <span className="text-sm font-semibold tabular-nums text-[#f6d0f2]">{pct}%</span>}</span>
+              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/20"><span className="block h-full rounded-full bg-gradient-to-r from-white to-[#f6d0f2]" style={{ width: `${s.value ? Math.max(4, pct) : 0}%` }} /></span>
             </Link>
           </li>
         );

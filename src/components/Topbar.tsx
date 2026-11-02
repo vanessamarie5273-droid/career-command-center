@@ -27,7 +27,7 @@ export default function Topbar({ alerts }: { alerts: number }) {
         <div className="ml-auto flex items-center gap-2">
           <Link href="/alerts" className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50" aria-label={`Alerts${alerts ? `, ${alerts} unread` : ""}`}>
             <Icon name="bell" size={17} />
-            {alerts > 0 && <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-gold-500 px-1 text-center text-[10.5px] font-bold leading-[18px] text-navy-950">{alerts > 99 ? "99+" : alerts}</span>}
+            {alerts > 0 && <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-gold-500 px-1 text-center text-[10.5px] font-bold leading-[18px] text-white">{alerts > 99 ? "99+" : alerts}</span>}
           </Link>
           <button onClick={() => r.push("/assistant")} className="btn-gold whitespace-nowrap" aria-label="Ask">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg><span className="hidden sm:inline">Ask</span>
