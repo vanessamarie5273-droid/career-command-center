@@ -21,10 +21,23 @@ const RESIDES = /(?:must|should|need to|required to)\s+(?:reside|live|be located
 const ALLOWS_AZ = /\b(arizona|az\b|phoenix|scottsdale|southwest|anywhere in the (u\.?s|united states)|any (u\.?s\.?|us) (state|location)|nationwide)/i;
 const inAz = (s: string | null) => !!s && AZ_METRO.some((k) => s.toLowerCase().includes(k));
 
+const ACRONYM: Record<string, string> = { ai: "AI", sled: "SLED", erp: "ERP", saas: "SaaS", cfo: "CFO", cio: "CIO", gtm: "GTM", sdr: "SDR", bdr: "BDR", ml: "ML", it: "IT", hcm: "HCM", crm: "CRM" };
+const fixCase = (t: string) => t.replace(/\b[a-z]+\b/g, (w) => ACRONYM[w] ?? w);
+const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+
+/** Scoring reasons are terse ("Matches your experience in: cloud ai, complex sales"); restate them in plain, executive language. */
+export function executive(reason: string) {
+  const m = reason.match(/^Matches your experience in:\s*(.+)$/i);
+  if (m) return `Aligns with your ${andList(m[1].split(/\s*,\s*/).map(fixCase))} track record`;
+  const ote = reason.match(/^Published OTE up to (.+)$/i);
+  if (ote) return `Published compensation of up to ${ote[1]} OTE`;
+  return fixCase(reason);
+}
+
 export function fitChecks(job: Job, resumeText: string): FitChecks {
   const text = job.descriptionText ?? "";
   const reasons = (Array.isArray(job.scoreReasons) ? job.scoreReasons : []) as { delta?: string; text?: string }[];
-  const strengths = reasons.filter((r) => r.delta === "+" && r.text).map((r) => r.text!).slice(0, 3);
+  const strengths = reasons.filter((r) => r.delta === "+" && r.text).map((r) => executive(r.text!)).slice(0, 3);
   const gap = keywordGap(resumeText || PROFILE.facts.join("\n"), { text, required: job.requiredQuals, preferred: job.preferredQuals });
   const blockers: Blocker[] = [];
   if (job.requiresClearance) blockers.push({ kind: "clearance", text: "Requires a U.S. security clearance", hard: true });
@@ -34,12 +47,12 @@ export function fitChecks(job: Job, resumeText: string): FitChecks {
   else if (!job.isRemote && job.location && !inAz(job.location)) blockers.push({ kind: "location", text: `${job.workArrangement && job.workArrangement !== "Unknown" ? job.workArrangement : "Based"} in ${job.location}, not Phoenix`, hard: !job.relocationNotes });
   const travel = job.travelNotes ?? "";
   const pct = Number(travel.match(/(\d{2})\s*%/)?.[1] ?? 0);
-  if (pct >= 30 || /extensive|frequent|significant/i.test(travel)) blockers.push({ kind: "travel", text: `Travel: ${travel.slice(0, 90)}`, hard: false });
+  if (pct >= 30 || /extensive|frequent|significant/i.test(travel)) blockers.push({ kind: "travel", text: /travel/i.test(travel) ? travel.slice(0, 90) : `Travel: ${travel.slice(0, 90)}`, hard: false });
   if (job.yearsRequired && job.yearsRequired > PROFILE.yearsExperience + 3) blockers.push({ kind: "years", text: `Asks for ${job.yearsRequired}+ years; you have ${PROFILE.yearsExperience}+`, hard: false });
   const required = gap.recommendations.filter((r) => r.importance === "required" && !r.supported).map((r) => r.term);
   const preferred = gap.recommendations.filter((r) => r.importance === "preferred" && !r.supported).map((r) => r.term);
-  for (const t of required.slice(0, 2)) blockers.push({ kind: "skill", text: `Required: ${t} (not on your resume)`, hard: false });
-  return { strengths, met: gap.matched.slice(0, 6), required, preferred, blockers };
+  for (const t of required.slice(0, 2)) blockers.push({ kind: "skill", text: `Requires ${fixCase(t)}, not shown on your resume`, hard: false });
+  return { strengths, met: gap.matched.slice(0, 6).map((t) => fixCase(t).replace(/^./, (x) => x.toUpperCase())), required, preferred: preferred.map(fixCase), blockers };
 }
 
 const STOP = new Set(["with", "from", "that", "this", "your", "their", "into", "across", "sales", "senior", "years", "team", "revenue"]);
@@ -53,18 +66,18 @@ export function bestAccomplishment(job: Job, n = 1) {
 
 export function ruleFit(job: Job, checks: FitChecks, ctx: { connections: number; minScore: number }, now = new Date()): FitBrief {
   const why = [...checks.strengths];
-  if (why.length < 2 && checks.met.length) why.push(`The posting asks for ${checks.met.slice(0, 3).join(", ")}, all on your resume`);
+  if (why.length < 2 && checks.met.length) why.push(`The posting calls for ${andList(checks.met.slice(0, 3).map(fixCase))}, all demonstrated on your resume`);
   while (why.length < 2) why.push(bestAccomplishment(job, 2)[why.length] ?? PROFILE.facts[0]);
   const hard = checks.blockers.find((b) => b.hard);
   const first = hard ?? checks.blockers[0];
   const score = effectiveScore(job) ?? 0;
-  let action: FitAction = "Apply", reason = "Strong match with no hard blocker in the posting.";
-  if (hard?.kind === "clearance") { action = "Pass"; reason = "A clearance requirement rules this out."; }
-  else if (hard) { action = "Research further"; reason = "Confirm with the recruiter that Arizona works before you apply."; }
-  else if (ctx.connections > 0) { action = "Seek a referral"; reason = `You have ${ctx.connections} connection${ctx.connections > 1 ? "s" : ""} there; a referral gets the application read.`; }
-  else if (score < ctx.minScore) { action = "Research further"; reason = "Below your alert threshold; check the team and territory first."; }
+  let action: FitAction = "Apply", reason = "Strong alignment and no disqualifying requirements.";
+  if (hard?.kind === "clearance") { action = "Pass"; reason = "The security clearance requirement rules this role out."; }
+  else if (hard) { action = "Research further"; reason = "Confirm Arizona eligibility with the recruiter before applying."; }
+  else if (ctx.connections > 0) { action = "Seek a referral"; reason = `${ctx.connections} first-degree connection${ctx.connections > 1 ? "s" : ""} at the company; a referral will improve visibility.`; }
+  else if (score < ctx.minScore) { action = "Research further"; reason = "Below your alert threshold; validate the team and territory first."; }
   const sentence = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
-  return { why: why.slice(0, 2).map(sentence), blocker: first ? first.text : "No hard requirement you're missing in the posting.", position: bestAccomplishment(job)[0], action, reason, source: "rules", at: now.toISOString() };
+  return { why: why.slice(0, 2).map(sentence), blocker: first ? first.text : "No disqualifying requirements identified.", position: bestAccomplishment(job)[0], action, reason, source: "rules", at: now.toISOString() };
 }
 
 const Out = z.array(z.object({ id: z.string(), why: z.array(z.string()).min(1).max(3), blocker: z.string(), position: z.string(), action: z.enum(ACTIONS), reason: z.string() }));

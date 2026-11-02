@@ -132,23 +132,23 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   const jobEvents = await db.jobEvent.findMany({ where: { jobId: { in: tracked.map((t) => t.id) }, at: { gte: changeSince }, kind: { in: ["updated", "reopened", "closed"] } }, include: { job: { include: { company: true } } }, orderBy: { at: "desc" } });
   const changes: TrackedChange[] = jobEvents
     .filter((e) => e.kind !== "updated" || (e.detail && !/^Merged duplicate/.test(e.detail)))
-    .map((e) => ({ kind: e.kind === "closed" ? "closed" : e.kind === "reopened" ? "reposted" : /Pay/.test(e.detail ?? "") ? "pay" : /qualifications|clearance|Travel/.test(e.detail ?? "") ? "requirements" : "other", title: e.job.title, company: e.job.company.name, detail: e.kind === "closed" ? "Posting taken down" : e.detail ?? "Posting updated", at: e.at.toISOString(), href: `${base}/jobs/${e.jobId}` }) as TrackedChange);
+    .map((e) => ({ kind: e.kind === "closed" ? "closed" : e.kind === "reopened" ? "reposted" : /Pay/.test(e.detail ?? "") ? "pay" : /qualifications|clearance|Travel/.test(e.detail ?? "") ? "requirements" : "other", title: e.job.title, company: e.job.company.name, detail: e.kind === "closed" ? "Posting removed by the employer" : e.detail ?? "Posting updated", at: e.at.toISOString(), href: `${base}/jobs/${e.jobId}` }) as TrackedChange);
 
   // ---- Application progress, confirmed vs assumed
   const item = (a: (typeof apps)[number], status: string, confirmed: boolean, basis: string, days: number): ProgressItem => ({ title: a.title, company: a.company.name, logo: a.company.logoUrl, stage: STAGE_LABEL[a.stage], days, status, confirmed, basis, href: appHref(a.id) });
   const moved: ProgressItem[] = [];
   for (const a of apps) for (const s of a.stageHistory) if (s.at >= changeSince && s.to !== "APPLIED") {
     const ev = (eventsBy.get(a.id) ?? []).find((e) => !e.undone && e.newStage === s.to);
-    moved.push(item(a, `${s.from ? STAGE_LABEL[s.from] : "New"} → ${STAGE_LABEL[s.to]}`, true, ev ? `Email from ${ev.fromName ?? ev.fromEmail}: “${ev.subject}”` : "You updated it", daysSince(s.at, now)));
+    moved.push(item(a, `${s.from ? STAGE_LABEL[s.from] : "New"} → ${STAGE_LABEL[s.to]}`, true, ev ? `Confirmed by email from ${ev.fromName ?? ev.fromEmail}: “${ev.subject}”` : "Updated manually in the tracker", daysSince(s.at, now)));
   }
   const needsAction = active.filter((a) => (a.nextActionDue && a.nextActionDue <= new Date(now.getTime() + DAY)) || /^(Reply to|Answer the)/.test(a.nextAction ?? ""))
-    .map((a) => item(a, a.nextAction ?? "Follow up", true, a.nextActionDue ? `Due ${short(a.nextActionDue)}` : "From your inbox", a.nextActionDue ? daysSince(a.nextActionDue, now) : 0));
+    .map((a) => item(a, a.nextAction ?? "Follow up", true, a.nextActionDue ? `Due ${short(a.nextActionDue)}` : "Identified from your inbox", a.nextActionDue ? daysSince(a.nextActionDue, now) : 0));
   const waiting = active.filter((a) => a.stage === "APPLIED" && a.appliedAt).map((a) => {
     const lastEmail = (eventsBy.get(a.id) ?? [])[0];
     const days = daysSince(a.appliedAt!, now);
     return lastEmail
-      ? item(a, `${KIND_LABEL[lastEmail.kind as keyof typeof KIND_LABEL] ?? "Email"} ${short(lastEmail.receivedAt)}, nothing since`, true, `Email: “${lastEmail.subject}”`, days)
-      : item(a, "No reply yet", false, mail?.status === "connected" ? `Assumed: no email from ${a.company.name} found in Outlook since you applied` : "Assumed: no reply recorded since you applied", days);
+      ? item(a, `${KIND_LABEL[lastEmail.kind as keyof typeof KIND_LABEL] ?? "Email"} received ${short(lastEmail.receivedAt)}; no update since`, true, `Last email: “${lastEmail.subject}”`, days)
+      : item(a, "Awaiting response", false, mail?.status === "connected" ? `Unconfirmed: no response from ${a.company.name} in Outlook since you applied` : "Unconfirmed: no response recorded since you applied", days);
   }).sort((x, y) => y.days - x.days);
 
   // ---- People to contact
@@ -158,12 +158,12 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
     .filter((c) => c.companyId === companyId)
     .sort((x, y) => Number(RECRUITER.test(y.title ?? "") || y.role === "recruiter" || y.role === "hiring_manager") - Number(RECRUITER.test(x.title ?? "") || x.role === "recruiter" || x.role === "hiring_manager") || Number(SALES_LEADER.test(y.title ?? "")) - Number(SALES_LEADER.test(x.title ?? "")))
     .slice(0, 1)
-    .map((c) => ({ name: `${c.firstName} ${c.lastName ?? ""}`.trim(), title: c.title, company: c.company?.name ?? c.companyName ?? "", context: c.source === "linkedin_export" ? `1st-degree LinkedIn connection${c.connectedOn ? ` since ${c.connectedOn.getFullYear()}` : ""}` : c.role ? c.role.replace("_", " ") : "Saved contact", reason: why(c), href: c.linkedinUrl ?? `${base}/contacts/${c.id}` }));
-  for (const o of opportunities.filter((x) => x.connections && x.fit.action !== "Pass")) people.push(...personFor(picks.find((j) => j.id === o.id)!.companyId, (c) => RECRUITER.test(c.title ?? "") ? `Recruiter there. Ask who owns the ${o.title} search before you apply.` : `Ask for a referral or an intro to the team hiring the ${o.title}.`));
+    .map((c) => ({ name: `${c.firstName} ${c.lastName ?? ""}`.trim(), title: c.title, company: c.company?.name ?? c.companyName ?? "", context: c.source === "linkedin_export" ? `First-degree LinkedIn connection${c.connectedOn ? ` since ${c.connectedOn.getFullYear()}` : ""}` : c.role ? c.role.replace("_", " ").replace(/^./, (x) => x.toUpperCase()) : "Saved contact", reason: why(c), href: c.linkedinUrl ?? `${base}/contacts/${c.id}` }));
+  for (const o of opportunities.filter((x) => x.connections && x.fit.action !== "Pass")) people.push(...personFor(picks.find((j) => j.id === o.id)!.companyId, (c) => RECRUITER.test(c.title ?? "") ? `Recruiter at ${o.company}. Confirm who owns the ${o.title} search before applying.` : `Request a referral or an introduction to the ${o.title} hiring team.`));
   for (const a of waiting.filter((w) => w.days >= 10).slice(0, 6)) {
     const app = active.find((x) => appHref(x.id) === a.href)!;
-    people.push(...personFor(app.companyId, () => `Your ${a.title} application has waited ${a.days} days with no reply. A note from inside can get it read.`));
-    if (app.recruiterName && !people.some((p) => p.name === app.recruiterName)) people.push({ name: app.recruiterName, title: "Recruiter", company: a.company, context: "Named on your application", reason: `Ask where the ${a.title} search stands.`, href: a.href });
+    people.push(...personFor(app.companyId, () => `Your ${a.title} application has had no response in ${a.days} days; an internal referral can bring it to the hiring team.`));
+    if (app.recruiterName && !people.some((p) => p.name === app.recruiterName)) people.push({ name: app.recruiterName, title: "Recruiter", company: a.company, context: "Named on your application", reason: `Request a status update on the ${a.title} search.`, href: a.href });
   }
 
   // ---- Follow-ups due: who, when, what was said, and a short message
@@ -187,13 +187,13 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
     const reqLines = (a.job?.requiredQuals ?? "").split("\n").map((l) => l.replace(/^[\s•*\-–]+/, "").trim()).filter((l) => l.length > 15).slice(0, 3);
     const participants = [a.hiringManagerName && `${a.hiringManagerName} (hiring manager)`, a.recruiterName && `${a.recruiterName} (recruiter)`].filter(Boolean) as string[];
     const prep = [!a.preps.some((p) => p.kind === "prep") && "Build a prep sheet", !a.preps.some((p) => p.kind === "mock") && "Run a mock interview", !participants.length && "Add who you're meeting", !a.interviewNotes && "Note what the last conversation covered"].filter(Boolean) as string[];
-    return { title: a.title, company: a.company.name, at: a.interviewAt!.toISOString(), participants: participants.length ? participants : ["Not recorded yet"], priorities: reqLines.length ? reqLines : ["Not separated in the posting; read it before the call"], accomplishments: a.job ? bestAccomplishment(a.job, 2) : PROFILE.facts.slice(0, 2), prep, href: appHref(a.id) };
+    return { title: a.title, company: a.company.name, at: a.interviewAt!.toISOString(), participants: participants.length ? participants : ["Not recorded yet"], priorities: reqLines.length ? reqLines : ["Not specified in the posting; review it before the call"], accomplishments: a.job ? bestAccomplishment(a.job, 2) : PROFILE.facts.slice(0, 2), prep, href: appHref(a.id) };
   });
 
   // ---- Company developments for companies she is pursuing
   const pursuing = new Map<string, string>();
-  for (const a of active) pursuing.set(a.companyId, `You applied to ${a.title}`);
-  for (const o of picks) if (!pursuing.has(o.companyId)) pursuing.set(o.companyId, `${o.title} is on today's list`);
+  for (const a of active) pursuing.set(a.companyId, `Active application: ${a.title}`);
+  for (const o of picks) if (!pursuing.has(o.companyId)) pursuing.set(o.companyId, `Featured opportunity: ${o.title}`);
   const newsOut: News[] = news.filter((n) => n.url && pursuing.has(n.companyId)).slice(0, 8).map((n) => ({ company: n.company.name, headline: n.headline, kind: n.kind, url: n.url!, at: (n.publishedAt ?? n.createdAt).toISOString(), why: pursuing.get(n.companyId)! }));
 
   // ---- What's working: response rates by role type, resume and channel
@@ -218,19 +218,19 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   // ---- Urgent updates and the top three
   const urgent: Urgent[] = [];
   for (const m of moved.filter((x) => x.days <= 1)) urgent.push({ tone: /Rejected/.test(m.status) ? "bad" : "good", text: `${m.company}: ${m.status}`, href: m.href });
-  for (const c of changes.filter((x) => x.kind === "closed")) urgent.push({ tone: "bad", text: `${c.company} took down ${c.title}`, href: c.href });
+  for (const c of changes.filter((x) => x.kind === "closed")) urgent.push({ tone: "bad", text: `${c.company} removed the ${c.title} posting`, href: c.href });
   for (const i of iv.filter((x) => new Date(x.at).getTime() - now.getTime() < 2 * DAY)) urgent.push({ tone: "info", text: `${i.company} interview ${new Date(i.at).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" })}`, href: i.href });
 
   const cands: (Priority & { w: number })[] = [];
-  for (const i of iv) { const d = (new Date(i.at).getTime() - now.getTime()) / DAY; if (d < 3) cands.push({ kind: "interview", title: `Prepare for ${i.company}`, reason: `Interview ${new Date(i.at).toLocaleString("en-US", { weekday: "long", hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" })}. Still to do: ${i.prep.slice(0, 2).join(", ").toLowerCase() || "review your notes"}.`, href: i.href, w: 100 - d }); }
-  for (const a of active.filter((x) => /^(Reply to|Answer the)/.test(x.nextAction ?? ""))) cands.push({ kind: "reply", title: `${a.nextAction} (${a.company.name})`, reason: `They wrote about ${a.title}; a same-day reply keeps you moving.`, href: appHref(a.id), w: 90 });
+  for (const i of iv) { const d = (new Date(i.at).getTime() - now.getTime()) / DAY; if (d < 3) cands.push({ kind: "interview", title: `Prepare for ${i.company}`, reason: `Interview ${new Date(i.at).toLocaleString("en-US", { weekday: "long", hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" })}. Outstanding preparation: ${i.prep.slice(0, 2).join(", ").toLowerCase() || "review your notes"}.`, href: i.href, w: 100 - d }); }
+  for (const a of active.filter((x) => /^(Reply to|Answer the)/.test(x.nextAction ?? ""))) cands.push({ kind: "reply", title: `${a.nextAction} (${a.company.name})`, reason: `Recruiter outreach on the ${a.title} role; a same-day response maintains momentum.`, href: appHref(a.id), w: 90 });
   const bestNew = opportunities.find((o) => o.isNew && o.fit.action === "Apply") ?? opportunities.find((o) => o.isNew && o.fit.action === "Seek a referral");
   if (bestNew) cands.push({ kind: bestNew.fit.action === "Seek a referral" ? "referral" : "apply", title: `${bestNew.fit.action === "Seek a referral" ? "Get a referral for" : "Apply to"} ${bestNew.title} at ${bestNew.company}`, reason: bestNew.fit.why[0], href: bestNew.href, w: 80 });
-  for (const f of fu.filter((x) => x.due && new Date(x.due) <= now).slice(0, 2)) cands.push({ kind: "followup", title: `Follow up with ${f.company}`, reason: f.last ? `Last contact: ${f.last.who}, ${short(new Date(f.last.when))}.` : `No contact since you applied; due ${short(new Date(f.due!))}.`, href: f.href, w: 70 });
+  for (const f of fu.filter((x) => x.due && new Date(x.due) <= now).slice(0, 2)) cands.push({ kind: "followup", title: `Follow up with ${f.company}`, reason: f.last ? `Last contact with ${f.last.who} on ${short(new Date(f.last.when))}.` : `No contact since you applied; due ${short(new Date(f.due!))}.`, href: f.href, w: 70 });
   const oldest = waiting[0];
-  if (oldest && oldest.days >= 14) cands.push({ kind: "followup", title: `Nudge ${oldest.company}`, reason: `${oldest.title} has waited ${oldest.days} days with no reply on record.`, href: oldest.href, w: 60 });
+  if (oldest && oldest.days >= 14) cands.push({ kind: "followup", title: `Follow up with ${oldest.company}`, reason: `No response on ${oldest.title} in ${oldest.days} days.`, href: oldest.href, w: 60 });
   const other = opportunities.find((o) => o !== bestNew && o.fit.action !== "Pass");
-  if (other) cands.push({ kind: other.fit.action === "Seek a referral" ? "referral" : "apply", title: `${other.fit.action === "Seek a referral" ? "Get a referral for" : "Look at"} ${other.title} at ${other.company}`, reason: other.fit.why[0], href: other.href, w: 50 });
+  if (other) cands.push({ kind: other.fit.action === "Seek a referral" ? "referral" : "apply", title: `${other.fit.action === "Seek a referral" ? "Get a referral for" : "Review"} ${other.title} at ${other.company}`, reason: other.fit.why[0], href: other.href, w: 50 });
   const perKind = new Map<string, number>();
   const priorities = cands.sort((a, b) => b.w - a.w).filter((c) => { const n = perKind.get(c.kind) ?? 0; perKind.set(c.kind, n + 1); return n < 2; }).slice(0, 3).map(({ w: _w, ...p }) => p);
 
