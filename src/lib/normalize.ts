@@ -51,9 +51,10 @@ export function parseLocation(loc: string | null | undefined, extra: { remoteFla
   for (const [city, code] of Object.entries(CITY_STATE)) if (new RegExp(`\\b${city}\\b`).test(l)) states.add(code);
   if (/washington,?\s*d\.?c\b/.test(l)) { states.delete("WA"); states.add("DC"); }
   const wt = (extra.workplaceType || "").toLowerCase();
-  const isRemote = !!extra.remoteFlag || /remote|anywhere|distributed|work from home|wfh/.test(l) || wt === "remote";
+  // Field sales roles often say "home-based", "field-based" or "virtual" instead of remote.
+  const isRemote = !!extra.remoteFlag || /remote|anywhere|distributed|work from home|wfh|virtual|home[- ]?based|home office|field[- ]?based/.test(l) || wt === "remote";
   const hybrid = /hybrid/.test(l) || wt === "hybrid";
-  const mentionsUS = /\b(us|u\.s\.|usa|united states|north america|americas|nationwide)\b/.test(l) || states.size > 0 || US_CITIES.some((c) => l.includes(c));
+  const mentionsUS = /\b(us|u\.s\.|usa|united states|north america|americas|nationwide|southwest|southeast|midwest|northeast|northwest|mid-atlantic|pacific northwest)\b/.test(l) || states.size > 0 || US_CITIES.some((c) => l.includes(c));
   const mentionsNonUS = NON_US.some((c) => new RegExp(`(^|[^a-z])${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`).test(l));
   const isUS = mentionsUS || (!mentionsNonUS && (isRemote || l === ""));
   const azMetro = /phoenix|scottsdale|tempe|mesa|chandler|gilbert|arizona|\baz\b/.test(l);

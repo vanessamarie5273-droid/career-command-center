@@ -114,3 +114,12 @@ describe("Next scheduled refresh", () => {
     expect(az(nextScheduledRefresh(new Date("2026-11-03T10:30:00Z")))).toBe("3, 6:00 AM");
   });
 });
+
+describe("Location words field sales uses", () => {
+  it("reads home-based, field-based and virtual as remote, and U.S. regions as U.S.", async () => {
+    const { parseLocation } = await import("@/lib/normalize");
+    for (const l of ["Home-based - US", "Field-based, US", "Virtual", "Remote - US"]) expect(parseLocation(l).isRemote).toBe(true);
+    expect(parseLocation("Field Sales - Southwest Region").isUS).toBe(true);
+    expect(parseLocation("Dallas, TX").isRemote).toBe(false);
+  });
+});
