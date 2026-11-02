@@ -77,9 +77,9 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 }
 
 /** Feed health as one small pill in the banner: a status dot and how long ago the feeds were read, or that a refresh is running now. */
-function FeedStatus({ run, active }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null; active: { startedAt: Date; trigger: string } | null }) {
+function FeedStatus({ run, active }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null; active: { startedAt: Date; trigger: string; done: number; total: number | null } | null }) {
   const next = nextScheduledRefresh().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" });
-  const text = active ? `${active.trigger === "cron" ? "Morning" : active.trigger === "hourly" ? "Hourly" : "Automatic"} refresh running, started ${ago(active.startedAt)}` : `${!run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`} · next ${next}`;
+  const text = active ? `${active.trigger === "cron" ? "Morning" : active.trigger === "hourly" ? "Hourly" : "Automatic"} refresh running${active.total ? `: ${active.done} of ${active.total} boards` : ""}` : `${!run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`} · next ${next}`;
   const title = run?.finishedAt ? `Last finished refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
   return <span title={active ? "Runs on its own outside the app. Pages, kits and saving keep working while it runs." : title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={active ? "degraded" : run?.status} />{text}{active && <AutoRefresh />}</span>;
 }

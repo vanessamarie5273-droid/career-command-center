@@ -95,6 +95,19 @@ describe("Refresh runs", () => {
     await db.ingestionRun.update({ where: { id: live.id }, data: { status: "ok", finishedAt: new Date() } });
   });
 
+  it("treats a run that stopped reporting progress, or a refresh started from the old button, as cut off", async () => {
+    const { activeRun } = await import("@/lib/ingest/run");
+    await db.ingestionRun.updateMany({ where: { status: "running" }, data: { status: "ok", finishedAt: new Date() } });
+    const silent = await db.ingestionRun.create({ data: { trigger: "hourly", startedAt: new Date(Date.now() - 45 * 60_000), log: { heartbeat: new Date(Date.now() - 30 * 60_000).toISOString(), done: 40, total: 163 } } });
+    const button = await db.ingestionRun.create({ data: { trigger: "manual", startedAt: new Date(Date.now() - 60_000) } });
+    const busy = await db.ingestionRun.create({ data: { trigger: "hourly", startedAt: new Date(Date.now() - 50 * 60_000), log: { heartbeat: new Date().toISOString(), done: 90, total: 163 } } });
+    const a = await activeRun(db);
+    expect(a?.id).toBe(busy.id);
+    expect(a?.done).toBe(90);
+    for (const id of [silent.id, button.id]) expect((await db.ingestionRun.findUniqueOrThrow({ where: { id } })).status).toBe("interrupted");
+    await db.ingestionRun.update({ where: { id: busy.id }, data: { status: "ok", finishedAt: new Date() } });
+  });
+
   it("does not look up a company with no public board again for a few days", async () => {
     const { ingestCompany } = await import("@/lib/ingest/run");
     const c = await makeCompany(db, { atsProvider: "NONE", atsToken: null, atsStatus: "not_found", atsCheckedAt: new Date(Date.now() - 3600_000) });

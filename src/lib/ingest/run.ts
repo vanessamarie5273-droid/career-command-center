@@ -200,14 +200,27 @@ export function nextScheduledRefresh(now = new Date()) {
   return new Date(next.getTime() + 7 * 3600_000);
 }
 
-/** A refresh still "running" after this long was cut off (a deploy or restart stopped the process). */
-export const STALE_RUN_MINUTES = 90;
+/** A running refresh reports progress after each board. One silent for this long was cut off (a deploy or restart stopped it). */
+export const STALE_RUN_MINUTES = 20;
 
-/** The full refresh in progress, if any. Older unfinished runs are marked interrupted so they stop showing as "Refreshing". */
+type Progress = { heartbeat?: string; done?: number; total?: number };
+const lastBeat = (r: { startedAt: Date; log: unknown }) => {
+  const hb = (r.log as Progress | null)?.heartbeat;
+  return hb ? new Date(hb) : r.startedAt;
+};
+
+/** The full refresh in progress, if any, with how many boards it has read. Runs that stopped reporting are marked
+ *  interrupted so they stop showing as running and stop blocking the next scheduled refresh. Refreshes started from
+ *  the web server ("manual") no longer exist, so an old one still marked running died with a restart. */
 export async function activeRun(db: PrismaClient, now = new Date()) {
-  const cutoff = new Date(now.getTime() - STALE_RUN_MINUTES * 60_000);
-  await db.ingestionRun.updateMany({ where: { status: "running", finishedAt: null, startedAt: { lt: cutoff } }, data: { status: "interrupted" } });
-  return db.ingestionRun.findFirst({ where: { status: "running", finishedAt: null, startedAt: { gte: cutoff }, trigger: { not: "manual:company" } }, orderBy: { startedAt: "desc" } });
+  const cutoff = now.getTime() - STALE_RUN_MINUTES * 60_000;
+  const running = await db.ingestionRun.findMany({ where: { status: "running", finishedAt: null, trigger: { not: "manual:company" } }, orderBy: { startedAt: "desc" } });
+  const dead = running.filter((r) => r.trigger === "manual" || lastBeat(r).getTime() < cutoff);
+  if (dead.length) await db.ingestionRun.updateMany({ where: { id: { in: dead.map((r) => r.id) } }, data: { status: "interrupted" } });
+  const live = running.find((r) => !dead.includes(r));
+  if (!live) return null;
+  const p = (live.log as Progress | null) ?? {};
+  return { ...live, done: p.done ?? 0, total: p.total ?? null };
 }
 
 export async function runIngestion(db: PrismaClient, opts: { trigger: string; companyIds?: string[]; fetchImpl?: FetchLike } = { trigger: "manual" }) {
@@ -223,7 +236,15 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
     .sort((a, b) => Number(a.atsProvider === "NONE") - Number(b.atsProvider === "NONE"));
   const before = new Set((await db.job.findMany({ where: { status: "OPEN" }, select: { id: true } })).map((j) => j.id));
   // Two boards at a time: the refresh runs inside the web server, which has little memory to spare.
-  const outcomes = await pool(companies, 2, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));
+  let done = 0;
+  const beat = () => db.ingestionRun.update({ where: { id: run.id }, data: { log: { heartbeat: new Date().toISOString(), done, total: companies.length } } }).catch(() => undefined);
+  await beat();
+  const outcomes = await pool(companies, 2, async (c) => {
+    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt);
+    done++;
+    await beat(); // progress for the banner, and proof of life so a crashed run can be told apart from a slow one
+    return o;
+  });
   const tot = outcomes.reduce((a, o) => ({ fetched: a.fetched + o.fetched, relevant: a.relevant + o.relevant, created: a.created + o.created, updated: a.updated + o.updated, closed: a.closed + o.closed, errors: a.errors + (o.status === "error" ? 1 : 0) }), { fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, errors: 0 });
   // Google Jobs adds employers that are not on the list yet; only on a full refresh, at most once a day.
   const googleJobs = opts.companyIds ? null : await runGoogleJobs(db, { fetchImpl: opts.fetchImpl, now: run.startedAt });
