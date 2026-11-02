@@ -38,7 +38,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
       {!compact && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-navy-950 px-4 py-2 text-sm text-white">
           <span>{sel.size} selected</span>
-          <button disabled={busy} onClick={() => bulk("applied")} className="btn bg-gold-500 text-navy-950 !py-1">Mark applied</button>
+          <button disabled={busy} onClick={() => bulk("applied")} className="btn bg-gold-500 text-white !py-1">Mark applied</button>
           <button disabled={busy} onClick={() => bulk("pipeline")} className="btn bg-white/10 !py-1">Save to Ready to Apply</button>
           <button disabled={busy} onClick={() => bulk("favorite")} className="btn bg-white/10 !py-1">★ Favorite</button>
           <button disabled={busy} onClick={() => bulk("unfavorite")} className="btn bg-white/10 !py-1">Unfavorite</button>

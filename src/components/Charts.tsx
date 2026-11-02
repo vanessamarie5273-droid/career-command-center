@@ -1,10 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 // Validated pair (dataviz validator, light surface): series-1 navy-blue, series-2 gold.
-const S1 = "#3b5bdb";
-const S2 = "#d4a017";
+const S1 = "#5D36FF";
+const S2 = "#D522BF";
 const AXIS = { fontSize: 11, fill: "#64748b" };
 const GRID = <CartesianGrid stroke="#e2e8f0" strokeDasharray="0" vertical={false} />;
 const TT = { contentStyle: { borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(15,23,42,.08)" }, cursor: { fill: "rgba(59,91,219,0.06)" } };
@@ -38,7 +38,7 @@ export function StageBars({ data }: { data: { label: string; count: number; href
 
 export function PipelineBars({ data }: { data: { name: string; value: number }[] }) {
   if (!data.some((d) => d.value)) return <EmptyChart text="No matching open roles yet. They appear after the first job-feed refresh." />;
-  const fills = ["#c4a254", S1, "#94a3b8"];
+  const fills = ["#A100C2", S1, "#9D85FF"];
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 16 }}>
@@ -104,6 +104,31 @@ export function WeeklyLine({ data }: { data: { week: string; applied: number; mo
         <Area type="monotone" dataKey="moves" name="Stage changes" stroke={S2} strokeWidth={2.2} fill="url(#wkMoves)" dot={{ r: 2.5 }} activeDot={{ r: 5 }} />
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+/** Donut with the total in the middle; each slice and legend chip links through when it has an href. */
+export function Donut({ data, height = 220, unit = "" }: { data: { name: string; value: number; color: string; href?: string }[]; height?: number; unit?: string }) {
+  const router = useRouter();
+  const total = data.reduce((n, d) => n + d.value, 0);
+  if (!total) return <EmptyChart text="Nothing to show yet." />;
+  return (
+    <div>
+      <div className="relative" style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none" startAngle={90} endAngle={-270} onClick={(d) => { const h = (d as { href?: string }).href; if (h) router.push(h); }} cursor="pointer">
+              {data.map((d) => <Cell key={d.name} fill={d.color} />)}
+            </Pie>
+            <Tooltip contentStyle={TT.contentStyle} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-semibold tabular-nums text-navy-950">{total}</span>{unit && <span className="text-xs text-slate-500">{unit}</span>}</div>
+      </div>
+      <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+        {data.map((d) => <a key={d.name} href={d.href} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"><span className="h-2 w-2 rounded-full" style={{ background: d.color }} />{d.name}<span className="tabular-nums text-slate-500">{d.value}</span></a>)}
+      </div>
+    </div>
   );
 }
 

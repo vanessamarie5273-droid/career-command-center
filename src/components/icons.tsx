@@ -39,29 +39,25 @@ export function Icon({ name, size = 18, className = "", stroke = 1.8 }: { name: 
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true"><path d={ICONS[name]} /></svg>;
 }
 
-/** Sidebar sections, in tab order. Page headers reuse the icon of the tab whose label matches their title. */
-export const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: IconName }[] }[] = [
-  { label: "Today", items: [{ href: "/", label: "Command Center", icon: "home" }] },
-  { label: "Find & apply", items: [
-    { href: "/jobs", label: "Discover Jobs", icon: "briefcase" },
-    { href: "/companies", label: "Company Intelligence", icon: "building" },
-    { href: "/apply", label: "Ready to Apply", icon: "check" },
-    { href: "/applications", label: "My Applications", icon: "board" },
-  ] },
-  { label: "Assets", items: [
-    { href: "/contacts", label: "Network & Contacts", icon: "people" },
-    { href: "/documents", label: "Resume Library", icon: "doc" },
-  ] },
-  { label: "Insights", items: [
-    { href: "/compensation", label: "Compensation Intelligence", icon: "dollar" },
-    { href: "/alerts", label: "Alerts & Activity", icon: "bell" },
-    { href: "/reports", label: "Reports & Analytics", icon: "chart" },
-  ] },
-  { label: "System", items: [{ href: "/settings", label: "Settings & Integrations", icon: "gear" }] },
+/** Sidebar tabs, in order. A tab can hold several pages; its `tabs` show as a switcher in the top bar. */
+export const NAV: { href: string; label: string; icon: IconName; match: string[]; tabs?: { href: string; label: string }[] }[] = [
+  { href: "/", label: "Command Center", icon: "home", match: ["/"] },
+  { href: "/jobs", label: "Jobs", icon: "briefcase", match: ["/jobs", "/apply"], tabs: [{ href: "/jobs", label: "Discover" }, { href: "/apply", label: "Ready to Apply" }] },
+  { href: "/applications", label: "Applications", icon: "board", match: ["/applications"] },
+  { href: "/companies", label: "Accounts", icon: "building", match: ["/companies", "/contacts"], tabs: [{ href: "/companies", label: "Companies" }, { href: "/contacts", label: "Contacts" }] },
+  { href: "/documents", label: "Resumes", icon: "doc", match: ["/documents"] },
+  { href: "/reports", label: "Insights", icon: "chart", match: ["/reports", "/alerts"], tabs: [{ href: "/reports", label: "Reports" }, { href: "/alerts", label: "Alerts" }] },
+  { href: "/settings", label: "Settings", icon: "gear", match: ["/settings"] },
 ];
+export const navFor = (path: string) => NAV.find((n) => n.match.some((m) => (m === "/" ? path === "/" : path === m || path.startsWith(`${m}/`))));
+
+const TITLE_ICON: Record<string, IconName> = {
+  "Command Center": "home", "Discover Jobs": "briefcase", "Ready to Apply": "check", "My Applications": "board", "Company Intelligence": "building",
+  "Network & Contacts": "people", "Resume Library": "doc", Alerts: "bell", Reports: "chart", "Settings & Integrations": "gear",
+};
 
 export function iconForTitle(title: string): IconName {
-  for (const g of NAV_GROUPS) for (const n of g.items) if (n.label === title) return n.icon;
+  if (TITLE_ICON[title]) return TITLE_ICON[title];
   if (/^Search/.test(title)) return "search";
   if (/^Ask/.test(title)) return "spark";
   return "layers";
