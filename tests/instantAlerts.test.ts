@@ -14,7 +14,7 @@ describe("instant alerts", () => {
 
   async function job(title: string, score: number, over: Record<string, unknown> = {}) {
     const c = await makeCompany(db, { name: `Alertco ${Math.random().toString(36).slice(2, 6)}` });
-    return db.job.create({ data: { companyId: c.id, fingerprint: `alert-${Math.random()}`, title, applyUrl: "https://example.com/j", score, tier: "TIER1", category: "MAIN", ...over } });
+    return db.job.create({ data: { companyId: c.id, fingerprint: `alert-${Math.random()}`, title, applyUrl: "https://example.com/j", score, tier: "TIER1", category: "MAIN", postedAt: new Date(), ...over } });
   }
 
   it("picks new roles at or above her threshold, once", async () => {

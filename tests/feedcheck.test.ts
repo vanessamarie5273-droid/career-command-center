@@ -7,7 +7,7 @@ import { instantAlertJobs } from "@/lib/instantAlerts";
 import { greenhouseBoard, mockFetch } from "./fixtures/boards";
 import { testDb, makeCompany } from "./setup-db";
 
-const base: FeedHealth = { inFeed: 1, heldByCap: 2, aged: 40, location: 12, otherScreened: 0, saved: 5, applied: 9, notAFit: 3, duplicates: 0, postedThisWeek: 6, postedToday: 1, companies: 149, feedsOk: 60, feedsFailed: 2, noFeed: 87, cutOff: 0, lastRun: { status: "partial", finishedAt: new Date(), startedAt: new Date(), errors: 2, companies: 149 } };
+const base: FeedHealth = { inFeed: 1, heldByCap: 2, aged: 40, location: 12, otherScreened: 0, saved: 5, applied: 9, notAFit: 3, duplicates: 0, postedThisWeek: 6, postedToday: 1, undated: 0, companies: 149, feedsOk: 60, feedsFailed: 2, noFeed: 87, cutOff: 0, lastRun: { status: "partial", finishedAt: new Date(), startedAt: new Date(), errors: 2, companies: 149 } };
 
 describe("Feed Check", () => {
   let db: PrismaClient;
@@ -56,6 +56,11 @@ describe("Feed Check", () => {
     expect(await db.job.count({ where: scoped(jobWhere({ posted: "7" })) })).toBe(1);
     const h = await feedHealth(db, 2, 0, scoped(jobWhere({})));
     expect(h.postedThisWeek).toBe(1);
+    // A role whose source gives no posted date (a Google Jobs result) is not "posted this week", however recently it was found.
+    await db.job.update({ where: { id: old.id }, data: { postedAt: null } });
+    expect(await db.job.count({ where: scoped(jobWhere({ posted: "7" })) })).toBe(1);
+    expect((await feedHealth(db, 2, 0, scoped(jobWhere({})))).undated).toBe(1);
+    expect((await db.job.findMany({ where: scoped(jobWhere({ posted: "none" })) })).map((j) => j.id)).toEqual([old.id]);
     // Instant alerts treat it as old news too.
     const alerts = (await instantAlertJobs(db, 0)).filter((j) => j.companyId === c.id).map((j) => j.title);
     expect(alerts).toEqual(["Enterprise Account Executive"]);

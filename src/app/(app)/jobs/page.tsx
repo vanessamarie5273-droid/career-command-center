@@ -56,7 +56,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div><select name="family" aria-label="Role type" defaultValue={p.family ?? ""} className="input"><option value="">All role types</option>{Object.entries(FAMILY_LABEL).filter(([k]) => !["NOT_RELEVANT", "SDR_IC"].includes(k)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
         <div><select name="minComp" aria-label="Minimum published pay" defaultValue={p.minComp ?? ""} className="input"><option value="">Any pay</option>{[150000, 200000, 250000, 300000, 350000].map((n) => <option key={n} value={n}>${n / 1000}K+</option>)}</select></div>
         <div><select name="sort" aria-label="Sort" defaultValue={p.sort ?? ""} className="input"><option value="">Most recent</option><option value="score">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="company">Company</option><option value="location">Location</option></select></div>
-        <div><select name="posted" aria-label="Date posted" defaultValue={p.posted ?? ""} className="input"><option value="">Posted any time</option><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option></select></div>
+        <div><select name="posted" aria-label="Date posted" defaultValue={p.posted ?? ""} className="input"><option value="">Posted any time</option><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="none">No date given</option></select></div>
         <div className="flex gap-3 items-center text-sm text-white"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1" title="Roles in the Phoenix metro, plus remote U.S. roles"><input type="checkbox" name="near" value="phx" defaultChecked={p.near === "phx"} />Phoenix area</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
       </form>
       </PageHeader>
@@ -90,6 +90,7 @@ function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showA
   const items: [string, number, string][] = [
     ["In your feed", h.inFeed, "/jobs"],
     ["Posted this week", h.postedThisWeek, "/jobs?posted=7"],
+    ["No posted date given", h.undated, "/jobs?posted=none"],
     ["Posted over 30 days ago", h.aged, "/jobs?category=EXCLUDED"],
     ["Outside your location rules", h.location, "/jobs?category=EXCLUDED"],
     ["Other screen-outs", h.otherScreened, "/jobs?category=EXCLUDED"],

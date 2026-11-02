@@ -17,10 +17,10 @@ export const RANKINGS: Record<string, { label: string; short: string; where: Pri
 // Place names that only match the Phoenix metro (bare "Mesa" or "Glendale" would also match California).
 const PHX_TERMS = ["Phoenix", "Scottsdale", "Tempe", "Chandler", "Gilbert", ", AZ", "Arizona"];
 
-/** Posted in the last `days` days: by the employer's posted date, or the date first found when the board gives none. */
+/** Posted in the last `days` days, by the posted date the employer or job site gives. A role with no posted date
+ *  (many Google Jobs results) never counts as newly posted: the day the app found it is not when it was posted. */
 export function postedWithin(days: number, now = new Date()): Prisma.JobWhereInput {
-  const since = new Date(now.getTime() - days * 86400_000);
-  return { OR: [{ postedAt: { gte: since } }, { postedAt: null, firstSeenAt: { gte: since } }] };
+  return { postedAt: { gte: new Date(now.getTime() - days * 86400_000) } };
 }
 export const POSTED_DAYS = ["1", "3", "7", "14"];
 
@@ -57,6 +57,7 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   // Phoenix area: roles based in the metro, plus remote U.S. roles she can take from home.
   if (p.near === "phx") and.push({ OR: [...PHX_TERMS.map((t) => ({ location: { contains: t, mode: "insensitive" as const } })), { isRemote: true }] });
   if (p.posted && POSTED_DAYS.includes(p.posted)) and.push(postedWithin(Number(p.posted)));
+  else if (p.posted === "none") and.push({ postedAt: null });
   if (p.fav === "1") and.push({ favorite: true });
   if (p.family) and.push({ roleFamily: p.family });
   if (p.minScore) and.push({ score: { gte: Number(p.minScore) || 0 } });

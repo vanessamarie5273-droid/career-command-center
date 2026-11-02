@@ -126,7 +126,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   const opportunities: Opportunity[] = picks.map((j) => ({
     id: j.id, title: j.title, company: j.company.name, logo: j.company.logoUrl, pay: payOf(j), location: j.location, remote: j.isRemote,
     postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(), verifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl, href: `${base}/jobs/${j.id}`,
-    score: effectiveScore(j), tier: effectiveTier(j), isNew: j.firstSeenAt >= since && (j.postedAt ?? j.firstSeenAt).getTime() >= now.getTime() - NEW_POSTING_DAYS * DAY, connections: connections.get(j.companyId) ?? 0, fit: fits.get(j.id)!.fit, checks: fits.get(j.id)!.checks,
+    score: effectiveScore(j), tier: effectiveTier(j), isNew: j.firstSeenAt >= since && !!j.postedAt && j.postedAt.getTime() >= now.getTime() - NEW_POSTING_DAYS * DAY, connections: connections.get(j.companyId) ?? 0, fit: fits.get(j.id)!.fit, checks: fits.get(j.id)!.checks,
   }));
 
   // ---- Changes to tracked jobs (applied, saved or starred)

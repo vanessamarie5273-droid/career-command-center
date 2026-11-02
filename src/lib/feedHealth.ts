@@ -24,6 +24,8 @@ export type FeedHealth = {
   /** Roles in the feed the employer posted in the last 7 days / 24 hours: the same roles the tile's link lists. */
   postedThisWeek: number;
   postedToday: number;
+  /** Roles in the feed whose source gave no posted date (many Google Jobs results). */
+  undated: number;
   companies: number;
   feedsOk: number;
   feedsFailed: number;
@@ -35,7 +37,7 @@ export type FeedHealth = {
 
 /** feed: the where clause of the plain feed, 3-per-company limit included, so "posted this week" counts exactly what its link shows. */
 export async function feedHealth(db: PrismaClient, inFeed: number, heldByCap: number, feed: Prisma.JobWhereInput, now = new Date()): Promise<FeedHealth> {
-  const [aged, location, screened, saved, applied, notAFit, duplicates, postedThisWeek, postedToday, byStatus, lastRun, cutOff] = await Promise.all([
+  const [aged, location, screened, saved, applied, notAFit, duplicates, postedThisWeek, postedToday, byStatus, lastRun, cutOff, undated] = await Promise.all([
     db.job.count({ where: { AND: [SCREENED, AGED] } }),
     db.job.count({ where: { AND: [SCREENED, PLACE, { NOT: AGED }] } }),
     db.job.count({ where: SCREENED }),
@@ -48,10 +50,11 @@ export async function feedHealth(db: PrismaClient, inFeed: number, heldByCap: nu
     db.company.groupBy({ by: ["atsStatus"], _count: true }),
     db.ingestionRun.findFirst({ where: { finishedAt: { not: null } }, orderBy: { startedAt: "desc" }, select: { status: true, finishedAt: true, startedAt: true, errors: true, companies: true } }),
     db.ingestionRun.count({ where: { status: "interrupted", startedAt: { gte: new Date(now.getTime() - 86400_000) } } }),
+    db.job.count({ where: { AND: [feed, { postedAt: null }] } }),
   ]);
   const n = (s: string) => byStatus.find((b) => b.atsStatus === s)?._count ?? 0;
   return {
-    inFeed, heldByCap, aged, location, otherScreened: screened - aged - location, saved, applied, notAFit, duplicates, postedThisWeek, postedToday,
+    inFeed, heldByCap, aged, location, otherScreened: screened - aged - location, saved, applied, notAFit, duplicates, postedThisWeek, postedToday, undated,
     companies: byStatus.reduce((a, b) => a + b._count, 0), feedsOk: n("ok"), feedsFailed: n("error"), noFeed: n("not_found") + n("unsupported"), lastRun, cutOff,
   };
 }
