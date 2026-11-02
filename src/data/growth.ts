@@ -197,4 +197,10 @@ export const GROWTH: Record<string, [score: number, thesis: string]> = {
   "digital-air-strike": [55, "AI engagement tools for car dealers; modest growth"],
   sonatafy: [58, "Nearshore engineering firm growing with AI demand"],
   parchment: [55, "Credentials platform inside Instructure; steady growth"],
+  engine: [76, "Business travel platform growing fast in the mid-market"],
+  "arrive-logistics": [55, "Freight brokerage tied to the freight cycle; steady growth"],
+  optum: [50, "Huge health services business with slowing growth and pressure on margins"],
+  pwc: [50, "Large professional services firm; AI consulting is the upside"],
+  accenture: [52, "Largest IT services firm; strong AI bookings, single-digit growth"],
+  deloitte: [52, "Large professional services firm growing with AI and cloud work"],
 };
