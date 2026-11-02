@@ -70,7 +70,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
                 <td className="whitespace-nowrap"><Link href={`/companies/${x.company.id}`} className="inline-flex items-center gap-2 hover:underline"><Logo src={x.company.logoUrl} name={x.company.name} size={20} />{x.company.name}</Link></td>
                 <td className="min-w-[150px] text-slate-600">{x.location || "—"}<div className="text-[13px] text-slate-400">{x.arrangement}</div></td>
                 <td className="whitespace-nowrap">{pay(x) ?? <span className="text-slate-400 text-[13px]">Not published</span>}</td>
-                <td className="whitespace-nowrap text-slate-600">{d(x.postedAt)}</td>
+                <td className="whitespace-nowrap text-slate-600">{x.postedAt ? d(x.postedAt) : <span className="text-[13px] text-slate-400" title="The source did not give a posted date">Not given</span>}</td>
                 <td className="whitespace-nowrap text-[13px] text-slate-500" title={new Date(x.lastVerifiedAt).toLocaleString()}>{d(x.lastVerifiedAt)}</td>
                 <td className="whitespace-nowrap text-[13px]">{x.application ? <Link className="link" href={`/applications/${x.application.id}`}>{x.application.applied ? "Applied" : x.application.stage.replace(/_/g, " ").toLowerCase()}</Link> : <span className="text-slate-400">—</span>}</td>
                 <td className="whitespace-nowrap">{!compact && !x.application && x.status === "OPEN" ? <button disabled={busy} onClick={() => save(x.id)} className="btn-primary !py-1 !px-2.5 text-[13px]" title="Moves this role to Ready to Apply">+ Save</button> : <a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost !py-1 !px-2.5 text-[13px]">Posting ↗</a>}</td>

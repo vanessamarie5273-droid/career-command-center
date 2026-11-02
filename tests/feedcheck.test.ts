@@ -7,7 +7,7 @@ import { instantAlertJobs } from "@/lib/instantAlerts";
 import { greenhouseBoard, mockFetch } from "./fixtures/boards";
 import { testDb, makeCompany } from "./setup-db";
 
-const base: FeedHealth = { inFeed: 1, heldByCap: 2, aged: 40, location: 12, otherScreened: 0, saved: 5, applied: 9, notAFit: 3, duplicates: 0, postedThisWeek: 6, postedToday: 1, companies: 149, feedsOk: 60, feedsFailed: 2, noFeed: 87, cutOff: 0, lastRun: { status: "partial", finishedAt: new Date(), startedAt: new Date(), errors: 2, companies: 149 } };
+const base: FeedHealth = { inFeed: 1, heldByCap: 2, aged: 40, location: 12, otherScreened: 0, saved: 5, applied: 9, notAFit: 3, duplicates: 0, postedThisWeek: 6, postedToday: 1, undated: 0, companies: 149, feedsOk: 60, feedsFailed: 2, noFeed: 87, cutOff: 0, lastRun: { status: "partial", finishedAt: new Date(), startedAt: new Date(), errors: 2, companies: 149 } };
 
 describe("Feed Check", () => {
   let db: PrismaClient;
@@ -56,6 +56,11 @@ describe("Feed Check", () => {
     expect(await db.job.count({ where: scoped(jobWhere({ posted: "7" })) })).toBe(1);
     const h = await feedHealth(db, 2, 0, scoped(jobWhere({})));
     expect(h.postedThisWeek).toBe(1);
+    // A role whose source gives no posted date (a Google Jobs result) is not "posted this week", however recently it was found.
+    await db.job.update({ where: { id: old.id }, data: { postedAt: null } });
+    expect(await db.job.count({ where: scoped(jobWhere({ posted: "7" })) })).toBe(1);
+    expect((await feedHealth(db, 2, 0, scoped(jobWhere({})))).undated).toBe(1);
+    expect((await db.job.findMany({ where: scoped(jobWhere({ posted: "none" })) })).map((j) => j.id)).toEqual([old.id]);
     // Instant alerts treat it as old news too.
     const alerts = (await instantAlertJobs(db, 0)).filter((j) => j.companyId === c.id).map((j) => j.title);
     expect(alerts).toEqual(["Enterprise Account Executive"]);
@@ -95,6 +100,19 @@ describe("Refresh runs", () => {
     await db.ingestionRun.update({ where: { id: live.id }, data: { status: "ok", finishedAt: new Date() } });
   });
 
+  it("treats a run that stopped reporting progress, or a refresh started from the old button, as cut off", async () => {
+    const { activeRun } = await import("@/lib/ingest/run");
+    await db.ingestionRun.updateMany({ where: { status: "running" }, data: { status: "ok", finishedAt: new Date() } });
+    const silent = await db.ingestionRun.create({ data: { trigger: "hourly", startedAt: new Date(Date.now() - 45 * 60_000), log: { heartbeat: new Date(Date.now() - 30 * 60_000).toISOString(), done: 40, total: 163 } } });
+    const button = await db.ingestionRun.create({ data: { trigger: "manual", startedAt: new Date(Date.now() - 60_000) } });
+    const busy = await db.ingestionRun.create({ data: { trigger: "hourly", startedAt: new Date(Date.now() - 50 * 60_000), log: { heartbeat: new Date().toISOString(), done: 90, total: 163 } } });
+    const a = await activeRun(db);
+    expect(a?.id).toBe(busy.id);
+    expect(a?.done).toBe(90);
+    for (const id of [silent.id, button.id]) expect((await db.ingestionRun.findUniqueOrThrow({ where: { id } })).status).toBe("interrupted");
+    await db.ingestionRun.update({ where: { id: busy.id }, data: { status: "ok", finishedAt: new Date() } });
+  });
+
   it("does not look up a company with no public board again for a few days", async () => {
     const { ingestCompany } = await import("@/lib/ingest/run");
     const c = await makeCompany(db, { atsProvider: "NONE", atsToken: null, atsStatus: "not_found", atsCheckedAt: new Date(Date.now() - 3600_000) });
@@ -112,5 +130,14 @@ describe("Next scheduled refresh", () => {
     expect(az(nextScheduledRefresh(new Date("2026-11-02T18:52:00Z")))).toBe("2, 12:00 PM");
     expect(az(nextScheduledRefresh(new Date("2026-11-03T05:30:00Z")))).toBe("3, 6:00 AM");
     expect(az(nextScheduledRefresh(new Date("2026-11-03T10:30:00Z")))).toBe("3, 6:00 AM");
+  });
+});
+
+describe("Location words field sales uses", () => {
+  it("reads home-based, field-based and virtual as remote, and U.S. regions as U.S.", async () => {
+    const { parseLocation } = await import("@/lib/normalize");
+    for (const l of ["Home-based - US", "Field-based, US", "Virtual", "Remote - US"]) expect(parseLocation(l).isRemote).toBe(true);
+    expect(parseLocation("Field Sales - Southwest Region").isUS).toBe(true);
+    expect(parseLocation("Dallas, TX").isRemote).toBe(false);
   });
 });

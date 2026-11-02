@@ -36,7 +36,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active?.startedAt ?? null} /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
+      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active} /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <Link href="/jobs" className={`chip px-3 py-1 text-[13px] ${!p.view && !p.category ? ON : OFF}`}>Your Feed</Link>
         {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 text-[13px] ${p.view === k ? ON : OFF}`}>{titleCase(r.short)}</Link>)}
@@ -56,7 +56,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div><select name="family" aria-label="Role type" defaultValue={p.family ?? ""} className="input"><option value="">All role types</option>{Object.entries(FAMILY_LABEL).filter(([k]) => !["NOT_RELEVANT", "SDR_IC"].includes(k)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
         <div><select name="minComp" aria-label="Minimum published pay" defaultValue={p.minComp ?? ""} className="input"><option value="">Any pay</option>{[150000, 200000, 250000, 300000, 350000].map((n) => <option key={n} value={n}>${n / 1000}K+</option>)}</select></div>
         <div><select name="sort" aria-label="Sort" defaultValue={p.sort ?? ""} className="input"><option value="">Most recent</option><option value="score">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="company">Company</option><option value="location">Location</option></select></div>
-        <div><select name="posted" aria-label="Date posted" defaultValue={p.posted ?? ""} className="input"><option value="">Posted any time</option><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option></select></div>
+        <div><select name="posted" aria-label="Date posted" defaultValue={p.posted ?? ""} className="input"><option value="">Posted any time</option><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="none">No date given</option></select></div>
         <div className="flex gap-3 items-center text-sm text-white"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1" title="Roles in the Phoenix metro, plus remote U.S. roles"><input type="checkbox" name="near" value="phx" defaultChecked={p.near === "phx"} />Phoenix area</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
       </form>
       </PageHeader>
@@ -77,11 +77,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 }
 
 /** Feed health as one small pill in the banner: a status dot and how long ago the feeds were read, or that a refresh is running now. */
-function FeedStatus({ run, active }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null; active: Date | null }) {
+function FeedStatus({ run, active }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null; active: { startedAt: Date; trigger: string; done: number; total: number | null } | null }) {
   const next = nextScheduledRefresh().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" });
-  const text = active ? `Refreshing… started ${ago(active)}` : `${!run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`} · next ${next}`;
+  const text = active ? `${active.trigger === "cron" ? "Morning" : active.trigger === "hourly" ? "Hourly" : "Automatic"} refresh running${active.total ? `: ${active.done} of ${active.total} boards` : ""}` : `${!run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`} · next ${next}`;
   const title = run?.finishedAt ? `Last finished refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
-  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={active ? "degraded" : run?.status} />{text}{active && <AutoRefresh />}</span>;
+  return <span title={active ? "Runs on its own outside the app. Pages, kits and saving keep working while it runs." : title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={active ? "degraded" : run?.status} />{text}{active && <AutoRefresh />}</span>;
 }
 
 /** Where every open role went, counted once each, with a one-line verdict: broken refresh, or quiet market plus her own filters. */
@@ -90,6 +90,7 @@ function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showA
   const items: [string, number, string][] = [
     ["In your feed", h.inFeed, "/jobs"],
     ["Posted this week", h.postedThisWeek, "/jobs?posted=7"],
+    ["No posted date given", h.undated, "/jobs?posted=none"],
     ["Posted over 30 days ago", h.aged, "/jobs?category=EXCLUDED"],
     ["Outside your location rules", h.location, "/jobs?category=EXCLUDED"],
     ["Other screen-outs", h.otherScreened, "/jobs?category=EXCLUDED"],
