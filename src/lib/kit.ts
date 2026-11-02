@@ -3,7 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL } from "./assistant";
 import { positioning } from "./positioning";
-import { LETTER_ACCOMPLISHMENTS, LETTER_GUIDE, LETTER_PRINCIPLE, LETTER_TEMPLATE, letterBody } from "./letterStyle";
+import { LETTER_ACCOMPLISHMENTS, LETTER_GUIDE, LETTER_MAX_WORDS, LETTER_PRINCIPLE, LETTER_SIGNOFF, letterBody } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
 
 export { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts };
@@ -22,9 +22,19 @@ export const BRIEF = [
 
 export type KitInput = {
   resumeText: string;
-  job: { title: string; location: string | null; descriptionText: string | null; requiredQuals: string | null; preferredQuals: string | null };
-  company: { name: string; category: string; maturity: string | null; description: string | null; keyProducts: string | null; customers: string | null; buyerPersonas: string | null; risks: string | null; news: string[] };
+  job: { title: string; location: string | null; descriptionText: string | null; requiredQuals: string | null; preferredQuals: string | null;
+    department?: string | null; seniority?: string | null; territory?: string | null };
+  company: { name: string; category: string; maturity: string | null; description: string | null; keyProducts: string | null; customers: string | null; buyerPersonas: string | null; risks: string | null; news: string[];
+    subCategory?: string | null; headquarters?: string | null; growthThesis?: string | null; engagementStrategy?: string | null; cultureNotes?: string | null;
+    revenue?: string | null; revenueGrowth?: string | null; fundingSummary?: string | null; notes?: string | null };
 };
+
+/** Words of job description on file: the posting text, or the qualifications when that is all there is. */
+export function postingWords(job: KitInput["job"]) {
+  const text = [job.descriptionText, job.descriptionText ? null : job.requiredQuals, job.descriptionText ? null : job.preferredQuals].filter(Boolean).join(" ");
+  return text.split(/\s+/).filter(Boolean).length;
+}
+export const THIN_POSTING = 120;
 
 export const SYSTEM = `You write job-search material for Vanessa, a senior enterprise sales executive.
 
@@ -45,21 +55,35 @@ const TASK: Record<KitPart, string> = {
 - Open with a SUMMARY of two or three sentences aimed at the core problem this role exists to solve.
 - Lead each bullet with a result. Use the posting's own terms where her experience genuinely matches them.
 - Use plain ATS-safe headings in ALL CAPS: SUMMARY, EXPERIENCE, EDUCATION, SKILLS (and any others already in the resume).`,
-  letter: `Write her cover letter by filling in LETTER TEMPLATE below, following her PARAGRAPH GUIDE. Keep the greeting and the sign-off exactly as written. The body is exactly four paragraphs, in this order, and each one does a different job:
-${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name}. Purpose: ${g.purpose}. What to change: ${g.change}.`).join("\n")}
-Her principle: ${LETTER_PRINCIPLE}
+  letter: `Write her Why Me cover letter for this one role. A hiring executive will skim it in under a minute. It must read as written for this job at this company only: if you swapped in another company's name, it should stop making sense. Her resume is the evidence, never the story.
 
-- Paragraph 1: replace its bracketed parts with what genuinely matters about this role and company (what the role offers, how the company is different, the market opportunity, and what she would contribute), drawn from the posting and company context. No generic praise, and leave her qualifications for paragraph 2.
-- Paragraph 2: open with "Throughout my nine years at SAP," and keep it about her qualifications and breadth. Start from the template's paragraph, then reorder and reword so the experience most relevant to this role comes first: for example, lead with new customer acquisition for a new-logo role, with account expansion for an expansion role, or with the product areas the posting names. Use only facts already in the template paragraph or RESUME, keep Winners Circle 2025, and do not add results or dollar figures; those belong in paragraph 3.
-- Paragraph 3: replace "[Include a relevant accomplishment based on the position.]" with whichever ACCOMPLISHMENT below fits this role best, word for word.
-- Paragraph 4: name two strengths of hers that match the posting and the specific contribution she would make to a business objective of theirs. Do not restate the accomplishment.
-- Never leave brackets in the letter. Output only the finished letter.
+FIRST, WORK OUT (silently; do not output this):
+- The two or three requirements in JOB POSTING that matter most to the person who owns this number: the segment, the buyers, the motion, the territory, the quota or the team. Note the posting's own words for them.
+- The business problem this seat exists to solve, and why it is open now: a territory to grow, a segment to open, a motion to build, accounts to expand, a team to lead. Read it from the posting and COMPANY.
+- For each requirement, her single strongest proof in RESUME, with its number when it has one. Drop any requirement she has no evidence for. Never stretch a fact to fit.
+- One timing signal from the posting or COMPANY (recent developments, growth, a new team or territory, a budget or procurement cycle) that makes this hire urgent.
 
-LETTER TEMPLATE:
-${LETTER_TEMPLATE}
+THEN WRITE, in exactly this shape:
+Dear <company name> Hiring Team,
 
-ACCOMPLISHMENTS:
-${Object.entries(LETTER_ACCOMPLISHMENTS).map(([k, v]) => `${k}:\n${v}`).join("\n\n")}`,
+Four short paragraphs, in this order. ${LETTER_PRINCIPLE}
+${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name.toUpperCase()}: ${g.purpose}. ${g.change}.`).join("\n")}
+
+- Paragraph 1 (two or three sentences): open with their situation, not with her. Name what the role must deliver in the posting's terms and one specific thing from COMPANY (a product, a buyer, a development). State it as her read of the business ("Your posting reads like...", "Growing X means..."), never as inside knowledge. No "I am interested", no praise of the company.
+- Paragraph 2 (three or four sentences): each sentence pairs one of their requirements with her proof. Their need in their words, her result in hers, with the number. Do not summarize her career, list employers, count years, or walk through roles in order. Pick only what this role needs.
+- Paragraph 3 (two sentences): what they gain by hiring her now (faster ramp, pipeline this quarter, a risk taken off the table) and what waiting or a safe hire costs them, tied to the timing signal.
+- Paragraph 4 (one or two sentences): offer something concrete built for them, such as a 30-60-90 plan for their territory or her view on one of their target account types, and ask directly for the conversation.
+
+${LETTER_SIGNOFF}
+
+VOICE: an expert talking to an executive. She states; she does not hope or ask permission. ${Math.round(LETTER_MAX_WORDS * 0.6)} to ${LETTER_MAX_WORDS - 40} words between the greeting and the sign-off. Sentences under 25 words. Plain words, no buzzword stacks, no more than two figures in a paragraph. Never copy a resume bullet: restate the result as what it means for them. Numbers in the letter are only hers, from RESUME; do not quote figures from the posting or company. Never write "I am writing", "I am interested", "passionate", "excited", "thrilled", "grateful", "opportunity to join", "proven track record", "results-driven" or "I believe I would be a great fit".
+
+If JOB POSTING has little or no description, write from the title, company and COMPANY profile, keep claims about the role's requirements general, and do not invent requirements.
+
+HER TWO STRONGEST PROOF STORIES, in her words. Use the facts in one when it answers a requirement; do not paste the paragraph:
+${Object.entries(LETTER_ACCOMPLISHMENTS).map(([k, v]) => `${k}:\n${v}`).join("\n\n")}
+
+Output only the finished letter.`,
   pov: `Write a one-page point of view she can send to the hiring manager or bring to the interview. Under 450 words. Sections:
 THE PROBLEM: the highest-stakes problem this role exists to solve, stated as an inference from the posting and company context.
 MY POSITION: what the role must achieve in year one, and one assumption about the role worth challenging, framed constructively.
@@ -88,20 +112,29 @@ const block = (label: string, v: string | null | undefined) => (v && v.trim() ? 
 
 /** The shared context every part is written from. Kept identical across parts so it can be cached. */
 export function kitContext(i: KitInput) {
+  const c = i.company, j = i.job;
+  const words = postingWords(j);
   return [
-    `RESUME:\n${i.resumeText.trim()}\n`,
-    `JOB POSTING: ${i.job.title} at ${i.company.name}${i.job.location ? ` (${i.job.location})` : ""}`,
-    block("Required qualifications", i.job.requiredQuals),
-    block("Preferred qualifications", i.job.preferredQuals),
-    block("Description", i.job.descriptionText?.slice(0, 30000)),
-    `COMPANY (AI-compiled profile, not verified): ${i.company.name} · ${i.company.category}${i.company.maturity ? ` · ${i.company.maturity}` : ""}`,
-    block("About", i.company.description),
-    block("Products", i.company.keyProducts),
-    block("Customers", i.company.customers),
-    block("Buyers", i.company.buyerPersonas),
-    block("Risks", i.company.risks),
-    i.company.news.length ? `Recent developments:\n${i.company.news.map((n) => `- ${n}`).join("\n")}\n` : "",
-    `POSITIONING NOTES (app guidance for this kind of company):\n${positioning(i.company.category, i.company.maturity).map((l) => `- ${l}`).join("\n")}`,
+    `JOB POSTING: ${j.title} at ${c.name}${j.location ? ` (${j.location})` : ""}`,
+    [j.department && `Team: ${j.department}`, j.seniority && `Level: ${j.seniority}`, j.territory && `Territory: ${j.territory}`].filter(Boolean).join(" · "),
+    words < THIN_POSTING ? `NOTE: only ${words} words of the job description are on file. Do not invent requirements the posting does not state.\n` : "",
+    block("Required qualifications", j.requiredQuals),
+    block("Preferred qualifications", j.preferredQuals),
+    block("Description", j.descriptionText?.slice(0, 30000)),
+    `COMPANY (AI-compiled profile, not verified): ${c.name} · ${c.category}${c.subCategory ? ` · ${c.subCategory}` : ""}${c.maturity ? ` · ${c.maturity}` : ""}${c.headquarters ? ` · ${c.headquarters}` : ""}`,
+    block("About", c.description),
+    block("Products", c.keyProducts),
+    block("Customers", c.customers),
+    block("Buyers", c.buyerPersonas),
+    block("Growth thesis", c.growthThesis),
+    [c.revenue && `Revenue: ${c.revenue}`, c.revenueGrowth && `Growth: ${c.revenueGrowth}`, c.fundingSummary && `Funding: ${c.fundingSummary}`].filter(Boolean).join(" · "),
+    block("Risks", c.risks),
+    block("Culture", c.cultureNotes),
+    c.news.length ? `Recent developments:\n${c.news.map((n) => `- ${n}`).join("\n")}\n` : "",
+    block("Account strategy (her plan for this company)", c.engagementStrategy),
+    block("Her notes on this company", c.notes),
+    `POSITIONING NOTES (app guidance for this kind of company):\n${positioning(c.category, c.maturity).map((l) => `- ${l}`).join("\n")}\n`,
+    `RESUME (the only source of facts about her):\n${i.resumeText.trim()}`,
   ].filter(Boolean).join("\n");
 }
 
@@ -136,6 +169,7 @@ const LANGUAGE: [RegExp, string][] = [
   [/\bthank you for (your )?(time|consideration|considering)\b/i, "Gratitude close: end with a next step instead"],
   [/\bopportunity to (join|be part of|contribute)\b/i, "Frames the job as a favour to you"],
   [/\b(I am|I'm) writing to\b/i, "Generic opener"],
+  [/\b(I am|I'm) (very |really )?interested in\b/i, "Leads with your interest instead of their need"],
   [/\bto whom it may concern\b/i, "Generic salutation"],
   [/\bresponsible for\b/i, "Lists a responsibility instead of a result"],
   [/\b(duties|responsibilities) (included|include)\b/i, "Lists responsibilities instead of results"],
@@ -160,7 +194,19 @@ export function unsupportedFigures(text: string, sources: string) {
 
 const sentences = (t: string) => t.replace(/\n-\s/g, "\n").split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
 
-export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; contextText: string }): KitChecks {
+const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9$%.\s]/g, " ").split(/\s+/).filter(Boolean);
+
+/** The first run of `n` or more words the letter copies straight from her resume, if any. */
+export function copiedFromResume(text: string, resumeText: string, n = 9) {
+  const r = words(resumeText);
+  const grams = new Set<string>();
+  for (let i = 0; i + n <= r.length; i++) grams.add(r.slice(i, i + n).join(" "));
+  const t = words(text);
+  for (let i = 0; i + n <= t.length; i++) if (grams.has(t.slice(i, i + n).join(" "))) return t.slice(i, i + n).join(" ");
+  return null;
+}
+
+export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; contextText: string; input?: KitInput }): KitChecks {
   const herFacts = src.resumeText;
   const out = {} as KitChecks;
   for (const p of KIT_PARTS) {
@@ -174,20 +220,22 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
     const sources = p === "resume" || p === "letter" ? herFacts : `${herFacts}\n${src.contextText}`;
     for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: p === "resume" || p === "letter" ? "Not in your resume. Verify it or remove it." : "Not in your resume, the posting or the company record. Verify it or remove it." });
     if (p !== "resume") {
-      const max = p === "letter" ? 40 : 30; // her own letters run longer sentences than the notes
+      const max = 30;
       const long = sentences(text).filter((s) => s.split(/\s+/).length > max);
       if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over ${max} words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
     }
     if (p === "letter" && /\[[^\]]+\]/.test(text)) issues.push({ kind: "language", text: text.match(/\[[^\]]+\]/)![0], detail: "A template placeholder was left in. Fill it in before sending." });
     if (p === "letter" && text) {
       const body = letterBody(text);
-      if (body.length !== LETTER_GUIDE.length) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: `Your guide uses four: ${LETTER_GUIDE.map((g) => g.name.toLowerCase()).join(", ")}.` });
-      if (!body[1]?.startsWith("Throughout my nine years at SAP")) issues.push({ kind: "structure", text: "Why I'm qualified", detail: "Paragraph 2 should open with \"Throughout my nine years at SAP\". Restore it from your template." });
-      if (!Object.values(LETTER_ACCOMPLISHMENTS).some((a) => text.includes(a))) issues.push({ kind: "structure", text: "Proof of impact", detail: "Neither of your accomplishment paragraphs is in the letter word for word. Use the customer recovery or the GTM leadership one." });
-    }
-    if (p === "letter") {
-      const words = text.split(/\s+/).filter(Boolean).length;
-      if (words > 450) issues.push({ kind: "length", text: `${words} words`, detail: "Your template runs about 330 words; this one is much longer." });
+      if (body.length !== LETTER_GUIDE.length) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: `The letter uses four: ${LETTER_GUIDE.map((g) => g.name.toLowerCase()).join(", ")}.` });
+      if (/^(I|I'm|I am|My)\b/.test(body[0] ?? "")) issues.push({ kind: "structure", text: "Opens with you", detail: "The first paragraph should open with their business problem, not with you." });
+      const name = src.input?.company.name;
+      if (name && !text.toLowerCase().includes(name.toLowerCase().split(/[\s,]+/)[0])) issues.push({ kind: "structure", text: "Company not named", detail: `The letter never mentions ${name}. It should read as written for them only.` });
+      const copied = copiedFromResume(body.join("\n"), herFacts);
+      if (copied) issues.push({ kind: "structure", text: "Restates your resume", detail: `“${copied}…” is lifted from your resume. Say what that result means for this role instead.` });
+      const count = text.split(/\s+/).filter(Boolean).length;
+      if (count > LETTER_MAX_WORDS) issues.push({ kind: "length", text: `${count} words`, detail: `Executives skim. Keep it under ${LETTER_MAX_WORDS}.` });
+      if (src.input && postingWords(src.input.job) < THIN_POSTING) issues.push({ kind: "source", text: "No job description", detail: "The app has little or none of this posting's description, so the letter can't tie to its requirements. Rebuild the kit once the description shows on the job page." });
     }
     out[p] = issues;
   }
