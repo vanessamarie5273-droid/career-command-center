@@ -4,62 +4,77 @@ import type { PrismaClient } from "@prisma/client";
 const create = vi.fn(async (req: { messages: { content: string }[] }) => ({ stop_reason: "end_turn", content: [{ type: "text", text: `OUT ${req.messages[0].content.slice(0, 20)}` }] }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { create } }; } }));
 
-import { checkKit, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
+import { checkKit, copiedFromResume, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
 import { exportAll, restoreAll } from "@/lib/backup";
-import { LETTER_ACCOMPLISHMENTS, LETTER_TEMPLATE } from "@/lib/letterStyle";
 import { testDb, makeCompany } from "./setup-db";
 
 const RESUME = "VANESSA MORALES\nvanessa@example.com\nEXPERIENCE\nSAP, Nov 2024 – Present\n- Closed $8.5M in new and expansion revenue; earned Winners Circle 2025.\n- Expanded the account with a $1.58M TCV licensing upsell.\n- Led the team to $15.6M in closed revenue and $80.6M in pipeline; 25% increase in pipeline creation, 30% increase in conversion.";
 const input: KitInput = {
   resumeText: RESUME,
-  job: { title: "Strategic Account Executive", location: "Remote, US", descriptionText: "Own a $2M quota across Fortune 500 accounts. 8+ years required.", requiredQuals: null, preferredQuals: null },
+  job: { title: "Strategic Account Executive", location: "Remote, US", descriptionText: `Own a $2M quota across Fortune 500 accounts. 8+ years required. ${"Build executive relationships and run complex multi-stakeholder cycles. ".repeat(20)}`, requiredQuals: null, preferredQuals: null },
   company: { name: "Acme AI", category: "Enterprise AI & Agents", maturity: "High-growth private", description: "Agents for finance teams.", keyProducts: null, customers: null, buyerPersonas: "CFO", risks: null, news: ["Raised Series C"] },
 };
 const ctx = kitContext(input);
+const src = { resumeText: RESUME, contextText: ctx, input };
 const clean = Object.fromEntries(KIT_PARTS.map((p) => [p, "Your posting points to stalled pipeline. I closed $8.5M and earned Winners Circle 2025."])) as Record<(typeof KIT_PARTS)[number], string>;
-const [recovery, digitalHub] = Object.values(LETTER_ACCOMPLISHMENTS);
-const filled = LETTER_TEMPLATE.replace("[Include a relevant accomplishment based on the position.]", recovery).replace(/\[[^\]]+\]/g, "Acme");
-clean.letter = filled;
+const LETTER = `Dear Acme AI Hiring Team,
+
+Your posting reads like a land-and-expand problem in the largest accounts. Finance teams buy agents only when the CFO owns the case, and Acme AI needs a seller who gets there first.
+
+You need C-suite access in complex accounts. I closed $8.5M across Public Sector accounts and earned Winners Circle 2025. You need accounts that grow after signature. I turned an at-risk implementation into a $1.58M expansion.
+
+A Series C sets a higher number this year. Each quarter a seat ramps is pipeline lost.
+
+I have a 30-60-90 plan for your strategic territory. Can we take 30 minutes next week?
+
+Kindest Regards,
+Vanessa Morales`;
+clean.letter = LETTER;
 
 describe("Application Kit checks", () => {
   it("passes text that uses only her figures and plain language", () => {
-    const checks = checkKit(clean, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit(clean, src);
     for (const p of KIT_PARTS) expect(checks[p]).toEqual([]);
   });
 
   it("flags language her brief rules out", () => {
-    const checks = checkKit({ ...clean, letter: "Throughout my nine years at SAP. I am passionate about sales and grateful for the opportunity to join. I was responsible for pipeline." }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, letter: "I am interested in this role. I am passionate about sales and grateful for the opportunity to join. I was responsible for pipeline." }, src);
     const found = checks.letter.filter((i) => i.kind === "language").map((i) => i.text.toLowerCase());
-    expect(found).toEqual(expect.arrayContaining(["passionate", "grateful", "opportunity to join", "responsible for"]));
+    expect(found).toEqual(expect.arrayContaining(["i am interested in", "passionate", "grateful", "opportunity to join", "responsible for"]));
   });
 
   it("flags figures that are not in her resume or profile", () => {
-    const checks = checkKit({ ...clean, resume: "Closed $40M in new logos at 150% of plan. $8.5M closed." }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, resume: "Closed $40M in new logos at 150% of plan. $8.5M closed." }, src);
     expect(checks.resume.filter((i) => i.kind === "figure").map((i) => i.text)).toEqual(["$40M", "150%"]);
   });
 
   it("lets the point of view quote the posting, but not the resume or letter", () => {
     const quoting = "You carry a $2M quota per seller.";
-    const checks = checkKit({ ...clean, pov: quoting, letter: `${clean.letter} ${quoting}` }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, pov: quoting, letter: `${clean.letter} ${quoting}` }, src);
     expect(checks.pov).toEqual([]);
     expect(checks.letter.map((i) => i.text)).toEqual(["$2M"]);
   });
 
-  it("passes her template once it is filled in, and flags a placeholder left behind", () => {
-    expect(checkKit(clean, { resumeText: RESUME, contextText: ctx }).letter).toEqual([]);
-    const left = checkKit({ ...clean, letter: LETTER_TEMPLATE }, { resumeText: RESUME, contextText: ctx }).letter;
-    expect(left.map((i) => i.text)).toContain("[Company Name]");
+  it("flags a placeholder left behind", () => {
+    expect(checkKit({ ...clean, letter: LETTER.replace("Acme AI needs", "[Company] needs") }, src).letter.map((i) => i.text)).toContain("[Company]");
   });
 
-  it("lets paragraph 2 lead with the experience that fits the role", () => {
-    const sap = filled.split("\n\n")[2];
-    const tailored = filled.replace(sap, "Throughout my nine years at SAP, I have focused on strategic account expansion, growing relationships with C-level executives across Cloud ERP and Business AI, and earned SAP Winners Circle in 2025.").replace(recovery, digitalHub);
-    expect(checkKit({ ...clean, letter: tailored }, { resumeText: RESUME, contextText: ctx }).letter).toEqual([]);
+  it("flags a letter that opens with her, skips the company or drops a paragraph", () => {
+    const checks = checkKit({ ...clean, letter: "Dear Hiring Team,\n\nI want this role.\n\nAt SAP I sold software.\n\nLet's talk.\n\nKindest Regards,\nVanessa Morales" }, src);
+    expect(checks.letter.filter((i) => i.kind === "structure").map((i) => i.text)).toEqual(["3 paragraphs", "Opens with you", "Company not named"]);
   });
 
-  it("flags a letter that drops a paragraph, its SAP opening or her accomplishment", () => {
-    const checks = checkKit({ ...clean, letter: "Dear Acme Hiring Team,\n\nI want this role.\n\nAt SAP I sold software.\n\nI would welcome a conversation.\n\nKindest Regards,\nVanessa Morales" }, { resumeText: RESUME, contextText: ctx });
-    expect(checks.letter.filter((i) => i.kind === "structure").map((i) => i.text)).toEqual(["3 paragraphs", "Why I'm qualified", "Proof of impact"]);
+  it("flags a letter that restates her resume instead of tying it to the role", () => {
+    const rehash = LETTER.replace("I closed $8.5M across Public Sector accounts", "Closed $8.5M in new and expansion revenue; earned Winners Circle 2025. I");
+    expect(checkKit({ ...clean, letter: rehash }, src).letter.map((i) => i.text)).toContain("Restates your resume");
+    expect(copiedFromResume(LETTER, RESUME)).toBeNull();
+  });
+
+  it("flags a kit written without the job description", () => {
+    const thin = { ...input, job: { ...input.job, descriptionText: "Strategic AE." } };
+    const checks = checkKit(clean, { resumeText: RESUME, contextText: kitContext(thin), input: thin });
+    expect(checks.letter.map((i) => i.kind)).toEqual(["source"]);
+    expect(kitContext(thin)).toMatch(/only 2 words of the job description/);
   });
 
   it("ignores list numbers and the 30-60-90 plan", () => {
@@ -68,7 +83,7 @@ describe("Application Kit checks", () => {
 
   it("flags long sentences and an over-long letter", () => {
     const long = `${"word ".repeat(45)}end.`;
-    const checks = checkKit({ ...clean, letter: `${clean.letter} ${long} ${"more ".repeat(420)}` }, { resumeText: RESUME, contextText: ctx });
+    const checks = checkKit({ ...clean, letter: `${clean.letter} ${long} ${"more ".repeat(300)}` }, src);
     expect(checks.letter.filter((i) => i.kind === "length")).toHaveLength(2);
   });
 });
@@ -85,6 +100,15 @@ describe("Application Kit generation", () => {
     expect(systems[0]).not.toContain("PROFILE FACTS");
     expect(systems[0]).toContain("Own a $2M quota");
     expect(systems[0]).toContain("ephemeral");
+  });
+
+  it("puts the posting and the company research ahead of her resume", () => {
+    const rich = kitContext({ ...input, job: { ...input.job, territory: "Texas" }, company: { ...input.company, growthThesis: "Agents replace close checklists.", engagementStrategy: "Enter through the controller.", notes: "Met their CRO at Dreamforce." } });
+    expect(rich).toContain("Territory: Texas");
+    expect(rich).toContain("Growth thesis:\nAgents replace close checklists.");
+    expect(rich).toContain("Enter through the controller.");
+    expect(rich).toContain("Met their CRO at Dreamforce.");
+    expect(rich.indexOf("JOB POSTING")).toBeLessThan(rich.indexOf("RESUME"));
   });
 
   it("stops when the model declines", async () => {

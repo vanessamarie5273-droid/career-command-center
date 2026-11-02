@@ -7,6 +7,7 @@ import { atsReport } from "@/lib/resume";
 import { checkKit, generateKit, kitContext } from "@/lib/kit";
 import { kitInput } from "@/lib/kitEdit";
 import { ensureApplication } from "@/lib/applications";
+import { ensureDescription } from "@/lib/jobDescription";
 
 export const maxDuration = 300;
 
@@ -19,6 +20,8 @@ export const GET = route("VIEWER", async (req) => {
 export const POST = route("EDITOR", async (req, _c, u) => {
   if (!assistantConfigured()) return aiNotConfigured("The Application Kit");
   const b = z.object({ jobId: z.string(), documentId: z.string().optional() }).parse(await req.json());
+  // The letter ties to the role only if the posting is on file: fetch the full description first when it is missing.
+  await ensureDescription(prisma, b.jobId);
   const job = await prisma.job.findUniqueOrThrow({ where: { id: b.jobId }, include: { company: { include: { news: { orderBy: { createdAt: "desc" }, take: 5 } } } } });
   const base = b.documentId
     ? await prisma.document.findUniqueOrThrow({ where: { id: b.documentId } })
@@ -30,7 +33,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   let parts;
   try { parts = await generateKit(input); }
   catch (e) { return aiError(e); }
-  const checks = checkKit(parts, { resumeText: base.text, contextText: kitContext(input) });
+  const checks = checkKit(parts, { resumeText: base.text, contextText: kitContext(input), input });
 
   // Building a kit saves the role, so it moves from Discover Jobs to Ready to Apply.
   const { app } = await ensureApplication(prisma, job.id, u.sub);

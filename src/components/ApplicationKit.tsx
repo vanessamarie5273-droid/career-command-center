@@ -9,7 +9,7 @@ import { dateTime } from "@/lib/format";
 
 export type KitRow = { id: string; createdAt: string; parts: KitParts; checks: KitChecks; resumeDocId: string | null; letterDocId: string | null };
 
-const KIND_LABEL = { language: "Language", figure: "Unverified figure", length: "Length", structure: "Structure" } as const;
+const KIND_LABEL = { language: "Language", figure: "Unverified figure", length: "Length", structure: "Structure", source: "Missing input" } as const;
 
 /** `embedded` shows only the review and editing tabs, for use inside another page such as Ready to Apply. */
 export default function ApplicationKit({ jobId, resumes, kits: initial, configured, embedded = false }: { jobId: string; resumes: { id: string; name: string; version: string | null }[]; kits: KitRow[]; configured: boolean; embedded?: boolean }) {
@@ -77,7 +77,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
             const f = fixes[fixKey(i)];
             return (
               <li key={i} className="space-y-1.5">
-                <div><span className="chip mr-1 bg-white text-amber-800">{KIND_LABEL[x.kind]}</span><b>{x.text}</b>: {x.detail}{draft == null && !f?.find && <button className="ml-2 font-medium text-navy-900 underline disabled:opacity-50" disabled={f?.busy || busy} onClick={() => suggest(i)}>{f?.busy ? "Writing a fix…" : "Suggest a fix"}</button>}</div>
+                <div><span className="chip mr-1 bg-white text-amber-800">{KIND_LABEL[x.kind]}</span><b>{x.text}</b>: {x.detail}{draft == null && !f?.find && x.kind !== "source" && <button className="ml-2 font-medium text-navy-900 underline disabled:opacity-50" disabled={f?.busy || busy} onClick={() => suggest(i)}>{f?.busy ? "Writing a fix…" : "Suggest a fix"}</button>}</div>
                 {f?.err && <p className="text-red-700">{f.err}</p>}
                 {f?.find != null && (
                   <div className="space-y-2 rounded-md bg-white p-2.5 ring-1 ring-amber-200">
