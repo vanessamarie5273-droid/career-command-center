@@ -45,7 +45,8 @@ export const NAV: { href: string; label: string; icon: IconName; match: string[]
   { href: "/briefing", label: "Briefing", icon: "news", match: ["/briefing"] },
   { href: "/jobs", label: "Jobs", icon: "briefcase", match: ["/jobs", "/apply"], tabs: [{ href: "/jobs", label: "Discover" }, { href: "/apply", label: "Ready to Apply" }] },
   { href: "/applications", label: "Applications", icon: "board", match: ["/applications"] },
-  { href: "/companies", label: "Accounts", icon: "building", match: ["/companies", "/contacts"], tabs: [{ href: "/companies", label: "Companies" }, { href: "/contacts", label: "Contacts" }] },
+  { href: "/companies", label: "Accounts", icon: "building", match: ["/companies"] },
+  { href: "/network", label: "My Network", icon: "people", match: ["/network", "/contacts"], tabs: [{ href: "/network", label: "My Network" }, { href: "/contacts", label: "Contacts & Import" }] },
   { href: "/documents", label: "Resumes", icon: "doc", match: ["/documents"] },
   { href: "/reports", label: "Insights", icon: "chart", match: ["/reports", "/alerts"], tabs: [{ href: "/reports", label: "Reports" }, { href: "/alerts", label: "Alerts" }] },
   { href: "/settings", label: "Settings", icon: "gear", match: ["/settings"] },
@@ -54,7 +55,7 @@ export const navFor = (path: string) => NAV.find((n) => n.match.some((m) => (m =
 
 const TITLE_ICON: Record<string, IconName> = {
   "Command Center": "home", "Discover Jobs": "briefcase", "Ready to Apply": "check", "My Applications": "board", "Company Intelligence": "building",
-  "Network & Contacts": "people", "Resume Library": "doc", Alerts: "bell", Reports: "chart", "Settings & Integrations": "gear",
+  "Network & Contacts": "people", "My Network": "people", "Resume Library": "doc", Alerts: "bell", Reports: "chart", "Settings & Integrations": "gear",
 };
 
 export function iconForTitle(title: string): IconName {
