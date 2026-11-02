@@ -8,7 +8,7 @@ export type { IconName };
 
 /** Accent colours for card icons, tiles and meters. Full class names so Tailwind keeps them. */
 const TONES = {
-  navy: { chip: "bg-navy-500/10 text-navy-600", bar: "bg-gradient-to-r from-[#3b5bdb] to-[#5c7cfa]", ring: "ring-navy-500/25", text: "text-navy-600" },
+  navy: { chip: "bg-navy-500/10 text-navy-600", bar: "bg-gradient-to-r from-[#4f46e5] to-[#8b5cf6]", ring: "ring-navy-500/25", text: "text-navy-600" },
   gold: { chip: "bg-gold-500/15 text-gold-600", bar: "bg-gradient-to-r from-gold-600 to-gold-400", ring: "ring-gold-500/40", text: "text-gold-600" },
   emerald: { chip: "bg-emerald-500/10 text-emerald-600", bar: "bg-gradient-to-r from-emerald-600 to-emerald-400", ring: "ring-emerald-500/25", text: "text-emerald-600" },
   violet: { chip: "bg-violet-500/10 text-violet-600", bar: "bg-gradient-to-r from-violet-600 to-violet-400", ring: "ring-violet-500/25", text: "text-violet-600" },
@@ -77,7 +77,7 @@ export function Meter({ value, max = 100, tone = "navy", className = "" }: { val
 /** Round score badge coloured by strength: gold 85+, green 75+, blue 65+, grey below. */
 export function ScoreBadge({ score, size = 34 }: { score: number | null | undefined; size?: number }) {
   if (score == null) return <span className="muted text-sm">—</span>;
-  const c = score >= 85 ? "bg-gradient-to-br from-gold-400 to-gold-600 text-navy-950 ring-gold-500/40" : score >= 75 ? "bg-emerald-50 text-emerald-700 ring-emerald-500/30" : score >= 65 ? "bg-navy-500/[0.07] text-navy-600 ring-navy-500/25" : "bg-slate-50 text-slate-500 ring-slate-300";
+  const c = score >= 85 ? "bg-gradient-to-br from-[#6366f1] to-[#a855f7] text-white ring-violet-400/40" : score >= 75 ? "bg-emerald-50 text-emerald-700 ring-emerald-500/30" : score >= 65 ? "bg-navy-500/[0.07] text-navy-600 ring-navy-500/25" : "bg-slate-50 text-slate-500 ring-slate-300";
   return <span style={{ width: size, height: size }} className={`inline-flex shrink-0 items-center justify-center rounded-full text-[13px] font-semibold tabular-nums ring-1 ${c}`}>{score}</span>;
 }
 

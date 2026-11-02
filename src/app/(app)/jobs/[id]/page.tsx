@@ -60,7 +60,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                 return (
                   <div key={c}>
                     <div className="flex items-center justify-between text-sm"><span className="font-medium">{CRITERION_LABEL[c]} <span className="text-slate-400 font-normal">({WEIGHTS[c]}%)</span></span><span className="tabular-nums font-semibold">{pts} / {WEIGHTS[c]}</span></div>
-                    <div className="mt-1 h-1.5 rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-[#3b5bdb]" style={{ width: `${(pts / WEIGHTS[c]) * 100}%` }} /></div>
+                    <div className="mt-1 h-1.5 rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-[#5b45e0]" style={{ width: `${(pts / WEIGHTS[c]) * 100}%` }} /></div>
                     <ul className="mt-1 space-y-0.5">{rs.map((r, i) => <li key={i} className="text-xs text-slate-600"><span className={r.delta === "+" ? "text-emerald-600" : r.delta === "-" ? "text-red-600" : "text-slate-400"}>{r.delta === "+" ? "▲" : r.delta === "-" ? "▼" : "•"}</span> {r.text}</li>)}</ul>
                   </div>
                 );

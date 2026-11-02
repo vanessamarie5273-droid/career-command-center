@@ -29,9 +29,9 @@ export default async function Reports() {
     { label: "Offer", value: reached(["OFFER", "ACCEPTED"]), href: table("stage=OFFER") },
   ];
   const tiers = [
-    { name: "Tier 1", value: charts.pipeline[0].value, color: "#c4a254", href: "/jobs?tier=TIER1" },
-    { name: "Tier 2", value: charts.pipeline[1].value, color: "#3b5bdb", href: "/jobs?tier=TIER2" },
-    { name: "Tier 3", value: charts.pipeline[2].value, color: "#94a3b8", href: "/jobs?tier=TIER3" },
+    { name: "Tier 1", value: charts.pipeline[0].value, color: "#a35cf5", href: "/jobs?tier=TIER1" },
+    { name: "Tier 2", value: charts.pipeline[1].value, color: "#4f46e5", href: "/jobs?tier=TIER2" },
+    { name: "Tier 3", value: charts.pipeline[2].value, color: "#c4b5fd", href: "/jobs?tier=TIER3" },
   ];
 
   return (

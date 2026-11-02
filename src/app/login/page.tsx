@@ -27,5 +27,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 }
 
 function Mark() {
-  return <svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#12224a" /><path d="M18 40 L30 24 L38 34 L46 20" stroke="#c4a254" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#4834cc" /><path d="M18 40 L30 24 L38 34 L46 20" stroke="#e4d4ff" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

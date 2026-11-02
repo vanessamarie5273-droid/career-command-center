@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/db";
 import { agenda, applicationSearch, feed, pipelineDashboard, QUIET_DAYS, SEARCH_BY, type AgendaItem, type FeedItem, type SearchBy } from "@/lib/pipeline";
-import { Card, PageHeader, Empty, HeroStat, Logo, Icon } from "@/components/ui";
+import { Card, Empty, Logo, Icon, type IconName } from "@/components/ui";
 import { WeeklyLine } from "@/components/Charts";
 import ApplicationSearch from "@/components/ApplicationSearch";
 import ApplicationsTable from "@/components/ApplicationsTable";
@@ -34,18 +34,18 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title="Command Center" actions={<Link href="/applications" className="btn-ghost">All applications →</Link>}>
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7">
-          <HeroStat label="Active processes" value={t.active} href={table("active=1")} icon="flame" highlight />
-          <HeroStat label="Applied" value={t.applied} href={table("applied=1")} icon="send" />
-          <HeroStat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
-          <HeroStat label="Interviews scheduled" value={t.interviews} href={table("interviews=1")} icon="calendar" />
-          <HeroStat label="Offers" value={t.offers} href={table("stage=OFFER")} icon="trophy" />
-          <HeroStat label="Follow-ups due" value={t.followUps} href={table("followup=1")} icon="clock" />
-          <HeroStat label="Ready to apply" value={t.readyToApply} href="/apply" icon="check" />
+      <Welcome>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+          <Stat label="Active processes" value={t.active} href={table("active=1")} icon="flame" />
+          <Stat label="Applied" value={t.applied} href={table("applied=1")} icon="send" />
+          <Stat label="Moved past applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
+          <Stat label="Interviews" value={t.interviews} href={table("interviews=1")} icon="calendar" />
+          <Stat label="Offers" value={t.offers} href={table("stage=OFFER")} icon="trophy" />
+          <Stat label="Follow-ups due" value={t.followUps} href={table("followup=1")} icon="clock" />
+          <Stat label="Ready to apply" value={t.readyToApply} href="/apply" icon="check" />
         </div>
-        <div className="mt-1.5 border-t border-slate-100 px-2 pb-1 pt-2.5"><ApplicationSearch by={by} q={q} /></div>
-      </PageHeader>
+        <div className="welcome-search mt-3"><ApplicationSearch by={by} q={q} /></div>
+      </Welcome>
 
       {found && (
         <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} icon="search" className="mb-3" action={<Link href="/" className="text-xs link">Clear search</Link>}>
@@ -84,25 +84,24 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
     <Card title="Pipeline" icon="board" className="mb-3">
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <ol className="grid min-w-[860px] grid-cols-8 gap-1.5">
-          {f.stages.map((s, i) => {
-            const live = i >= 2 && i <= 5 && s.count > 0, offer = s.key === "OFFER" && s.count > 0;
-            const box = offer ? "bg-emerald-50" : live ? "bg-gold-300/20" : s.count ? "bg-slate-50" : "bg-white";
+          {f.stages.map((s) => {
+            const box = "bg-violet-50";
             return (
               <li key={s.key} className="relative">
-                <Link href={s.key === "READY_TO_APPLY" ? "/apply" : table(`stage=${s.key}`)} className={`group flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-slate-100 ${box}`}>
+                <Link href={s.key === "READY_TO_APPLY" ? "/apply" : table(`stage=${s.key}`)} className={`group flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-violet-100 ${box}`}>
                   <span className="truncate text-[13px] font-semibold text-slate-600">{s.label}</span>
-                  <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${s.count ? "text-navy-950" : "text-slate-300"}`}>{s.count}</span>
+                  <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${s.count ? "text-navy-950" : "text-violet-300"}`}>{s.count}</span>
                   <span className="mt-2 flex min-h-[22px] items-center">
                     {s.logos.map((c, j) => <span key={c.name} className={`rounded-md ring-2 ring-white ${j ? "-ml-1" : ""}`} title={c.name}><Logo src={c.logoUrl} name={c.name} size={22} /></span>)}
                     {s.count > s.logos.length && <span className="ml-1.5 text-[11px] font-medium text-slate-500">+{s.count - s.logos.length}</span>}
                   </span>
-                  <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-slate-200/70"><span className={`block h-full rounded-full ${offer ? "bg-emerald-500" : live ? "bg-gold-500" : "bg-navy-600"}`} style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
+                  <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-violet-200/60"><span className="block h-full rounded-full bg-gradient-to-r from-[#4f46e5] to-[#a855f7]" style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
                 </Link>
               </li>
             );
           })}
           <li>
-            <Link href={table("stage=REJECTED")} className="flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-slate-100">
+            <Link href={table("stage=REJECTED")} className="flex h-full flex-col rounded-lg bg-violet-50 px-3 pb-3 pt-2.5 transition hover:bg-violet-100">
               <span className="text-[13px] font-semibold text-slate-500">Closed</span>
               <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${closed.length ? "text-slate-500" : "text-slate-300"}`}>{closed.reduce((n, c) => n + c.count, 0)}</span>
               <span className="mt-auto pt-2 text-[12px] leading-snug text-slate-500">{closed.length ? closed.map((c) => `${c.count} ${STAGE_LABEL[c.key].toLowerCase()}`).join(" · ") : "None yet"}</span>
@@ -229,4 +228,61 @@ function Row({ href, company, title, sub, right, small }: { href?: string; compa
   const size = small ? 24 : 30;
   const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`block truncate font-medium text-navy-950 ${small ? "text-[12.5px]" : "text-[13.5px]"}`}>{title}</span>{sub && <span className="block truncate text-xs text-slate-500">{sub}</span>}</span>{right}</>;
   return <li>{href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>}</li>;
+}
+
+/** The Command Center banner: violet gradient, a welcome line, a crystal on the right, and the headline numbers as glass tiles. */
+function Welcome({ children }: { children: ReactNode }) {
+  return (
+    <section className="relative mb-3 overflow-hidden rounded-2xl bg-[linear-gradient(115deg,#2f22b8_0%,#4a2fd8_45%,#7b3fe4_80%,#5b45e0_100%)] px-4 py-4 text-white shadow-[0_18px_40px_-24px_rgba(76,45,210,0.8)] lg:px-6">
+      <Gem className="pointer-events-none absolute -right-4 -top-14 hidden h-[210px] w-[420px] [mask-image:linear-gradient(to_bottom,black_50%,transparent_95%)] md:block" />
+      <div className="relative flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-[17px] font-medium text-white/80">Welcome to the</div>
+          <h1 className="text-[34px] font-semibold leading-tight tracking-tight">Command Center</h1>
+        </div>
+        <Link href="/applications" className="relative rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur hover:bg-white/25">All applications →</Link>
+      </div>
+      <div className="relative mt-4">{children}</div>
+    </section>
+  );
+}
+
+function Stat({ label, value, href, icon }: { label: string; value: ReactNode; href: string; icon: IconName }) {
+  return (
+    <Link href={href} className="block rounded-xl bg-white/[0.12] px-3.5 py-2.5 ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
+      <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-white/80"><Icon name={icon} size={14} className="text-violet-200" />{label}</span>
+      <span className="mt-0.5 block text-[26px] font-semibold leading-tight tabular-nums">{value}</span>
+    </Link>
+  );
+}
+
+/** A faceted crystal in blues and violets, drawn in SVG. */
+function Gem({ className }: { className?: string }) {
+  const P = { L: "20,110", A: "95,30", T: "230,26", B: "365,30", R: "440,110", M1: "150,110", M2: "310,110", D: "230,300" };
+  const f = (pts: string[], fill: string) => <polygon points={pts.join(" ")} fill={fill} stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" strokeLinejoin="round" />;
+  return (
+    <svg viewBox="0 0 460 230" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4f7bff" /><stop offset="1" stopColor="#3b2bd6" /></linearGradient>
+        <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5b8cff" /><stop offset=".5" stopColor="#38bdf8" stopOpacity=".7" /><stop offset="1" stopColor="#6d4cf0" /></linearGradient>
+        <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c4a5ff" /><stop offset="1" stopColor="#7c3aed" /></linearGradient>
+        <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a78bfa" /><stop offset="1" stopColor="#c026d3" /></linearGradient>
+        <linearGradient id="g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#d946ef" /><stop offset="1" stopColor="#f0abfc" /></linearGradient>
+        <linearGradient id="g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3b2bd6" /><stop offset="1" stopColor="#1e1b8f" /></linearGradient>
+        <linearGradient id="g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6d4cf0" /><stop offset="1" stopColor="#8b5cf6" /></linearGradient>
+        <linearGradient id="g8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a855f7" /><stop offset="1" stopColor="#f5d0fe" /></linearGradient>
+        <filter id="glow"><feGaussianBlur stdDeviation="14" /></filter>
+      </defs>
+      <ellipse cx="230" cy="120" rx="200" ry="70" fill="#a855f7" opacity=".35" filter="url(#glow)" />
+      {f([P.L, P.A, P.M1], "url(#g1)")}
+      {f([P.A, P.T, P.M1], "url(#g2)")}
+      {f([P.T, P.M2, P.M1], "url(#g3)")}
+      {f([P.T, P.B, P.M2], "url(#g4)")}
+      {f([P.B, P.R, P.M2], "url(#g5)")}
+      {f([P.L, P.M1, P.D], "url(#g6)")}
+      {f([P.M1, P.M2, P.D], "url(#g7)")}
+      {f([P.M2, P.R, P.D], "url(#g8)")}
+      <polyline points={`${P.L} ${P.R}`} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
+    </svg>
+  );
 }

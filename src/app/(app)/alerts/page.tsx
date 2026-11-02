@@ -122,7 +122,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
                 {[...runs].reverse().map((r) => (
                   <div key={r.id} className="flex flex-1 flex-col items-center gap-1" title={`${dateTime(r.startedAt)} · ${r.status} · ${r.created} new · ${r.closed} closed · ${r.errors} errors`}>
                     <div className="flex h-20 w-full items-end justify-center gap-0.5">
-                      <div className="w-1/2 max-w-3 rounded-t bg-gradient-to-t from-[#3b5bdb] to-[#748ffc]" style={{ height: `${Math.max(4, (r.created / runMax) * 100)}%` }} />
+                      <div className="w-1/2 max-w-3 rounded-t bg-gradient-to-t from-[#4f46e5] to-[#a78bfa]" style={{ height: `${Math.max(4, (r.created / runMax) * 100)}%` }} />
                       <div className="w-1/2 max-w-3 rounded-t bg-gradient-to-t from-slate-400 to-slate-300" style={{ height: `${Math.max(4, (r.closed / runMax) * 100)}%` }} />
                     </div>
                     <StatusDot status={r.status} />
@@ -130,7 +130,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
                 ))}
               </div>
             )}
-            {runs.length > 0 && <div className="mt-2 flex gap-3 text-[11.5px] text-slate-500"><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-[#3b5bdb]" />New</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-slate-400" />Closed</span></div>}
+            {runs.length > 0 && <div className="mt-2 flex gap-3 text-[11.5px] text-slate-500"><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-[#5b45e0]" />New</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2.5 rounded-sm bg-slate-400" />Closed</span></div>}
           </Card>
         </div>
       </div>
