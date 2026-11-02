@@ -134,11 +134,11 @@ export function feed(
     const m = moves.find((x) => !used.has(x.id) && x.applicationId === e.applicationId && x.to === e.newStage);
     if (m) used.add(m.id);
     const a = app(e.applicationId);
-    items.push({ id: `e-${e.id}`, at: e.receivedAt, appId: e.applicationId, company: a?.company ?? null, role: a?.title ?? null, from: e.prevStage ?? m?.from ?? null, to: e.newStage, via: `${kindLabel[e.kind] ?? e.kind} email`, emailId: e.id, undoable: true });
+    items.push({ id: `e-${e.id}`, at: e.receivedAt, appId: e.applicationId, company: a?.company ?? null, role: a?.title ?? null, from: e.prevStage ?? m?.from ?? null, to: e.newStage, via: `${kindLabel[e.kind] ?? e.kind} received by email`, emailId: e.id, undoable: true });
   }
   for (const m of moves) {
     if (used.has(m.id)) continue;
-    items.push({ id: `m-${m.id}`, at: m.at, appId: m.applicationId, company: m.application.company, role: m.application.title, from: m.from, to: m.to, via: "Updated by you", emailId: null, undoable: false });
+    items.push({ id: `m-${m.id}`, at: m.at, appId: m.applicationId, company: m.application.company, role: m.application.title, from: m.from, to: m.to, via: "Status updated manually", emailId: null, undoable: false });
   }
   items.sort((a, b) => b.at.getTime() - a.at.getTime());
   const logged = emails.filter((e) => !e.newStage || e.undone).map((e) => {

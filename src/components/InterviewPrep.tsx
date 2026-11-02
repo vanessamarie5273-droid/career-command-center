@@ -53,7 +53,7 @@ export default function InterviewPrep({ applicationId, preps: initial, configure
               <summary className="cursor-pointer font-medium text-slate-700">After the interview: write the follow-up</summary>
               <textarea className="input mt-2" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Who you met, what they said they need, questions they asked, signals, next steps" />
               <button className="btn-ghost mt-2" disabled={!!busy || !notes.trim()} onClick={() => start("followup")}>{busy === "followup" ? "Writing…" : "Write follow-up email"}</button>
-              <p className="mt-1 text-xs text-slate-500">Your notes are also saved to this application&apos;s activity.</p>
+              <p className="mt-1 text-[13px] text-slate-500">Your notes are also saved to this application&apos;s activity.</p>
             </details>
           </>
         )}
@@ -65,8 +65,8 @@ export default function InterviewPrep({ applicationId, preps: initial, configure
         )}
         {open && open.kind !== "mock" && (
           <div className="space-y-2">
-            {open.input && <details><summary className="cursor-pointer text-xs text-slate-500">Your notes</summary><pre className="mt-1 whitespace-pre-wrap font-sans text-xs text-slate-600">{open.input}</pre></details>}
-            <pre className="max-h-[620px] overflow-auto rounded-lg bg-slate-50 p-4 text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{open.output}</pre>
+            {open.input && <details><summary className="cursor-pointer text-[13px] text-slate-500">Your notes</summary><pre className="mt-1 whitespace-pre-wrap font-sans text-[13px] text-slate-600">{open.input}</pre></details>}
+            <pre className="max-h-[620px] overflow-auto rounded-lg bg-slate-50 p-4 text-[14px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{open.output}</pre>
             <div className="flex flex-wrap items-start gap-2">
               <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(open.output ?? "")}>Copy</button>
               {open.kind === "followup" && outlook && <DraftButton key={open.id} applicationId={applicationId} kind="interview_followup" prepId={open.id} label="Save to Outlook drafts" />}
@@ -78,8 +78,8 @@ export default function InterviewPrep({ applicationId, preps: initial, configure
             <div className="max-h-[620px] space-y-2 overflow-auto rounded-lg bg-slate-50 p-3">
               {(open.messages ?? []).filter((m) => m.content !== MOCK_OPENER).map((m, i) => (
                 <div key={i} className={m.role === "assistant" ? "mr-10" : "ml-10"}>
-                  <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{m.role === "assistant" ? PERSONA_LABEL[open.persona] : "You"}</div>
-                  <pre className={`whitespace-pre-wrap rounded-lg p-3 font-sans text-[13px] leading-relaxed ${m.role === "assistant" ? "bg-white ring-1 ring-slate-200 text-slate-800" : "bg-navy-900 text-white"}`}>{m.content === MOCK_FINISH ? "End the interview and debrief me." : m.content}</pre>
+                  <div className="mb-0.5 text-[12px] font-semibold uppercase tracking-wider text-slate-400">{m.role === "assistant" ? PERSONA_LABEL[open.persona] : "You"}</div>
+                  <pre className={`whitespace-pre-wrap rounded-lg p-3 font-sans text-[14px] leading-relaxed ${m.role === "assistant" ? "bg-white ring-1 ring-slate-200 text-slate-800" : "bg-navy-900 text-white"}`}>{m.content === MOCK_FINISH ? "End the interview and debrief me." : m.content}</pre>
                 </div>
               ))}
             </div>

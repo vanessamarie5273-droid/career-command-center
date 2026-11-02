@@ -7,11 +7,11 @@ export function RankRow({ rank, href, logo, name, title, detail, extra, score }:
   return (
     <li>
       <Link href={href} className="row-link">
-        {rank != null && <span className={`w-5 shrink-0 text-right text-xs font-semibold tabular-nums ${rank <= 3 ? "text-gold-600" : "text-slate-300"}`}>{rank}</span>}
-        <Logo src={logo} name={name} size={30} />
+        {rank != null && <span className={`w-5 shrink-0 text-right text-[13px] font-semibold tabular-nums ${rank <= 3 ? "text-gold-600" : "text-slate-300"}`}>{rank}</span>}
+        <Logo src={logo} name={name} size={36} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-medium text-navy-950">{title}</span>
-          {detail && <span className="block truncate text-xs text-slate-500">{detail}</span>}
+          <span className="block truncate text-[15px] font-medium text-navy-950">{title}</span>
+          {detail && <span className="block truncate text-[13px] text-slate-500">{detail}</span>}
         </span>
         {extra}
         {score !== undefined && <ScoreBadge score={score} />}

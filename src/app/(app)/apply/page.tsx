@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Empty, Logo, PageHeader, ScorePill, TierBadge } from "@/components/ui";
 import ReadyToApply from "@/components/ReadyToApply";
 import MarkApplied from "@/components/MarkApplied";
+import DeleteSaved from "@/components/DeleteSaved";
 import { READY_TO_APPLY } from "@/lib/queries";
 import { effectiveScore, effectiveTier } from "@/lib/scoring";
 import { date, dateTime } from "@/lib/format";
@@ -33,14 +34,14 @@ export default async function ApplyPage() {
                 <div className="flex-1 min-w-[220px]">
                   <Link className="font-semibold text-navy-950 hover:underline" href={`/jobs/${j.id}`}>{j.title}</Link>
                   <div className="text-sm text-slate-500">{j.company.name}{j.location ? ` · ${j.location}` : ""}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px]">
                     <TierBadge tier={effectiveTier(j)} /><ScorePill score={effectiveScore(j)} />
                     {kit ? <><span className="muted">Kit built {dateTime(kit.createdAt)}</span>{issues ? <span className="chip bg-amber-50 text-amber-800">{issues} check{issues > 1 ? "s" : ""} to review</span> : <span className="chip bg-emerald-50 text-emerald-700">Checks pass</span>}</> : <span className="muted">Saved {date(app.createdAt)} · no kit yet</span>}
                   </div>
                 </div>
                 {kit
-                  ? <ReadyToApply key={kit.id} jobId={j.id} applyUrl={j.applyUrl} kit={JSON.parse(JSON.stringify(kit)) as KitRow} />
-                  : <div className="flex flex-wrap items-center gap-2"><Link className="btn-gold" href={`/jobs/${j.id}#kit`}>Build kit →</Link><a className="btn-ghost" href={j.applyUrl} target="_blank" rel="noopener noreferrer">Open employer form ↗</a><MarkApplied jobId={j.id} kitId={null} /></div>}
+                  ? <ReadyToApply key={kit.id} jobId={j.id} applyUrl={j.applyUrl} kit={JSON.parse(JSON.stringify(kit)) as KitRow} extra={<DeleteSaved appId={app.id} jobId={j.id} />} />
+                  : <div className="flex flex-wrap items-center gap-2"><Link className="btn-gold" href={`/jobs/${j.id}#kit`}>Build kit →</Link><a className="btn-ghost" href={j.applyUrl} target="_blank" rel="noopener noreferrer">Open employer form ↗</a><MarkApplied jobId={j.id} kitId={null} /><DeleteSaved appId={app.id} jobId={j.id} /></div>}
               </div>
             </section>
           );

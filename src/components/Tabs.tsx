@@ -11,7 +11,7 @@ export default function Tabs({ tabs, action }: { tabs: { key: string; label: str
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5" role="tablist">
           {tabs.map((x) => (
-            <button key={x.key} role="tab" aria-selected={x.key === t.key} onClick={() => setCur(x.key)} className={`rounded-full px-3 py-1 text-[12.5px] font-medium transition ${x.key === t.key ? "bg-navy-900 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            <button key={x.key} role="tab" aria-selected={x.key === t.key} onClick={() => setCur(x.key)} className={`rounded-full px-3 py-1 text-[13.5px] font-medium transition ${x.key === t.key ? "bg-navy-900 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
               {titleCase(x.label)}{x.count != null && <span className={`ml-1.5 tabular-nums ${x.key === t.key ? "text-gold-300" : "text-slate-400"}`}>{x.count}</span>}
             </button>
           ))}

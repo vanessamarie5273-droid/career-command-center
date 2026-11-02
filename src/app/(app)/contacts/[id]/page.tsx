@@ -31,7 +31,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
         <div className="lg:col-span-2 space-y-4">
           <Card title="Draft personalized outreach"><OutreachDraft contactId={c.id} name={c.firstName} company={c.company?.name ?? c.companyName ?? ""} title={c.title ?? ""} role={c.company?.jobs[0]?.title} /></Card>
           <Card title="Outreach history">
-            <ul className="space-y-2 text-sm mb-3">{c.touches.map((t) => <li key={t.id} className="border-l-2 border-slate-200 pl-3"><div className="text-xs text-slate-500">{t.channel} · {date(t.sentAt)}{t.followUpAt ? ` · follow up ${date(t.followUpAt)}` : ""}{t.application ? <> · <Link className="link" href={`/applications/${t.application.id}`}>{t.application.title}</Link></> : null}</div>{t.message && <div className="whitespace-pre-wrap">{t.message}</div>}<ReplyToggle id={t.id} replied={t.replied} /></li>)}</ul>
+            <ul className="space-y-2 text-sm mb-3">{c.touches.map((t) => <li key={t.id} className="border-l-2 border-slate-200 pl-3"><div className="text-[13px] text-slate-500">{t.channel} · {date(t.sentAt)}{t.followUpAt ? ` · follow up ${date(t.followUpAt)}` : ""}{t.application ? <> · <Link className="link" href={`/applications/${t.application.id}`}>{t.application.title}</Link></> : null}</div>{t.message && <div className="whitespace-pre-wrap">{t.message}</div>}<ReplyToggle id={t.id} replied={t.replied} /></li>)}</ul>
             <TouchForm contacts={[{ id: c.id, name: `${c.firstName} ${c.lastName ?? ""}` }]} applicationId={c.company?.applications[0]?.id} />
           </Card>
         </div>

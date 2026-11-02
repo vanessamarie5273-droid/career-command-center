@@ -24,7 +24,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
         <Card title="Outreach follow-ups due">{dueTouches.length ? <ul className="text-sm space-y-1">{dueTouches.map((t) => <li key={t.id}><Link className="link" href={`/contacts/${t.contactId}`}>{t.contact.firstName} {t.contact.lastName}</Link> · {t.channel} · due {date(t.followUpAt)}</li>)}</ul> : <p className="text-sm text-slate-500">No outreach follow-ups due.</p>}</Card>
       </div>
       <Card title="LinkedIn: what this app can and cannot do">
-        <ul className="text-xs text-slate-600 list-disc ml-4 space-y-1">
+        <ul className="text-[13px] text-slate-600 list-disc ml-4 space-y-1">
           <li>LinkedIn&apos;s public APIs do not let personal apps read your connections, 2nd-degree network, InMail or job listings. This app never scrapes LinkedIn.</li>
           <li>Closest compliant alternative: import your own Connections.csv (LinkedIn → Settings → Data privacy → Get a copy of your data → Connections). Contacts are matched to target companies automatically and marked 1st-degree.</li>
           <li>2nd-degree relationships: record them manually (degree = 2nd) when LinkedIn shows a mutual connection.</li>
@@ -38,11 +38,11 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
           <tbody>{contacts.map((c) => (
             <tr key={c.id}>
               <td><Link className="font-medium hover:underline" href={`/contacts/${c.id}`}>{c.firstName} {c.lastName}</Link></td>
-              <td className="text-xs">{c.title}</td>
-              <td className="text-xs">{c.company ? <Link className="link" href={`/companies/${c.company.id}`}>{c.company.name}</Link> : c.companyName}</td>
-              <td className="text-xs">{c.degree ?? "—"}</td><td className="text-xs">{c.role ?? "—"}</td>
-              <td className="text-xs">{c.touches[0] ? `${c.touches[0].channel} ${date(c.touches[0].sentAt)}${c.touches[0].replied ? " · replied" : ""}` : "—"}</td>
-              <td>{c.linkedinUrl && <a className="link text-xs" href={c.linkedinUrl} target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>}</td>
+              <td className="text-[13px]">{c.title}</td>
+              <td className="text-[13px]">{c.company ? <Link className="link" href={`/companies/${c.company.id}`}>{c.company.name}</Link> : c.companyName}</td>
+              <td className="text-[13px]">{c.degree ?? "—"}</td><td className="text-[13px]">{c.role ?? "—"}</td>
+              <td className="text-[13px]">{c.touches[0] ? `${c.touches[0].channel} ${date(c.touches[0].sentAt)}${c.touches[0].replied ? " · replied" : ""}` : "—"}</td>
+              <td>{c.linkedinUrl && <a className="link text-[13px]" href={c.linkedinUrl} target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>}</td>
             </tr>
           ))}</tbody>
         </table></div>

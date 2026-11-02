@@ -33,13 +33,13 @@ export function Card({ title, sub, action, icon, tone = "navy", children, classN
       {(title || action) && (
         <div className="card-h">
           <div className="flex min-w-0 items-center gap-2.5">
-            {icon ? dark ? <span className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg bg-white/15 text-white ring-1 ring-white/25"><Icon name={icon} size={14} /></span> : <IconChip icon={icon} tone={tone} size={26} /> : title ? <span className="h-4 w-1 shrink-0 rounded-full bg-gold-500" /> : null}
-            <div className="min-w-0"><h2 className="card-t">{tc(title)}</h2>{sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}</div>
+            {icon ? dark ? <span className="inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-white/15 text-white ring-1 ring-white/25"><Icon name={icon} size={16} /></span> : <IconChip icon={icon} tone={tone} size={30} /> : title ? <span className="h-4 w-1 shrink-0 rounded-full bg-gold-500" /> : null}
+            <div className="min-w-0"><h2 className="card-t">{tc(title)}</h2>{sub && <div className="text-[13px] text-slate-500 mt-0.5">{sub}</div>}</div>
           </div>
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className={flush ? "" : title ? "px-4 pb-4" : "p-4"}>{children}</div>
+      <div className={flush ? "" : title ? "px-4 pb-4 pt-3" : "p-4"}>{children}</div>
     </section>
   );
 }
@@ -61,11 +61,11 @@ export function Stat({ label, value, href, sub, accent, icon, tone = "navy" }: {
   const inner = (
     <div className={`card group relative h-full overflow-hidden p-4 transition ${href ? "hover:-translate-y-0.5 hover:shadow-lg" : ""} ${accent ? "!bg-gradient-to-br from-gold-300/30 via-white to-white ring-gold-500/40" : ""}`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="text-[12px] font-medium text-slate-500">{label}</div>
+        <div className="text-[13px] font-medium text-slate-500">{label}</div>
         {icon && <IconChip icon={icon} tone={accent ? "gold" : tone} size={28} />}
       </div>
       <div className="mt-2 text-[28px] leading-none font-semibold tabular-nums text-navy-950">{value}</div>
-      {sub && <div className="mt-1.5 text-xs text-slate-500">{sub}</div>}
+      {sub && <div className="mt-1.5 text-[13px] text-slate-500">{sub}</div>}
       <span className={`absolute inset-x-0 bottom-0 h-0.5 ${TONES[accent ? "gold" : tone].bar} opacity-70`} />
     </div>
   );
@@ -82,13 +82,13 @@ export function Meter({ value, max = 100, tone = "navy", className = "" }: { val
 export function ScoreBadge({ score, size = 34 }: { score: number | null | undefined; size?: number }) {
   if (score == null) return <span className="muted text-sm">—</span>;
   const c = score >= 85 ? "bg-gradient-to-br from-[#5D36FF] to-[#A100C2] text-white ring-violet-400/40" : score >= 75 ? "bg-emerald-50 text-emerald-700 ring-emerald-500/30" : score >= 65 ? "bg-navy-500/[0.07] text-navy-600 ring-navy-500/25" : "bg-slate-50 text-slate-500 ring-slate-300";
-  return <span style={{ width: size, height: size }} className={`inline-flex shrink-0 items-center justify-center rounded-full text-[13px] font-semibold tabular-nums ring-1 ${c}`}>{score}</span>;
+  return <span style={{ width: size, height: size }} className={`inline-flex shrink-0 items-center justify-center rounded-full text-[14px] font-semibold tabular-nums ring-1 ${c}`}>{score}</span>;
 }
 
 /** Segmented toggle made of links, for server-rendered sort and view switches. */
 export function Segmented({ options }: { options: { href: string; label: string; active: boolean }[] }) {
   return (
-    <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
+    <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-[13px] font-medium">
       {options.map((o) => <Link key={o.href + o.label} href={o.href} scroll={false} className={`rounded-md px-2.5 py-1 transition ${o.active ? "bg-white text-navy-900 shadow-sm" : "text-slate-500 hover:text-navy-900"}`}>{o.label}</Link>)}
     </div>
   );
@@ -123,7 +123,7 @@ export function FactTag({ type }: { type: "CONFIRMED" | "ESTIMATE" | "AI_ASSESSM
 
 export function ApplyLink({ url, label = "Open posting" }: { url: string; label?: string }) {
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="btn-primary !py-1 !px-2.5 text-xs whitespace-nowrap">
+    <a href={url} target="_blank" rel="noopener noreferrer" className="btn-primary !py-1 !px-2.5 text-[13px] whitespace-nowrap">
       {label}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M7 17L17 7M9 7h8v8" /></svg>
     </a>
   );
@@ -151,9 +151,9 @@ export function PageHeader({ title, sub, actions, icon, children }: { title: str
 export function HeroStat({ label, value, sub, href, icon, highlight }: { label: string; value: ReactNode; sub?: ReactNode; href?: string; icon?: IconName; highlight?: boolean }) {
   const inner = (
     <div className={`h-full rounded-xl px-3.5 py-2.5 ring-1 backdrop-blur-sm transition ${highlight ? "bg-white/25 ring-white/40" : "bg-white/[0.12] ring-white/20"} ${href ? "hover:bg-white/20" : ""}`}>
-      <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-white/80">{icon && <Icon name={icon} size={14} className="text-[#f6d0f2]" />}{titleCase(label)}</div>
+      <div className="flex items-center gap-1.5 text-[13.5px] font-medium text-white/80">{icon && <Icon name={icon} size={14} className="text-[#f6d0f2]" />}{titleCase(label)}</div>
       <div className="mt-0.5 text-[26px] font-semibold leading-tight tabular-nums">{value}</div>
-      {sub && <div className="text-[11.5px] text-white/70">{sub}</div>}
+      {sub && <div className="text-[12.5px] text-white/70">{sub}</div>}
     </div>
   );
   return href ? <Link href={href} className="block">{inner}</Link> : inner;

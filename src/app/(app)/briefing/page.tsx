@@ -48,7 +48,7 @@ export default async function Briefing() {
               {v.priorities.map((p, i) => (
                 <li key={p.title}><Link href={local(p.href)} className="flex gap-3 rounded-xl bg-white/10 p-3 ring-1 ring-white/20 transition hover:bg-white/[0.18]">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-base font-bold text-[#5D36FF]">{i + 1}</span>
-                  <span className="min-w-0"><span className="flex items-center gap-1.5 text-[15px] font-semibold text-white"><Icon name={PRI_ICON[p.kind]} size={15} className="text-[#f6d0f2]" />{p.title}</span><span className="block text-[13px] text-white/75">{p.reason}</span></span>
+                  <span className="min-w-0"><span className="flex items-center gap-1.5 text-[15px] font-semibold text-white"><Icon name={PRI_ICON[p.kind]} size={15} className="text-[#f6d0f2]" />{p.title}</span><span className="block text-[14px] text-white/75">{p.reason}</span></span>
                 </Link></li>
               ))}
             </ol>
@@ -64,7 +64,7 @@ export default async function Briefing() {
 
       {v.urgent.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {v.urgent.map((u) => <Link key={u.text} href={local(u.href)} className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold ring-1 ${u.tone === "bad" ? "bg-rose-50 text-rose-700 ring-rose-200" : u.tone === "good" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-sky-50 text-sky-700 ring-sky-200"}`}><span className="h-2 w-2 rounded-full bg-current" />{u.text}</Link>)}
+          {v.urgent.map((u) => <Link key={u.text} href={local(u.href)} className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[14px] font-semibold ring-1 ${u.tone === "bad" ? "bg-rose-50 text-rose-700 ring-rose-200" : u.tone === "good" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-sky-50 text-sky-700 ring-sky-200"}`}><span className="h-2 w-2 rounded-full bg-current" />{u.text}</Link>)}
         </div>
       )}
 
@@ -86,7 +86,7 @@ export default async function Briefing() {
             <div key={f.href} className="border-b border-slate-100 py-2.5 last:border-0">
               <Link href={local(f.href)} className="text-[15px] font-semibold text-navy-950 hover:underline">{f.company} · {f.title}</Link>
               <div className="text-[13px] text-slate-500">{f.last ? `Last contact: ${f.last.who} by ${f.last.channel} on ${md(f.last.when)}. ${f.last.about}` : "No contact since you applied."}{f.due ? ` Due ${md(f.due)}.` : ""}</div>
-              <p className="mt-1.5 rounded-lg bg-[#f1edff] p-2.5 text-[13.5px] text-slate-800 ring-1 ring-[#d9d0ff]"><b className="text-[#5D36FF]">Suggested message: </b>{f.suggestion}</p>
+              <p className="mt-1.5 rounded-lg bg-[#f1edff] p-2.5 text-[14px] text-slate-800 ring-1 ring-[#d9d0ff]"><b className="text-[#5D36FF]">Suggested message: </b>{f.suggestion}</p>
             </div>
           ))}
           {!v.followUps.length && <None />}
@@ -96,14 +96,14 @@ export default async function Briefing() {
             <div key={i} className="border-b border-slate-100 py-2.5 last:border-0">
               <a href={p.href.startsWith("http") ? p.href : local(p.href)} target={p.href.includes("linkedin") ? "_blank" : undefined} rel="noopener noreferrer" className="text-[15px] font-semibold text-navy-950 hover:underline">{p.name}</a>
               <span className="text-[13px] text-slate-500"> · {[p.title, p.company].filter(Boolean).join(", ")} · {p.context}</span>
-              <div className="text-[13px] text-slate-700">{p.reason}</div>
+              <div className="text-[14px] text-slate-700">{p.reason}</div>
             </div>
           ))}
           {!v.people.length && <None />}
         </More>
         <More icon="calendar" title="Upcoming interviews" count={v.interviews.length}>
           {v.interviews.map((iv) => (
-            <div key={iv.href} className="border-b border-slate-100 py-2.5 text-[13px] last:border-0">
+            <div key={iv.href} className="border-b border-slate-100 py-2.5 text-[14px] last:border-0">
               <Link href={local(iv.href)} className="text-[15px] font-semibold text-navy-950 hover:underline">{iv.company} · {az(iv.at, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</Link>
               <div className="text-[13px] text-slate-500">{iv.title} · {iv.participants.join(", ")}</div>
               <Mini label="Priorities" items={iv.priorities} /><Mini label="Lead With" items={iv.accomplishments} /><Mini label="Outstanding Preparation" items={iv.prep} tone="text-amber-700" />
@@ -113,7 +113,7 @@ export default async function Briefing() {
         </More>
         <More icon="history" title="Changes to tracked jobs" count={v.changes.length}>
           {v.changes.map((c, i) => (
-            <div key={i} className="flex items-start gap-2 border-b border-slate-100 py-2.5 text-[13px] last:border-0">
+            <div key={i} className="flex items-start gap-2 border-b border-slate-100 py-2.5 text-[14px] last:border-0">
               <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[12px] font-semibold capitalize ${c.kind === "closed" ? "bg-rose-50 text-rose-700" : c.kind === "pay" ? "bg-emerald-50 text-emerald-700" : c.kind === "reposted" ? "bg-sky-50 text-sky-700" : "bg-amber-50 text-amber-700"}`}>{({ pay: "Compensation", requirements: "Requirements", closed: "Removed", reposted: "Reposted", other: "Updated" } as Record<string, string>)[c.kind] ?? c.kind}</span>
               <span className="min-w-0"><Link href={local(c.href)} className="text-[15px] font-semibold text-navy-950 hover:underline">{c.company} · {c.title}</Link><span className="block text-slate-600">{c.detail} · {md(c.at)}</span></span>
             </div>
@@ -122,7 +122,7 @@ export default async function Briefing() {
         </More>
         <More icon="news" title="Company developments" count={v.news.length}>
           {v.news.map((n, i) => (
-            <div key={i} className="border-b border-slate-100 py-2.5 text-[13px] last:border-0">
+            <div key={i} className="border-b border-slate-100 py-2.5 text-[14px] last:border-0">
               <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-[15px] font-semibold text-navy-950 hover:underline">{n.company}: {n.headline}</a>
               <div className="text-[13px] text-slate-500">{titleCase(n.kind)} · {md(n.at)} · {n.why}</div>
             </div>
@@ -130,8 +130,8 @@ export default async function Briefing() {
           {!v.news.length && <None />}
         </More>
         <More icon="trend" title="What's working" count={v.working.patterns.length || undefined}>
-          {v.working.patterns.map((p) => <p key={p} className="py-1 text-[13px] font-medium text-[#4424e6]">{p}</p>)}
-          {v.working.note && <p className="py-1 text-[13px] text-slate-500">{v.working.note}</p>}
+          {v.working.patterns.map((p) => <p key={p} className="py-1 text-[14px] font-medium text-[#4424e6]">{p}</p>)}
+          {v.working.note && <p className="py-1 text-[14px] text-slate-500">{v.working.note}</p>}
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <Table title="Resume" rows={v.working.byResume} /><Table title="Channel" rows={v.working.byChannel} />
           </div>
@@ -154,7 +154,7 @@ function OppCard({ o }: { o: Opportunity }) {
         <Logo src={o.logo} name={o.company} size={38} />
         <div className="min-w-0 flex-1">
           <Link href={local(o.href)} className="block text-[15px] font-semibold leading-snug text-navy-950 hover:underline">{o.title}</Link>
-          <div className="text-[13px] font-medium text-slate-600">{o.company}</div>
+          <div className="text-[14px] font-medium text-slate-600">{o.company}</div>
         </div>
         <ScoreBadge score={o.score} />
       </div>
@@ -164,7 +164,7 @@ function OppCard({ o }: { o: Opportunity }) {
         {o.postedAt && <span className="inline-flex items-center gap-1"><Icon name="calendar" size={13} />Posted {md(o.postedAt)}</span>}
         <span className="inline-flex items-center gap-1"><Icon name="check" size={13} />Verified {ago(o.verifiedAt)}</span>
       </div>
-      <dl className="mt-3 space-y-1.5 text-[13px]">
+      <dl className="mt-3 space-y-1.5 text-[14px]">
         <Line label="Fits" tone="text-[#5D36FF]"><ul className="space-y-0.5">{f.why.map((w) => <li key={w}>{w}</li>)}</ul></Line>
         <Line label="Blocker" tone="text-rose-700">{f.blocker}</Line>
         <Line label="Lead with" tone="text-[#A100C2]">{f.position}</Line>

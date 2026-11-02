@@ -6,7 +6,7 @@ const send = (url: string, body: unknown, method = "POST") => fetch(url, { metho
 export function AddLeader({ companyId }: { companyId: string }) {
   const r = useRouter();
   return (
-    <details className="text-sm"><summary className="cursor-pointer link text-xs">+ Add leader / hiring contact</summary>
+    <details className="text-sm"><summary className="cursor-pointer link text-[13px]">+ Add leader / hiring contact</summary>
       <form className="mt-2 space-y-1.5" onSubmit={async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.currentTarget)); await send(`/api/companies/${companyId}/leaders`, f); e.currentTarget.reset(); r.refresh(); }}>
         <input name="name" required placeholder="Name" className="input" />
         <input name="title" required placeholder="Title, e.g. Chief Revenue Officer" className="input" />

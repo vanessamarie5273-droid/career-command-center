@@ -17,7 +17,7 @@ export default function RefreshButton({ companyId, label = "Refresh job feeds" }
   return (
     <span className="inline-flex items-center gap-2">
       <button onClick={go} disabled={busy} className="btn-primary">{busy ? "Refreshing…" : label}</button>
-      {msg && <span className="text-xs text-slate-500">{msg}</span>}
+      {msg && <span className="text-[13px] text-slate-500">{msg}</span>}
     </span>
   );
 }

@@ -49,7 +49,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
       </Welcome>
 
       {found && (
-        <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} icon="search" className="mb-3" action={<Link href="/" className="text-xs link">Clear search</Link>}>
+        <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} icon="search" className="mb-3" action={<Link href="/" className="text-[13px] link">Clear search</Link>}>
           {found.length ? <ApplicationsTable apps={found} /> : <Empty>No application matches. {by === "date" ? "Only applications marked applied have a date applied." : "Try part of the name."}</Empty>}
         </Card>
       )}
@@ -90,11 +90,11 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
             return (
               <li key={s.key} className="relative">
                 <Link href={s.key === "READY_TO_APPLY" ? "/apply" : table(`stage=${s.key}`)} className={`group flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-violet-100 ${box}`}>
-                  <span className="truncate text-[13px] font-semibold text-slate-600">{s.label}</span>
+                  <span className="truncate text-[14px] font-semibold text-slate-600">{s.label}</span>
                   <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${s.count ? "text-navy-950" : "text-violet-300"}`}>{s.count}</span>
                   <span className="mt-2 flex min-h-[22px] items-center">
                     {s.logos.map((c, j) => <span key={c.name} className={`rounded-md ring-2 ring-white ${j ? "-ml-1" : ""}`} title={c.name}><Logo src={c.logoUrl} name={c.name} size={22} /></span>)}
-                    {s.count > s.logos.length && <span className="ml-1.5 text-[11px] font-medium text-slate-500">+{s.count - s.logos.length}</span>}
+                    {s.count > s.logos.length && <span className="ml-1.5 text-[12px] font-medium text-slate-500">+{s.count - s.logos.length}</span>}
                   </span>
                   <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-violet-200/60"><span className="block h-full rounded-full bg-gradient-to-r from-[#5D36FF] to-[#A100C2]" style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
                 </Link>
@@ -103,9 +103,9 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
           })}
           <li>
             <Link href={table("stage=REJECTED")} className="flex h-full flex-col rounded-lg bg-violet-50 px-3 pb-3 pt-2.5 transition hover:bg-violet-100">
-              <span className="text-[13px] font-semibold text-slate-500">Closed</span>
+              <span className="text-[14px] font-semibold text-slate-500">Closed</span>
               <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${closed.length ? "text-slate-500" : "text-slate-300"}`}>{closed.reduce((n, c) => n + c.count, 0)}</span>
-              <span className="mt-auto pt-2 text-[12px] leading-snug text-slate-500">{closed.length ? closed.map((c) => `${c.count} ${STAGE_LABEL[c.key].toLowerCase()}`).join(" · ") : "None yet"}</span>
+              <span className="mt-auto pt-2 text-[13px] leading-snug text-slate-500">{closed.length ? closed.map((c) => `${c.count} ${STAGE_LABEL[c.key].toLowerCase()}`).join(" · ") : "None yet"}</span>
             </Link>
           </li>
         </ol>
@@ -114,38 +114,37 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
   );
 }
 
-const BUCKET: Record<AgendaItem["bucket"], { label: string; dot: string }> = {
-  overdue: { label: "Overdue", dot: "bg-rose-500" },
-  today: { label: "Today", dot: "bg-amber-500" },
-  soon: { label: "This Week", dot: "bg-slate-400" },
+const BUCKET: Record<AgendaItem["bucket"] | "interview", { label: string; head: string; ring: string; dot: string }> = {
+  interview: { label: "Interviews", head: "bg-violet-50 text-violet-800", ring: "ring-violet-200", dot: "bg-violet-500" },
+  overdue: { label: "Overdue", head: "bg-rose-50 text-rose-800", ring: "ring-rose-200", dot: "bg-rose-500" },
+  today: { label: "Due Today", head: "bg-amber-50 text-amber-800", ring: "ring-amber-200", dot: "bg-amber-500" },
+  soon: { label: "This Week", head: "bg-slate-50 text-slate-700", ring: "ring-slate-200", dot: "bg-slate-400" },
 };
-const SHOW = 7;
+const SHOW = 4;
 
 function NextMoves({ items, nudges }: { items: AgendaItem[]; nudges: { id: string; company: Co; role: string; appliedAt: Date | null }[] }) {
   if (!items.length && !nudges.length) return <AllClear>Nothing due. Follow-ups show here when a next-action date arrives or an application sits 7 days without a reply.</AllClear>;
-  const talks = items.filter((x) => x.kind === "interview"), tasks = items.filter((x) => x.kind !== "interview");
-  const shown = tasks.slice(0, SHOW), rest = tasks.slice(SHOW);
-  const groups = (list: AgendaItem[]) => (["overdue", "today", "soon"] as const).map((b) => [b, list.filter((x) => x.bucket === b)] as const).filter(([, l]) => l.length);
-  const head = (label: string, dot: string, n: number) => <div className="mb-1 mt-4 flex items-center gap-2 text-[13px] font-semibold text-navy-950 first:mt-0"><span className={`h-2 w-2 rounded-full ${dot}`} />{label}<span className="rounded-full bg-slate-100 px-1.5 text-[11px] tabular-nums text-slate-500">{n}</span></div>;
-  const render = (list: AgendaItem[], heads: boolean) => groups(list).map(([b, l]) => (
-    <div key={b}>
-      {heads && head(BUCKET[b].label, BUCKET[b].dot, tasks.filter((x) => x.bucket === b).length)}
-      <ul className="space-y-0.5">{l.map((x) => <Row key={x.id} href={x.appId ? `/applications/${x.appId}${x.kind === "interview" ? "#interview" : ""}` : undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role].filter(Boolean).join(" · ")} right={<Due x={x} />} />)}</ul>
-    </div>
-  ));
+  const groups = (["interview", "overdue", "today", "soon"] as const)
+    .map((b) => [b, items.filter((x) => (b === "interview" ? x.kind === "interview" : x.kind !== "interview" && x.bucket === b))] as const)
+    .filter(([, l]) => l.length);
+  const row = (x: AgendaItem) => <Row key={x.id} href={x.appId ? `/applications/${x.appId}${x.kind === "interview" ? "#interview" : ""}` : undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role].filter(Boolean).join(" · ")} right={<Due x={x} />} />;
   return (
-    <div>
-      {talks.length > 0 && <div>{head("Interviews", "bg-violet-500", talks.length)}<ul className="space-y-0.5">{talks.map((x) => <Row key={x.id} href={`/applications/${x.appId}#interview`} company={x.company ?? undefined} title={`Interview with ${x.company?.name ?? "company"}`} sub={x.role ?? undefined} right={<Due x={x} />} />)}</ul></div>}
-      {render(shown, true)}
-      {rest.length > 0 && <More label={`Show ${rest.length} more`}>{render(rest, false)}</More>}
+    <div className="space-y-3">
+      {groups.map(([b, l]) => (
+        <section key={b} className={`overflow-hidden rounded-xl ring-1 ${BUCKET[b].ring}`}>
+          <div className={`flex items-center gap-2 px-3.5 py-2 text-[15px] font-semibold ${BUCKET[b].head}`}><span className={`h-2.5 w-2.5 rounded-full ${BUCKET[b].dot}`} />{BUCKET[b].label}<span className="ml-auto rounded-full bg-white/80 px-2 py-0.5 text-[13px] tabular-nums">{l.length}</span></div>
+          <ul className="space-y-0.5 px-3.5 py-1">{l.slice(0, SHOW).map(row)}</ul>
+          {l.length > SHOW && <div className="px-3.5 pb-2"><More label={`Show ${l.length - SHOW} more`}><ul className="space-y-0.5">{l.slice(SHOW).map(row)}</ul></More></div>}
+        </section>
+      ))}
       {nudges.length > 0 && (
-        <details className="group mt-3 rounded-xl bg-slate-50 ring-1 ring-slate-200/70 open:bg-white">
-          <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
-            <span className="flex">{nudges.slice(0, 4).map((n, j) => <span key={n.id} className={`rounded-md ring-2 ring-white ${j ? "-ml-2" : ""}`}><Logo src={n.company.logoUrl} name={n.company.name} size={24} /></span>)}</span>
-            <span className="min-w-0 flex-1"><span className="block text-[13.5px] font-medium text-navy-950">{nudges.length} application{nudges.length === 1 ? "" : "s"} with no reply after a week</span><span className="block truncate text-xs text-slate-500">{nudges.map((n) => n.company.name).join(", ")}</span></span>
-            <span className="text-xs font-medium text-navy-600 group-open:hidden">Follow up</span><span className="hidden text-xs font-medium text-navy-600 group-open:inline">Hide</span>
+        <details className="group rounded-xl bg-slate-50 ring-1 ring-slate-200/70 open:bg-white">
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
+            <span className="flex">{nudges.slice(0, 4).map((n, j) => <span key={n.id} className={`rounded-md ring-2 ring-white ${j ? "-ml-2" : ""}`}><Logo src={n.company.logoUrl} name={n.company.name} size={26} /></span>)}</span>
+            <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium text-navy-950">{nudges.length} application{nudges.length === 1 ? "" : "s"} awaiting a response after 7+ days</span><span className="block truncate text-[13px] text-slate-500">{nudges.map((n) => n.company.name).join(", ")}</span></span>
+            <span className="text-[13px] font-medium text-navy-600 group-open:hidden">Follow up</span><span className="hidden text-[13px] font-medium text-navy-600 group-open:inline">Hide</span>
           </summary>
-          <ul className="space-y-0.5 px-3 pb-2">{nudges.map((n) => <Row key={n.id} href={`/applications/${n.id}`} company={n.company} title={n.company.name} sub={n.role} right={n.appliedAt ? <Chip>applied {short(n.appliedAt)}</Chip> : undefined} />)}</ul>
+          <ul className="space-y-0.5 px-3.5 pb-2">{nudges.map((n) => <Row key={n.id} href={`/applications/${n.id}`} company={n.company} title={n.company.name} sub={n.role} right={n.appliedAt ? <Chip>Applied {short(n.appliedAt)}</Chip> : undefined} />)}</ul>
         </details>
       )}
     </div>
@@ -166,18 +165,21 @@ const STAGE_TONE: Record<string, string> = {
   ACCEPTED: "bg-emerald-50 text-emerald-700", REJECTED: "bg-rose-50 text-rose-700", WITHDRAWN: "bg-slate-100 text-slate-600",
 };
 function StagePill({ stage }: { stage: string }) {
-  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${STAGE_TONE[stage] ?? "bg-slate-100 text-slate-600"}`}>{STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage}</span>;
+  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[12px] font-semibold ${STAGE_TONE[stage] ?? "bg-slate-100 text-slate-600"}`}>{STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage}</span>;
 }
 
+const ORDER = ["READY_TO_APPLY", "APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"];
+const backward = (x: FeedItem) => Boolean(x.from && x.to && ORDER.indexOf(x.from) > ORDER.indexOf(x.to) && ORDER.includes(x.to));
+
 function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logged: { id: string; at: Date; appId: string | null; company: Co | null; label: string; from: string; subject: string; undone: boolean }[]; outlook: boolean; checked: Date | null }) {
-  if (!items.length && !logged.length) return <AllClear>No stage changes in the last two weeks.{outlook ? " Recruiter replies, interview requests, offers and rejections from your Outlook move applications for you and show here." : ""}</AllClear>;
+  if (!items.length && !logged.length) return <AllClear>No status changes in the last two weeks.{outlook ? " Recruiter replies, interview requests, offers and rejections from your Outlook move applications for you and show here." : ""}</AllClear>;
   const row = (x: FeedItem) => (
     <li key={x.id} className="flex items-center gap-2">
       <Link href={`/applications/${x.appId}`} className="row-link min-w-0 flex-1">
-        {x.company ? <Logo src={x.company.logoUrl} name={x.company.name} size={30} /> : <span className="h-[30px] w-[30px] shrink-0 rounded-md bg-slate-100" />}
+        {x.company ? <Logo src={x.company.logoUrl} name={x.company.name} size={34} /> : <span className="h-[34px] w-[34px] shrink-0 rounded-md bg-slate-100" />}
         <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[13.5px] font-medium text-navy-950">{x.company?.name ?? "Application"}</span>{x.to && <StagePill stage={x.to} />}</span>
-          <span className="block truncate text-xs text-slate-500">{x.from ? `from ${STAGE_LABEL[x.from as keyof typeof STAGE_LABEL] ?? x.from} · ` : ""}{x.via} · {ago(x.at)}</span>
+          <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[15px] font-medium text-navy-950">{x.company?.name ?? "Application"}</span>{x.to && <StagePill stage={x.to} />}</span>
+          <span className="block truncate text-[13px] text-slate-500">{[x.role, backward(x) ? `Moved back from ${STAGE_LABEL[x.from as keyof typeof STAGE_LABEL] ?? x.from}` : null, x.via, ago(x.at)].filter(Boolean).join(" · ")}</span>
         </span>
       </Link>
       {x.undoable && x.emailId && <UndoEmail id={x.emailId} />}
@@ -185,10 +187,10 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
   );
   return (
     <div>
-      {items.length ? <ul className="space-y-0.5">{items.slice(0, 6).map(row)}</ul> : <p className="text-sm text-slate-500">No stage changes in the last two weeks.</p>}
+      {items.length ? <ul className="space-y-0.5">{items.slice(0, 6).map(row)}</ul> : <p className="text-sm text-slate-500">No status changes in the last two weeks.</p>}
       {items.length > 6 && <More label={`Show ${items.length - 6} more`}><ul className="space-y-0.5">{items.slice(6).map(row)}</ul></More>}
       {logged.length > 0 && (
-        <More label={`${logged.length} other email${logged.length === 1 ? "" : "s"} logged, no change needed${checked ? ` · Outlook checked ${ago(checked)}` : ""}`} icon>
+        <More label={`${logged.length} more email${logged.length === 1 ? "" : "s"} reviewed with no status change${checked ? ` · Outlook synced ${ago(checked)}` : ""}`} icon>
           <ul className="space-y-0.5">{logged.map((e) => <Row key={e.id} href={e.appId ? `/applications/${e.appId}` : undefined} company={e.company ?? undefined} title={`${e.company?.name ?? e.from}: ${e.label}${e.undone ? " (undone)" : ""}`} sub={`“${e.subject}” · ${ago(e.at)}`} small />)}</ul>
         </More>
       )}
@@ -198,20 +200,20 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
 
 /** Card title with its count in a pill, in place of a caption on the right. */
 function Count({ n, children }: { n: number; children: ReactNode }) {
-  return <span className="flex items-center gap-2">{children}{n > 0 && <span className="rounded-full bg-navy-900 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-gold-300">{n}</span>}</span>;
+  return <span className="flex items-center gap-2">{children}{n > 0 && <span className="rounded-full bg-navy-900 px-2 py-0.5 text-[12.5px] font-semibold tabular-nums text-gold-300">{n}</span>}</span>;
 }
 
 function short(d: Date) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: TZ }); }
 
 function Chip({ children, tone = "slate" }: { children: ReactNode; tone?: "slate" | "rose" | "amber" | "violet" }) {
   const c = { violet: "bg-violet-50 text-violet-700 ring-1 ring-violet-600/15", slate: "bg-slate-100 text-slate-600", rose: "bg-rose-50 text-rose-700 ring-1 ring-rose-600/15", amber: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20" }[tone];
-  return <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${c}`}>{children}</span>;
+  return <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-medium tabular-nums ${c}`}>{children}</span>;
 }
 
 function More({ label, children, icon }: { label: string; children: ReactNode; icon?: boolean }) {
   return (
     <details className="group mt-2">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1 text-xs font-medium text-navy-600 hover:text-navy-800 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1 text-[13px] font-medium text-navy-600 hover:text-navy-800 [&::-webkit-details-marker]:hidden">
         {icon && <Icon name="mail" size={13} className="text-slate-400" />}{label}
         <svg className="transition group-open:rotate-180" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
       </summary>
@@ -226,8 +228,8 @@ function AllClear({ children }: { children: ReactNode }) {
 
 /** One application in a dashboard list: logo, a main line, a quiet second line, and an optional chip on the right. */
 function Row({ href, company, title, sub, right, small }: { href?: string; company?: Co; title: string; sub?: string; right?: ReactNode; small?: boolean }) {
-  const size = small ? 24 : 30;
-  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`block truncate font-medium text-navy-950 ${small ? "text-[12.5px]" : "text-[13.5px]"}`}>{title}</span>{sub && <span className="block truncate text-xs text-slate-500">{sub}</span>}</span>{right}</>;
+  const size = small ? 26 : 34;
+  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`block truncate font-medium text-navy-950 ${small ? "text-[13.5px]" : "text-[15px]"}`}>{title}</span>{sub && <span className="block truncate text-[13px] text-slate-500">{sub}</span>}</span>{right}</>;
   return <li>{href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>}</li>;
 }
 
@@ -251,7 +253,7 @@ function Welcome({ children }: { children: ReactNode }) {
 function Stat({ label, value, href, icon }: { label: string; value: ReactNode; href: string; icon: IconName }) {
   return (
     <Link href={href} className="block rounded-xl bg-white/[0.12] px-3.5 py-2.5 ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
-      <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-white/80"><Icon name={icon} size={14} className="text-violet-200" />{label}</span>
+      <span className="flex items-center gap-1.5 text-[13.5px] font-medium text-white/80"><Icon name={icon} size={14} className="text-violet-200" />{label}</span>
       <span className="mt-0.5 block text-[26px] font-semibold leading-tight tabular-nums">{value}</span>
     </Link>
   );
