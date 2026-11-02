@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import type { Job, PrismaClient } from "@prisma/client";
 import { buildBriefing, briefingHtml } from "@/lib/briefing";
-import { fitChecks, ruleFit } from "@/lib/briefingFit";
+import { executive, fitChecks, ruleFit } from "@/lib/briefingFit";
 import { jobChanges } from "@/lib/ingest/run";
 import { testDb, makeCompany } from "./setup-db";
 
@@ -19,6 +19,13 @@ describe("job change tracking", () => {
 });
 
 describe("fit assessment rules", () => {
+  it("restates terse scoring reasons in executive language", () => {
+    expect(executive("Matches your experience in: cloud ai, complex sales, sled")).toBe("Aligns with your cloud AI, complex sales and SLED track record");
+    expect(executive("Published OTE up to $350K")).toBe("Published compensation of up to $350K OTE");
+    const travel = asJob({ travelNotes: "Travel up to 40% within territory" });
+    expect(fitChecks(travel, "").blockers[0].text).toBe("Travel up to 40% within territory");
+  });
+
   it("treats a clearance as a pass and a residency limit as something to check", () => {
     const cleared = asJob({ requiresClearance: true });
     expect(ruleFit(cleared, fitChecks(cleared, ""), { connections: 0, minScore: 80 }).action).toBe("Pass");
@@ -84,7 +91,7 @@ describe("daily briefing", () => {
 
     const w = v.progress.waiting.find((p) => p.href.endsWith(waiting.id))!;
     expect(w).toMatchObject({ days: 20, confirmed: false });
-    expect(w.basis).toMatch(/^Assumed/);
+    expect(w.basis).toMatch(/^Unconfirmed/);
     const m = v.progress.moved.find((p) => p.href.endsWith(moved.id))!;
     expect(m).toMatchObject({ confirmed: true, status: "Applied → Recruiter Contact" });
     expect(m.basis).toMatch(/Dana Lee/);
