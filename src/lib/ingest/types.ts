@@ -1,4 +1,4 @@
-export type Provider = "GREENHOUSE" | "LEVER" | "ASHBY" | "SMARTRECRUITERS" | "WORKDAY" | "WORKABLE" | "AMAZON" | "ORACLE";
+export type Provider = "GREENHOUSE" | "LEVER" | "ASHBY" | "SMARTRECRUITERS" | "WORKDAY" | "WORKABLE" | "AMAZON" | "ORACLE" | "GOOGLE_JOBS";
 
 export type RawPosting = {
   provider: Provider;
