@@ -5,6 +5,7 @@ import { jobFingerprint, contentHash } from "../dedupe";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
 import type { FetchLike, RawPosting } from "./types";
+import { range } from "../format";
 
 export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
@@ -55,6 +56,29 @@ export function applyScore(data: ReturnType<typeof buildJobData>, company: Compa
   return { score: s.score, scoreBreakdown: s.breakdown, scoreReasons: s.reasons, confidence: s.confidence, tier: s.tier, category: s.category, excludedReason: s.excludedReason ?? null };
 }
 
+type Comparable = { title: string; location: string | null; salaryMin: number | null; salaryMax: number | null; oteMin: number | null; oteMax: number | null; requiredQuals: string | null; preferredQuals: string | null; travelNotes: string | null; requiresClearance: boolean };
+const pay = (j: Pick<Comparable, "salaryMin" | "salaryMax" | "oteMin" | "oteMax">) => {
+  const ote = range(j.oteMin, j.oteMax), base = range(j.salaryMin, j.salaryMax);
+  return ote ? `${ote} OTE` : base;
+};
+const squash = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** What a re-fetch changed that she would care about, in plain words, for the briefing's "changes to tracked jobs". */
+export function jobChanges(old: Comparable, next: Comparable): string[] {
+  const out: string[] = [];
+  const a = pay(old), b = pay(next);
+  if (!a && b) out.push(`Pay now published: ${b}`);
+  else if (a && b && a !== b) out.push(`Pay changed: ${a} → ${b}`);
+  else if (a && !b) out.push("Pay range removed from the posting");
+  if (squash(old.requiredQuals) !== squash(next.requiredQuals) && (old.requiredQuals || next.requiredQuals)) out.push("Required qualifications revised");
+  if (squash(old.preferredQuals) !== squash(next.preferredQuals) && (old.preferredQuals || next.preferredQuals)) out.push("Preferred qualifications revised");
+  if (squash(old.title) !== squash(next.title)) out.push(`Title changed: ${old.title} → ${next.title}`);
+  if (squash(old.location) !== squash(next.location)) out.push(`Location changed: ${old.location ?? "none"} → ${next.location ?? "none"}`);
+  if (squash(old.travelNotes) !== squash(next.travelNotes) && next.travelNotes) out.push(`Travel now listed: ${next.travelNotes.slice(0, 80)}`);
+  if (!old.requiresClearance && next.requiresClearance) out.push("Now requires a security clearance");
+  return out;
+}
+
 /** Persist one posting with cross-source deduplication. Returns what happened. */
 export async function upsertPosting(db: PrismaClient, company: Company, p: RawPosting, now: Date): Promise<"created" | "updated" | "verified"> {
   const data = buildJobData(company, p);
@@ -76,8 +100,10 @@ export async function upsertPosting(db: PrismaClient, company: Company, p: RawPo
   await db.job.update({ where: { id: job.id }, data: { ...rest, ...scored, status: "OPEN", closedAt: null, lastVerifiedAt: now } });
   if (existingSource) await db.jobSource.update({ where: { id: existingSource.id }, data: { lastSeenAt: now, url: p.applyUrl } });
   else await db.jobSource.create({ data: { jobId: job.id, provider: p.provider, externalId: p.externalId, url: p.applyUrl, firstSeenAt: now, lastSeenAt: now } });
-  await db.jobEvent.create({ data: { jobId: job.id, kind: reopened ? "reopened" : changed ? "updated" : "verified", detail: existingSource ? undefined : `Merged duplicate from ${p.provider}`, at: now } });
-  return changed || reopened ? "updated" : "verified";
+  const diffs = jobChanges(job, data);
+  const detail = [reopened ? "Reposted after being taken down" : null, ...diffs, existingSource ? null : `Merged duplicate from ${p.provider}`].filter(Boolean).join("; ") || undefined;
+  await db.jobEvent.create({ data: { jobId: job.id, kind: reopened ? "reopened" : changed || diffs.length ? "updated" : "verified", detail, at: now } });
+  return changed || reopened || diffs.length ? "updated" : "verified";
 }
 
 /** Close jobs from this company/provider not seen in a successful fetch. Never called after a failed fetch. */

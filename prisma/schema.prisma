@@ -233,6 +233,8 @@ model Job {
   dismissReason     String?    // "not_fit" or "duplicate"
   favorite          Boolean    @default(false)
   alertedAt         DateTime?  // when she was told about it (instant alert or morning briefing)
+  fitBrief          Json?      // briefing assessment: { why[2], blocker, position, action, source }
+  fitBriefAt        DateTime?
 
   sources           JobSource[]
   events            JobEvent[]
