@@ -4,6 +4,11 @@ export const STAGE_ORDER: Stage[] = ["RESEARCHING", "PRIORITIZED", "RESUME_PREP"
 const TERMINAL: Stage[] = ["ACCEPTED", "REJECTED", "WITHDRAWN"];
 const POST_APPLY: Stage[] = ["APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"];
 
+/** Most recent first, oldest last: by the date she applied, or the date she saved it if she has not applied yet. */
+export function newestFirst<T extends { appliedAt: Date | null; createdAt: Date }>(apps: T[]) {
+  return [...apps].sort((a, b) => (b.appliedAt ?? b.createdAt).getTime() - (a.appliedAt ?? a.createdAt).getTime());
+}
+
 export type TransitionResult = { ok: true; patch: Prisma.ApplicationUpdateInput } | { ok: false; error: string };
 
 /**

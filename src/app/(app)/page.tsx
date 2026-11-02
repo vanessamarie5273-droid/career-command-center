@@ -23,7 +23,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   const search = applicationSearch(by, q);
   const [d, found, inbox, mail] = await Promise.all([
     pipelineDashboard(prisma),
-    search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: "desc" }, { updatedAt: "desc" }], take: 50 }) : null,
+    search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 50 }) : null,
     prisma.emailEvent.findMany({ where: { receivedAt: { gte: new Date(Date.now() - 14 * 86400_000) } }, orderBy: { receivedAt: "desc" }, take: 30 }),
     prisma.mailAccount.findUnique({ where: { id: "outlook" }, select: { lastSyncAt: true } }),
   ]);
