@@ -5,9 +5,11 @@ import { runIngestion, rescoreAll } from "../src/lib/ingest/run";
 import { generateAndSendBriefing } from "../src/lib/briefing";
 import { syncMailbox } from "../src/lib/mail/sync";
 import { seed } from "./seed";
+import { relinkContacts } from "../src/lib/network";
 const db = new PrismaClient();
 (async () => {
   await seed(db); // picks up companies added to the seed list in new releases
+  console.log(`Network: ${await relinkContacts(db)} connections relinked to tracked companies`);
   const r = await runIngestion(db, { trigger: "cron" });
   console.log(`Ingestion ${r.status}: ${r.created} new, ${r.updated} updated, ${r.closed} closed, ${r.errors} errors across ${r.companies} companies`);
   await rescoreAll(db);

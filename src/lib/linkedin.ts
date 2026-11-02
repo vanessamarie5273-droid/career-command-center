@@ -46,10 +46,38 @@ export function parseConnections(text: string): ConnectionRow[] {
   })).filter((c) => c.firstName);
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/\b(inc|llc|corp|corporation|co|ltd|technologies|technology|software|systems|the)\b|[^a-z0-9]/g, "");
+const STOP = /\b(inc|llc|l\.?l\.?c|corp|corporation|co|ltd|limited|plc|gmbh|ag|sa|technologies|technology|software|systems|solutions|the)\b/g;
+const tokens = (s: string) => s.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/&/g, " and ").replace(STOP, " ").split(/[^a-z0-9]+/).filter(Boolean);
+const norm = (s: string) => tokens(s).join("");
+// Words a target company's name can carry beyond what a connection wrote ("Amazon" works at "Amazon Web Services").
+const DIVISION = new Set(["cloud", "web", "services", "aws", "ai", "labs", "platform", "platforms", "group", "holdings", "global", "international", "america", "americas", "north", "us", "usa", "inc"]);
+
+/** Matches a connection's employer to a tracked company by whole words, so "VantagePoint" is not "Vanta" and "Axonius" is not "Axon". */
 export function matchCompany(name: string | null, companies: { id: string; name: string }[]) {
   if (!name) return null;
-  const n = norm(name);
-  if (!n) return null;
-  return companies.find((c) => norm(c.name) === n) ?? companies.find((c) => norm(c.name).length >= 4 && (n.startsWith(norm(c.name)) || norm(c.name).startsWith(n))) ?? null;
+  const n = tokens(name);
+  if (!n.join("") || n.join("").length < 2) return null;
+  const exact = companies.find((c) => norm(c.name) === n.join(""));
+  if (exact) return exact;
+  return companies.find((c) => {
+    const t = tokens(c.name);
+    if (!t.length || t.join("").length < 3) return false;
+    // The connection names a division of the company: "Workday VNDLY", "Salesforce Japan".
+    if (t.length < n.length && t.every((w, i) => n[i] === w)) return true;
+    // The connection names the parent and the tracked company only adds a division word: "Google" for "Google Cloud".
+    return n.length < t.length && n.every((w, i) => t[i] === w) && n.join("").length >= 4 && t.slice(n.length).every((w) => DIVISION.has(w));
+  }) ?? null;
 }
+
+// The matcher used by imports before 2026-11-02. It joined words before comparing, so it linked
+// "VantagePoint" to Vanta and "e&" to Euna. Kept only to tell an import's link from one she set by hand.
+const legacyNorm = (s: string) => s.toLowerCase().replace(/\b(inc|llc|corp|corporation|co|ltd|technologies|technology|software|systems|the)\b|[^a-z0-9]/g, "");
+export function legacyMatchCompany(name: string | null, companies: { id: string; name: string }[]) {
+  if (!name) return null;
+  const n = legacyNorm(name);
+  if (!n) return null;
+  return companies.find((c) => legacyNorm(c.name) === n) ?? companies.find((c) => legacyNorm(c.name).length >= 4 && (n.startsWith(legacyNorm(c.name)) || legacyNorm(c.name).startsWith(n))) ?? null;
+}
+
+/** Same employer, however LinkedIn members spelled it: groups "Coupa" with "Coupa Software". */
+export const companyKey = (name: string | null | undefined) => (name ? norm(name) : "");

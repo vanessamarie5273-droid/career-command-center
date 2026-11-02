@@ -2,6 +2,7 @@ import { z } from "zod";
 import { route } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { ingestCompany } from "@/lib/ingest/run";
+import { relinkContacts } from "@/lib/network";
 
 // Expand the universe: add a company, then immediately try to discover its public job board.
 export const POST = route("EDITOR", async (req, _c, u) => {
@@ -15,6 +16,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
     profileFactType: "CONFIRMED", profileSource: "Entered by you", profileVerifiedAt: new Date(), atsHints: b.atsHint ? [b.atsHint] : [], addedBy: "user",
   } });
   await prisma.auditLog.create({ data: { userId: u.sub, entity: "Company", entityId: c.id, action: "create", changes: b } });
+  await relinkContacts(prisma); // her LinkedIn connections who already work there show up on the account and in My Network
   const outcome = await ingestCompany(prisma, c).catch((e: Error) => ({ status: "error", error: e.message }));
   return { id: c.id, feed: outcome };
 });

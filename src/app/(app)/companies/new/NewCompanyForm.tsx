@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function NewCompanyForm({ categories }: { categories: string[] }) {
+export default function NewCompanyForm({ categories, name }: { categories: string[]; name?: string }) {
   const r = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export default function NewCompanyForm({ categories }: { categories: string[] })
   }
   return (
     <form onSubmit={submit} className="grid md:grid-cols-2 gap-3 max-w-3xl">
-      <div><label className="label">Name</label><input name="name" required className="input" /></div>
+      <div><label className="label">Name</label><input name="name" required defaultValue={name} className="input" /></div>
       <div><label className="label">Website</label><input name="website" type="url" required placeholder="https://" className="input" /></div>
       <div><label className="label">Industry</label><select name="category" className="input">{categories.map((c) => <option key={c}>{c}</option>)}</select></div>
       <div><label className="label">Headquarters</label><input name="headquarters" className="input" /></div>
