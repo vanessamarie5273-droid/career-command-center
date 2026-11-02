@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, StatusDot } from "@/components/ui";
 import RefreshButton from "@/components/RefreshButton";
+import AutoRefresh from "@/components/AutoRefresh";
+import { activeRun } from "@/lib/ingest/run";
 import { ago, titleCase } from "@/lib/format";
 import JobsTable from "@/components/JobsTable";
 import SavedFilters from "@/components/SavedFilters";
@@ -24,17 +26,18 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     prisma.job.count({ where }),
     prisma.job.findMany({ where, orderBy: jobOrder(p), skip: (page - 1) * PER, take: PER, include: JOB_ROW_INCLUDE }),
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.ingestionRun.findFirst({ orderBy: { startedAt: "desc" } }),
+    prisma.ingestionRun.findFirst({ where: { finishedAt: { not: null } }, orderBy: { startedAt: "desc" } }),
   ]);
+  const active = await activeRun(prisma);
   const qs = (o: Partial<JobParams>) => { const u = new URLSearchParams(Object.entries({ ...p, ...o }).filter(([, v]) => v) as [string, string][]); return `/jobs?${u}`; };
   const rows = jobs.map(toRow);
   // Feed Check on the plain feed: where the other open roles went. It opens by itself when the feed is short.
-  const health = cap && !p.view && !p.q?.trim() && !p.family ? await feedHealth(prisma, total, cap.hidden) : null;
+  const health = cap && !p.view && !p.q?.trim() && !p.family ? await feedHealth(prisma, total, cap.hidden, where) : null;
   const ON = "bg-white text-[#5D36FF] font-semibold shadow-sm", OFF = "bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25";
 
   return (
     <>
-      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} /><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
+      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active?.startedAt ?? null} /><RefreshButton /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <Link href="/jobs" className={`chip px-3 py-1 text-[13px] ${!p.view && !p.category ? ON : OFF}`}>Your Feed</Link>
         {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 text-[13px] ${p.view === k ? ON : OFF}`}>{titleCase(r.short)}</Link>)}
@@ -43,7 +46,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <Link href="/jobs?category=DUPLICATE" className={`chip px-3 py-1 text-[13px] ${p.category === "DUPLICATE" ? ON : OFF}`}>Duplicates</Link>
         <Link href="/jobs?status=CLOSED&category=ALL" className={`chip px-3 py-1 text-[13px] ${p.status === "CLOSED" ? ON : OFF}`}>Closed</Link>
       </div>
-      <form className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-9 gap-2 items-center" action="/jobs">
+      <form className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-10 gap-2 items-center" action="/jobs">
         {p.view && <input type="hidden" name="view" value={p.view} />}
         {p.category && <input type="hidden" name="category" value={p.category} />}
         {p.status && <input type="hidden" name="status" value={p.status} />}
@@ -54,6 +57,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div><select name="family" aria-label="Role type" defaultValue={p.family ?? ""} className="input"><option value="">All role types</option>{Object.entries(FAMILY_LABEL).filter(([k]) => !["NOT_RELEVANT", "SDR_IC"].includes(k)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
         <div><select name="minComp" aria-label="Minimum published pay" defaultValue={p.minComp ?? ""} className="input"><option value="">Any pay</option>{[150000, 200000, 250000, 300000, 350000].map((n) => <option key={n} value={n}>${n / 1000}K+</option>)}</select></div>
         <div><select name="sort" aria-label="Sort" defaultValue={p.sort ?? ""} className="input"><option value="">Most recent</option><option value="score">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="company">Company</option><option value="location">Location</option></select></div>
+        <div><select name="posted" aria-label="Date posted" defaultValue={p.posted ?? ""} className="input"><option value="">Posted any time</option><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option></select></div>
         <div className="flex gap-3 items-center text-sm text-white"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1" title="Roles in the Phoenix metro, plus remote U.S. roles"><input type="checkbox" name="near" value="phx" defaultChecked={p.near === "phx"} />Phoenix area</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
       </form>
       </PageHeader>
@@ -73,11 +77,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   );
 }
 
-/** Feed health as one small pill in the banner: a status dot and how long ago the feeds were read. */
-function FeedStatus({ run }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null }) {
-  const text = !run ? "Never refreshed" : run.finishedAt ? ago(run.finishedAt) : "Refreshing…";
-  const title = run?.finishedAt ? `Last refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
-  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={run?.status} />{text}</span>;
+/** Feed health as one small pill in the banner: a status dot and how long ago the feeds were read, or that a refresh is running now. */
+function FeedStatus({ run, active }: { run: { status: string; finishedAt: Date | null; created: number; closed: number; errors: number } | null; active: Date | null }) {
+  const text = active ? `Refreshing… started ${ago(active)}` : !run ? "Never refreshed" : `Refreshed ${ago(run.finishedAt!)}`;
+  const title = run?.finishedAt ? `Last finished refresh ${ago(run.finishedAt)}: ${run.status}, ${run.created} new, ${run.closed} closed, ${run.errors} feed errors` : undefined;
+  return <span title={title} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm"><StatusDot status={active ? "degraded" : run?.status} />{text}{active && <AutoRefresh />}</span>;
 }
 
 /** Where every open role went, counted once each, with a one-line verdict: broken refresh, or quiet market plus her own filters. */
@@ -85,7 +89,7 @@ function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showA
   const v = feedVerdict(h);
   const items: [string, number, string][] = [
     ["In your feed", h.inFeed, "/jobs"],
-    ["New this week", h.foundThisWeek, "/jobs?sort=new"],
+    ["Posted this week", h.postedThisWeek, "/jobs?posted=7"],
     ["Posted over 30 days ago", h.aged, "/jobs?category=EXCLUDED"],
     ["Outside your location rules", h.location, "/jobs?category=EXCLUDED"],
     ["Other screen-outs", h.otherScreened, "/jobs?category=EXCLUDED"],
@@ -107,7 +111,7 @@ function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showA
         ))}
       </div>
       <p className="mt-2 text-[13px] text-slate-500">
-        Job boards: {h.feedsOk} reading fine, <Link className="link" href="/settings">{h.feedsFailed} failing</Link>, {h.noFeed} with no public job feed, out of {h.companies} companies. {h.foundToday} new matching role{h.foundToday === 1 ? "" : "s"} in the last 24 hours.
+        Job boards: {h.feedsOk} reading fine, <Link className="link" href="/settings">{h.feedsFailed} failing</Link>, {h.noFeed} with no public job feed, out of {h.companies} companies. <Link className="link" href="/jobs?posted=1">{h.postedToday} posted in the last 24 hours</Link>.
       </p>
     </details>
   );

@@ -3,6 +3,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { companyCap } from "./companyCap";
 import { FEED_CATEGORIES, NOT_APPLIED } from "./queries";
+import { postedWithin } from "./jobFilters";
 import { effectiveScore, type Reason } from "./scoring";
 import { alertAddress, deliver } from "./notify";
 import type { Fetch } from "./mail/outlook";
@@ -10,11 +11,13 @@ import type { Fetch } from "./mail/outlook";
 const HOUR = 3600_000;
 /** Only roles found recently: a role that waited longer than this is in the morning briefing instead. */
 const WINDOW_HOURS = 30;
+/** "New" means newly posted: a role posted weeks ago that the app only just found (a new board, a new source) is not news. */
+export const NEW_POSTING_DAYS = 3;
 
 export async function instantAlertJobs(db: PrismaClient, minScore: number, now = new Date()) {
   const cap = await companyCap(db);
   const jobs = await db.job.findMany({
-    where: { id: { in: cap.ids }, alertedAt: null, status: "OPEN", dismissed: false, category: { in: FEED_CATEGORIES }, firstSeenAt: { gte: new Date(now.getTime() - WINDOW_HOURS * HOUR) }, ...NOT_APPLIED },
+    where: { id: { in: cap.ids }, alertedAt: null, status: "OPEN", dismissed: false, category: { in: FEED_CATEGORIES }, firstSeenAt: { gte: new Date(now.getTime() - WINDOW_HOURS * HOUR) }, ...NOT_APPLIED, AND: [postedWithin(NEW_POSTING_DAYS, now)] },
     include: { company: true }, orderBy: { score: "desc" },
   });
   return jobs.filter((j) => (effectiveScore(j) ?? 0) >= minScore);

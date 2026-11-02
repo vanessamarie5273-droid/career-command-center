@@ -146,6 +146,10 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
         await db.company.update({ where: { id: company.id }, data: { atsStatus: "unsupported", atsCheckedAt: new Date(), atsError: "Careers site has no public job API; monitored via direct careers link" } });
         return { ...out, status: "unsupported" };
       }
+      // A company with no public board was probed recently: don't spend 15 lookups on it every hour.
+      if (company.atsStatus === "not_found" && company.atsCheckedAt && runStart.getTime() - company.atsCheckedAt.getTime() < REPROBE_DAYS * 86400_000) {
+        return { ...out, status: "not_found" };
+      }
       const d = await discoverBoard(company.slug, company.name, company.atsHints, f);
       if (!d.provider || !d.result) {
         // Employers found through Google Jobs are looked up once; without a public board they stay on Google results.
@@ -186,9 +190,29 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
   return results;
 }
 
+/** Companies without a public job board are looked up again after this many days. */
+export const REPROBE_DAYS = 3;
+/** A refresh still "running" after this long was cut off (a deploy or restart stopped the process). */
+export const STALE_RUN_MINUTES = 90;
+
+/** The full refresh in progress, if any. Older unfinished runs are marked interrupted so they stop showing as "Refreshing". */
+export async function activeRun(db: PrismaClient, now = new Date()) {
+  const cutoff = new Date(now.getTime() - STALE_RUN_MINUTES * 60_000);
+  await db.ingestionRun.updateMany({ where: { status: "running", finishedAt: null, startedAt: { lt: cutoff } }, data: { status: "interrupted" } });
+  return db.ingestionRun.findFirst({ where: { status: "running", finishedAt: null, startedAt: { gte: cutoff }, trigger: { not: "manual:company" } }, orderBy: { startedAt: "desc" } });
+}
+
 export async function runIngestion(db: PrismaClient, opts: { trigger: string; companyIds?: string[]; fetchImpl?: FetchLike } = { trigger: "manual" }) {
+  // One full refresh at a time: the hourly job, the morning job and the button used to pile up on each other.
+  if (!opts.companyIds) {
+    const busy = await activeRun(db);
+    if (busy) return { runId: busy.id, status: "skipped" as const, fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, errors: 0, companies: 0, outcomes: [] as CompanyOutcome[], googleJobs: null };
+  }
   const run = await db.ingestionRun.create({ data: { trigger: opts.trigger } });
-  const companies = await db.company.findMany({ where: opts.companyIds ? { id: { in: opts.companyIds } } : {} });
+  // Boards that were read longest ago go first, so a refresh that gets cut off still moves every board forward over time.
+  // Companies with no known board (lookups only) go last.
+  const companies = (await db.company.findMany({ where: opts.companyIds ? { id: { in: opts.companyIds } } : {}, orderBy: { lastIngestedAt: { sort: "asc", nulls: "first" } } }))
+    .sort((a, b) => Number(a.atsProvider === "NONE") - Number(b.atsProvider === "NONE"));
   const before = new Set((await db.job.findMany({ where: { status: "OPEN" }, select: { id: true } })).map((j) => j.id));
   // Two boards at a time: the refresh runs inside the web server, which has little memory to spare.
   const outcomes = await pool(companies, 2, (c) => ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt));

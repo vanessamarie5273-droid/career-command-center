@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { tierWhere, NOT_A_FIT, DUPLICATE, FEED_CATEGORIES, IN_DISCOVER } from "./queries";
 
-export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; near?: string; status?: string; view?: string; all?: string };
+export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; near?: string; posted?: string; status?: string; view?: string; all?: string };
 
 export const RANKINGS: Record<string, { label: string; short: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
   best: { short: "Best now", label: "Best immediately available jobs", where: {}, orderBy: [{ score: "desc" }] },
@@ -16,6 +16,13 @@ export const RANKINGS: Record<string, { label: string; short: string; where: Pri
 
 // Place names that only match the Phoenix metro (bare "Mesa" or "Glendale" would also match California).
 const PHX_TERMS = ["Phoenix", "Scottsdale", "Tempe", "Chandler", "Gilbert", ", AZ", "Arizona"];
+
+/** Posted in the last `days` days: by the employer's posted date, or the date first found when the board gives none. */
+export function postedWithin(days: number, now = new Date()): Prisma.JobWhereInput {
+  const since = new Date(now.getTime() - days * 86400_000);
+  return { OR: [{ postedAt: { gte: since } }, { postedAt: null, firstSeenAt: { gte: since } }] };
+}
+export const POSTED_DAYS = ["1", "3", "7", "14"];
 
 /** Whether the 3-per-company limit applies: the main feeds, not history, the screened-out lists, or a search or role-type filter (those show every match). */
 export function capApplies(p: JobParams) {
@@ -49,6 +56,7 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   if (p.remote === "1") and.push({ isRemote: true });
   // Phoenix area: roles based in the metro, plus remote U.S. roles she can take from home.
   if (p.near === "phx") and.push({ OR: [...PHX_TERMS.map((t) => ({ location: { contains: t, mode: "insensitive" as const } })), { isRemote: true }] });
+  if (p.posted && POSTED_DAYS.includes(p.posted)) and.push(postedWithin(Number(p.posted)));
   if (p.fav === "1") and.push({ favorite: true });
   if (p.family) and.push({ roleFamily: p.family });
   if (p.minScore) and.push({ score: { gte: Number(p.minScore) || 0 } });
