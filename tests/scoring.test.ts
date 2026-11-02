@@ -104,13 +104,33 @@ describe("normalisation", () => {
         expect(r.excludedReason, loc).toMatch(/East Coast/);
       }
     });
-    it("keeps East Coast roles that are open to remote", () => {
-      expect(sae("Remote - New York", { isRemote: true }).category).toBe("MAIN");
+    it("keeps East Coast roles only when they are open to remote anywhere in the U.S.", () => {
       expect(sae("New York, NY or Remote (US)", { isRemote: true }).category).toBe("MAIN");
+      expect(sae("Remote - US", { isRemote: true }).category).toBe("MAIN");
+    });
+    it("excludes remote roles tied to an East Coast city or territory", () => {
+      const rsd = (title: string, location: string | null) => scoreJob({ title, descriptionText: desc, location, isRemote: true, company: strong });
+      for (const [title, loc] of [
+        ["Regional Sales Director, Financial Services - NYC", "Remote"],
+        ["Regional Sales Director, Financial Services - NYC", null],
+        ["Enterprise Account Executive, Northeast", "Remote - US"],
+        ["Strategic Account Executive - East", "United States (Remote)"],
+        ["Enterprise Account Executive, Boston", "Remote"],
+        ["Strategic Account Executive", "Remote - New York"],
+        ["Strategic Account Executive", "Atlanta, GA (Remote)"],
+      ] as const) {
+        const r = rsd(title, loc);
+        expect(r.category, `${title} / ${loc}`).toBe("EXCLUDED");
+        expect(r.excludedReason, title).toMatch(/East Coast/);
+      }
+      expect(rsd("Enterprise Account Executive, West", "Remote - US").category).toBe("MAIN");
+      expect(rsd("Strategic Account Executive, Middle East", "Remote - US").excludedReason ?? "").not.toMatch(/East Coast/);
     });
     it("excludes remote roles that require living on the East Coast", () => {
       expect(sae("Remote - East Coast", { isRemote: true }).category).toBe("EXCLUDED");
       expect(sae("Remote - US", { isRemote: true, descriptionText: desc + " Candidates must reside on the East Coast." }).category).toBe("EXCLUDED");
+      expect(sae("Remote - US", { isRemote: true, descriptionText: desc + " You will work Eastern Time hours." }).category).toBe("EXCLUDED");
+      expect(sae("Remote - US", { isRemote: true, descriptionText: desc + " Must be in EST." }).category).toBe("EXCLUDED");
     });
     it("leaves West, Southwest and multi-region roles alone", () => {
       expect(sae("Phoenix, AZ").category).toBe("MAIN");

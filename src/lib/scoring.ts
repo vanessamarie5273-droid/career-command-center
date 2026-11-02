@@ -13,13 +13,27 @@ export const MAX_AGE_DAYS = 30;
 const EAST_COAST = ["ME", "NH", "VT", "MA", "RI", "CT", "NY", "NJ", "PA", "DE", "MD", "DC", "VA", "NC", "SC", "GA", "FL"];
 const EAST_REQUIRED = /\b(reside|live|located|based|residing|living)\s+(in|on|within)\s+(the\s+)?(east coast|eastern (time zone|us|united states|region)|est\b|et time zone)/i;
 
-/** "listed" when the posting's locations are all on the East Coast; "required" when it says you must live there. */
-export function eastCoastOnly(location: string | null | undefined, states: string[], text = ""): "listed" | "required" | null {
+/** East Coast cities, regions and territories that tie a role to the East even when it says remote ("Financial Services - NYC", "AE, Northeast"). */
+const EAST_PLACE = /\b(nyc|new york|manhattan|brooklyn|boston|washington,?\s*d\.?c\.?|d\.c\.|atlanta|philadelphia|philly|pittsburgh|baltimore|miami|tampa|orlando|jacksonville|charlotte|raleigh|richmond|new jersey|connecticut|new england|tri-state|north ?east|mid[- ]atlantic|south ?east|east coast|eastern(?! europe)|(?<!middle |far )east)\b/i;
+/** Working Eastern hours or living in Eastern time. */
+const EAST_HOURS = /\b(?:eastern(?: standard)? time|est|edt|et)(?: zone)? (?:business |working |work |office )?hours\b|\bmust (?:be|work|reside|live) (?:in|on|within) (?:the )?(?:eastern|est|et)\b/i;
+/** A location that is plainly open to anyone in the U.S. ("New York, NY or Remote (US)"). */
+const US_WIDE = /remote\s*[-–(,:]?\s*\(?\s*(?:us|u\.s\.?|usa|united states)\b|\bnationwide\b|\banywhere in the (?:us|u\.s\.?|united states)\b/i;
+
+/**
+ * How a posting is tied to the East Coast, or null when it is not:
+ * "listed": its locations are all on the East Coast;
+ * "required": it says you must live there or work Eastern hours;
+ * "territory": the title names an East Coast city or territory, or a remote role lists only East Coast places.
+ */
+export function eastCoastOnly(location: string | null | undefined, states: string[], text = "", title = ""): "listed" | "required" | "territory" | null {
   const l = (location || "").toLowerCase();
-  if (EAST_REQUIRED.test(text) || /east coast only|must be (in|on) (the )?east coast/i.test(`${l} ${text}`)) return "required";
+  if (EAST_REQUIRED.test(text) || EAST_HOURS.test(text) || /east coast only|must be (in|on) (the )?east coast/i.test(`${l} ${text}`)) return "required";
+  if (EAST_PLACE.test(title) && !states.some((s) => WEST_OK.includes(s))) return "territory";
   if (/\beast coast\b|\beastern (time|region|us)\b|\bnortheast\b|\bmid-atlantic\b|\bsoutheast\b/.test(l)) return /remote/.test(l) ? "required" : "listed";
   const st = /washington,?\s*d\.?c/.test(l) ? [...states.filter((s) => s !== "WA"), "DC"] : states;
-  return st.length > 0 && st.every((s) => EAST_COAST.includes(s)) ? "listed" : null;
+  if (st.length > 0 && st.every((s) => EAST_COAST.includes(s))) return US_WIDE.test(l) ? "listed" : "territory";
+  return null;
 }
 
 export const WEIGHTS = {
@@ -156,11 +170,13 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
   let eastReason: string | undefined;
   let category: ScoreResult["category"] = "MAIN";
   if (j.location) known++;
-  const east = eastCoastOnly(j.location, loc.states, text);
+  const east = eastCoastOnly(j.location, loc.states, text, j.title);
   if (east && !loc.azMetro) {
-    // Vanessa is West-based: East Coast roles fit only when the posting is open to remote without an East Coast residency requirement.
-    if (!loc.isRemote) { l = 0; category = "EXCLUDED"; eastReason = `${loc.arrangement === "Hybrid" ? "Hybrid" : "On-site"} on the East Coast (${j.location}) with no remote option`; }
-    else if (east === "required") { l = 0; category = "EXCLUDED"; eastReason = "Remote, but the posting requires living on the East Coast or in Eastern time"; }
+    // Vanessa lives in Arizona: an East Coast role fits only when it is open to remote anywhere in the U.S.,
+    // not a remote role covering an East Coast city or territory, or one that needs Eastern hours.
+    if (east === "territory") { l = 0; category = "EXCLUDED"; eastReason = `Tied to the East Coast (${[j.title, j.location].filter(Boolean).join(", ")}), even if listed as remote`; }
+    else if (!loc.isRemote) { l = 0; category = "EXCLUDED"; eastReason = `${loc.arrangement === "Hybrid" ? "Hybrid" : "On-site"} on the East Coast (${j.location}) with no remote option`; }
+    else if (east === "required") { l = 0; category = "EXCLUDED"; eastReason = "Requires living on the East Coast or working Eastern time hours"; }
   }
   if (!eastReason && !loc.isRemote && loc.states.length > 0 && !loc.states.some((st) => WEST_OK.includes(st))) {
     // Vanessa works on-site or hybrid only on the West Coast or at home in Arizona; anywhere else must offer remote.
