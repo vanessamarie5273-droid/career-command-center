@@ -54,7 +54,7 @@ export const NAV: { href: string; label: string; icon: IconName; match: string[]
 export const navFor = (path: string) => NAV.find((n) => n.match.some((m) => (m === "/" ? path === "/" : path === m || path.startsWith(`${m}/`))));
 
 const TITLE_ICON: Record<string, IconName> = {
-  "Command Center": "home", "Discover Jobs": "briefcase", "Ready to Apply": "check", "My Applications": "board", "Company Intelligence": "building",
+  "Command Center": "home", "Discover Jobs": "briefcase", "Ready to Apply": "check", "My Applications": "board", "Company Intelligence": "building", Accounts: "building",
   "Network & Contacts": "people", "My Network": "people", "Resume Library": "doc", Alerts: "bell", Reports: "chart", "Settings & Integrations": "gear",
 };
 
