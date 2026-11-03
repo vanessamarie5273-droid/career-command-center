@@ -6,7 +6,7 @@ vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { crea
 
 import { checkKit, copiedFrom, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
 import { exportAll, restoreAll } from "@/lib/backup";
-import { LETTER_EXAMPLES } from "@/lib/letterStyle";
+import { herLetter, isPublicSectorRole } from "@/lib/letterStyle";
 import { testDb, makeCompany } from "./setup-db";
 
 const RESUME = "VANESSA MORALES\nvanessa@example.com\nEXPERIENCE\nSAP, Nov 2024 – Present\n- Closed $8.5M in new and expansion revenue; earned Winners Circle 2025.\n- Expanded the account with a $1.58M TCV licensing upsell.\n- Led the team to $15.6M in closed revenue and $80.6M in pipeline; 25% increase in pipeline creation, 30% increase in conversion.";
@@ -81,11 +81,10 @@ describe("Application Kit checks", () => {
     expect(checks.letter.map((i) => i.text)).toContain("3 figures");
   });
 
-  it("passes her model letter", () => {
-    for (const e of LETTER_EXAMPLES) {
-      const company = e.match(/^Dear (\w+)/)![1];
-      const issues = checkKit({ letter: e }, { resumeText: RESUME, contextText: ctx, input: { ...input, company: { ...input.company, name: company } } }).letter;
-      expect(issues).toEqual([]);
+  it("passes both of her own letters", () => {
+    for (const job of [{ ...input.job, title: "Account Executive, SLED" }, input.job]) {
+      const i = { ...input, job };
+      expect(checkKit({ letter: herLetter(job, input.company) }, { resumeText: RESUME, contextText: kitContext(i), input: i }).letter).toEqual([]);
     }
   });
 
@@ -114,11 +113,11 @@ describe("Application Kit checks", () => {
 });
 
 describe("Application Kit generation", () => {
-  it("writes all five parts from one cached context that holds her resume and the posting", async () => {
+  it("writes the other four parts from one cached context that holds her resume and the posting", async () => {
     create.mockClear();
     const parts = await generateKit(input);
     expect(Object.keys(parts).sort()).toEqual([...KIT_PARTS].sort());
-    expect(create).toHaveBeenCalledTimes(5);
+    expect(create).toHaveBeenCalledTimes(4);
     const systems = create.mock.calls.map((c) => JSON.stringify((c[0] as unknown as { system: unknown }).system));
     expect(new Set(systems).size).toBe(1);
     expect(systems[0]).toContain("Closed $8.5M in new and expansion revenue");
@@ -134,6 +133,29 @@ describe("Application Kit generation", () => {
     expect(rich).toContain("Enter through the controller.");
     expect(rich).toContain("Met their CRO at Dreamforce.");
     expect(rich.indexOf("JOB POSTING")).toBeLessThan(rich.indexOf("RESUME"));
+  });
+
+  it("uses her own letters: public sector for government roles, commercial for the rest", async () => {
+    create.mockClear();
+    const gov = { ...input, job: { ...input.job, title: "Enterprise Core Account Executive - Public Sector" }, company: { ...input.company, name: "Samsara" } };
+    const parts = await generateKit(gov);
+    expect(create).toHaveBeenCalledTimes(4);
+    expect(parts.letter).toMatch(/^Dear Samsara Hiring Team,/);
+    expect(parts.letter).toContain("I’d like to bring that experience to Samsara as Enterprise Core Account Executive, Public Sector.");
+    expect(parts.letter).toContain("support Samsara’s growth.");
+    expect(parts.letter).not.toMatch(/\[(Company|Position)\]/);
+
+    const commercial = (await generateKit(input)).letter;
+    expect(commercial).toContain("I’d like to bring that discipline to Acme AI as Strategic Account Executive.");
+    expect(commercial).toContain("help Acme AI build pipeline");
+    expect(commercial).toMatch(/Kindest regards,\nVanessa Morales$/);
+  });
+
+  it("tells public sector roles apart", () => {
+    expect(isPublicSectorRole({ title: "Account Executive, SLED" }, { category: "Cloud & Enterprise Automation" })).toBe(true);
+    expect(isPublicSectorRole({ title: "Enterprise Account Executive", department: "US Public Sector" }, { category: "Office of the CFO" })).toBe(true);
+    expect(isPublicSectorRole({ title: "Account Executive" }, { category: "Government Technology" })).toBe(true);
+    expect(isPublicSectorRole({ title: "Enterprise Account Executive" }, { category: "Office of the CFO" })).toBe(false);
   });
 
   it("stops when the model declines", async () => {

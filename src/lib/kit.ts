@@ -3,7 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL } from "./assistant";
 import { positioning } from "./positioning";
-import { LETTER_ACCOMPLISHMENTS, LETTER_EXAMPLES, LETTER_GUIDE, LETTER_MAX_WORDS, LETTER_PRINCIPLE, LETTER_SIGNOFF, letterBody } from "./letterStyle";
+import { COMMERCIAL_LETTER, herLetter, LETTER_MAX_WORDS, PUBLIC_SECTOR_LETTER, letterBody } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
 
 export { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts };
@@ -55,38 +55,13 @@ const TASK: Record<KitPart, string> = {
 - Open with a SUMMARY of two or three sentences aimed at the core problem this role exists to solve.
 - Lead each bullet with a result. Use the posting's own terms where her experience genuinely matches them.
 - Use plain ATS-safe headings in ALL CAPS: SUMMARY, EXPERIENCE, EDUCATION, SKILLS (and any others already in the resume).`,
-  letter: `Write her cover letter for this role. ${LETTER_PRINCIPLE}
+  letter: `Her cover letter is her own wording: her public sector letter for public sector and government roles, her commercial letter for every other role, with only the company and position filled in. Keep her sentences word for word. Change only what is needed, and only facts from RESUME.
 
-FIRST, WORK OUT (silently; do not output this):
-- The real problem behind this role that the posting does not say outright: what the buyer struggles with, who actually signs, what the company competes against (often the status quo or an incumbent system), or where deals in this segment stall. Use COMPANY, recent developments, the segment and the buyers. This is her point of view; make it sharp and specific to this company.
-- The one angle in RESUME that makes her the person to solve that problem: for example, she sold the incumbent systems this company competes with or connects to, she sells to that buyer, she sells in that sector, or she built that kind of motion.
-- One or two results from RESUME that prove that angle. No more.
-- The one first move she would make in this role that follows from her point of view.
+HER PUBLIC SECTOR LETTER:
+${PUBLIC_SECTOR_LETTER}
 
-THEN WRITE, in exactly this shape:
-Dear <company name> Hiring Team,
-
-Four short paragraphs:
-${LETTER_GUIDE.map((g, i) => `${i + 1}. ${g.name.toUpperCase()}: ${g.purpose}. ${g.change}.`).join("\n")}
-
-${LETTER_SIGNOFF}
-
-RULES:
-- She is competing in a saturated market against many qualified sellers. Write with the authority of a recognized expert in this space: the point of view should be an insight only a seasoned seller who has worked these buyers would have, stated plainly and without hedging. Nothing a generic candidate could also write.
-- 170 to 230 words between greeting and sign-off. Executive register: an expert talking to a peer.
-- Never repeat the posting back. Do not restate the role's duties, requirements, territory description or company tagline, and do not copy phrases from JOB POSTING. The reader wrote it.
-- Never summarize her career. Leave out anything that does not serve the point of view: other roles, awards, tools, and stories that do not fit. At most two figures in the whole letter, only from RESUME.
-- Do not open with "I am interested in" or with her; open with the point of view.
-- The point of view is her read, so state it with confidence but never invent company facts, figures, customers or people.
-- Never "passionate", "excited", "thrilled", "grateful", "proven track record", "results-driven" or "I believe I would be a great fit".
-
-HER PROOF STORIES (one result from one of these may support the point of view; never paste a story whole):
-${Object.entries(LETTER_ACCOMPLISHMENTS).map(([k, v]) => `${k}:\n${v}`).join("\n\n")}
-
-HER MODEL LETTER (match its shape, voice and length; its company and argument are not this one's):
-${LETTER_EXAMPLES.map((e) => `<example>\n${e}\n</example>`).join("\n\n")}
-
-Output only the finished letter.`,
+HER COMMERCIAL LETTER:
+${COMMERCIAL_LETTER}`,
   pov: `Write a one-page point of view she can send to the hiring manager or bring to the interview. Under 450 words. Sections:
 THE PROBLEM: the highest-stakes problem this role exists to solve, stated as an inference from the posting and company context.
 MY POSITION: what the role must achieve in year one, and one assumption about the role worth challenging, framed constructively.
@@ -159,7 +134,9 @@ const writePart = (client: Anthropic, part: KitPart, context: string) => writeOv
 export async function generateKit(input: KitInput): Promise<KitParts> {
   const client = new Anthropic();
   const context = kitContext(input);
-  const written = await Promise.all(KIT_PARTS.map(async (p) => [p, await writePart(client, p, context)] as const));
+  // The letter is her own: the public sector or the commercial version, with the company and position filled in.
+  const letter = herLetter(input.job, input.company);
+  const written = await Promise.all(KIT_PARTS.map(async (p) => [p, p === "letter" ? letter : await writePart(client, p, context)] as const));
   return Object.fromEntries(written) as KitParts;
 }
 
@@ -229,8 +206,8 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
     if (p === "letter" && /\[[^\]]+\]/.test(text)) issues.push({ kind: "language", text: text.match(/\[[^\]]+\]/)![0], detail: "A template placeholder was left in. Fill it in before sending." });
     if (p === "letter" && text) {
       const body = letterBody(text);
-      if (body.length < 3 || body.length > 5) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: `The letter uses four short paragraphs: ${LETTER_GUIDE.map((g) => g.name.toLowerCase()).join(", ")}.` });
-      if (/^(I am|I'm) (very |really )?interested in\b/i.test(body[0] ?? "")) issues.push({ kind: "structure", text: "Opens with interest", detail: "Open with your point of view on their business, not with your interest in the role." });
+      if (body.length < 3 || body.length > 5) issues.push({ kind: "structure", text: `${body.length} paragraphs`, detail: "Your letters use four paragraphs: where you come from, what you sold, your strength, and the close." });
+      if (/^(I am|I'm) (very |really )?interested in\b/i.test(body[0] ?? "")) issues.push({ kind: "structure", text: "Opens with interest", detail: "Your letters open with your SAP experience, not with interest in the role." });
       const name = src.input?.company.name;
       if (name && !text.toLowerCase().includes(name.split(/[\s,]+/)[0].toLowerCase())) issues.push({ kind: "structure", text: "Company not named", detail: `The letter never mentions ${name}. It should read as written for them only.` });
       const posting = src.input ? [src.input.job.descriptionText, src.input.job.requiredQuals, src.input.job.preferredQuals].filter(Boolean).join("\n") : "";
