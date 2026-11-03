@@ -28,7 +28,7 @@ const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, 
 /** Scoring reasons are terse ("Matches your experience in: cloud ai, complex sales"); restate them in plain, executive language. */
 export function executive(reason: string) {
   const m = reason.match(/^Matches your experience in:\s*(.+)$/i);
-  if (m) return `Aligns with your ${andList(m[1].split(/\s*,\s*/).map(fixCase))} track record`;
+  if (m) return `Aligns with your ${andList(m[1].split(/\s*,\s*/).slice(0, 3).map(fixCase))} track record`;
   const ote = reason.match(/^Published OTE up to (.+)$/i);
   if (ote) return `Published compensation of up to ${ote[1]} OTE`;
   return fixCase(reason);
