@@ -45,7 +45,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <Link href="/jobs?category=DUPLICATE" className={`chip px-3 py-1 text-[13px] ${p.category === "DUPLICATE" ? ON : OFF}`}>Duplicates</Link>
         <Link href="/jobs?status=CLOSED&category=ALL" className={`chip px-3 py-1 text-[13px] ${p.status === "CLOSED" ? ON : OFF}`}>Closed</Link>
       </div>
-      <form className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-10 gap-2 items-center" action="/jobs">
+      <form className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-9 min-[2200px]:grid-cols-12 gap-2 items-center" action="/jobs">
         {p.view && <input type="hidden" name="view" value={p.view} />}
         {p.category && <input type="hidden" name="category" value={p.category} />}
         {p.status && <input type="hidden" name="status" value={p.status} />}
@@ -57,7 +57,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div><select name="minComp" aria-label="Minimum published pay" defaultValue={p.minComp ?? ""} className="input"><option value="">Any pay</option>{[150000, 200000, 250000, 300000, 350000].map((n) => <option key={n} value={n}>${n / 1000}K+</option>)}</select></div>
         <div><select name="sort" aria-label="Sort" defaultValue={p.sort ?? ""} className="input"><option value="">Most recent</option><option value="score">Match score</option><option value="comp">Compensation</option><option value="new">Newest found</option><option value="company">Company</option><option value="location">Location</option></select></div>
         <div><select name="posted" aria-label="Date posted" defaultValue={p.posted ?? ""} className="input"><option value="">Posted any time</option><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="none">No date given</option></select></div>
-        <div className="flex gap-3 items-center text-sm text-white"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1" title="Roles in the Phoenix metro, plus remote U.S. roles"><input type="checkbox" name="near" value="phx" defaultChecked={p.near === "phx"} />Phoenix area</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
+        <div className="col-span-full min-[2200px]:col-span-3 flex flex-wrap gap-x-3 gap-y-1 items-center whitespace-nowrap text-sm text-white"><label className="flex items-center gap-1"><input type="checkbox" name="remote" value="1" defaultChecked={p.remote === "1"} />Remote</label><label className="flex items-center gap-1" title="Roles in the Phoenix metro, plus remote U.S. roles"><input type="checkbox" name="near" value="phx" defaultChecked={p.near === "phx"} />Phoenix area</label><label className="flex items-center gap-1"><input type="checkbox" name="fav" value="1" defaultChecked={p.fav === "1"} />★</label><button className="btn-primary">Apply</button></div>
       </form>
       </PageHeader>
       {cap && cap.hidden > 0 && <p className="mb-2 text-[13px] text-slate-500">{PER_COMPANY} per company · <Link className="link" href={qs({ all: "1", page: "" })}>Show {cap.hidden} more</Link></p>}

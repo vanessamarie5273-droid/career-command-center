@@ -55,6 +55,5 @@ input[type="range"] { accent-color: #5D36FF; }
   .row-link { @apply -mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-navy-500/[0.04]; }
 }
 
-/* Very wide monitors: scale the whole app up so text stays readable instead of spreading thin. */
-@media (min-width: 2200px) { html { zoom: 1.2; } }
-@media (min-width: 3000px) { html { zoom: 1.4; } }
+/* No CSS `zoom` on <html> for wide monitors: Chrome then lays the page out wider than the window,
+   clips the sidebar and drops the horizontal scrollbar. Use the browser's own zoom (Ctrl +) instead. */
