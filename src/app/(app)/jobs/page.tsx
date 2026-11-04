@@ -36,7 +36,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active} /><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link></>}>
+      <PageHeader title="Discover Jobs" sub={`${total.toLocaleString()} ${p.status === "CLOSED" ? "closed" : "open"} roles`} actions={<><FeedStatus run={lastRun} active={active} /><Link href="/jobs/new" className="btn-ghost">+ Add a company or job</Link></>}>
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <Link href="/jobs" className={`chip px-3 py-1 text-[13px] ${!p.view && !p.category ? ON : OFF}`}>Your Feed</Link>
         {Object.entries(RANKINGS).map(([k, r]) => <Link key={k} href={`/jobs?view=${k}`} title={r.label} className={`chip px-3 py-1 text-[13px] ${p.view === k ? ON : OFF}`}>{titleCase(r.short)}</Link>)}

@@ -28,7 +28,7 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   const sortLink = (k: string, l: string) => <Link href={`/companies?${new URLSearchParams({ ...p, sort: k } as Record<string, string>)}`} className={sort === k ? "text-navy-900 underline" : ""}>{l}</Link>;
   return (
     <>
-      <PageHeader title="Accounts" actions={<><Link href="/jobs/new" className="btn-ghost">Add a job by URL</Link><Link href="/companies/new" className="btn-primary">+ Add company</Link></>}>
+      <PageHeader title="Accounts" actions={<><Link href="/jobs/new?mode=company" className="btn-primary">+ Add a company or job</Link></>}>
       <form className="grid grid-cols-2 md:grid-cols-6 gap-2 items-center" action="/companies">
         <div className="col-span-2"><input name="q" defaultValue={p.q} className="input" placeholder="Search" aria-label="Search name, product or description" /></div>
         <div><select name="category" aria-label="Industry" defaultValue={p.category ?? ""} className="input"><option value="">All industries</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
