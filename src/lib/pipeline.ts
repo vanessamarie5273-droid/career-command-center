@@ -87,6 +87,8 @@ export type AgendaItem = {
   href: string | null;
   /** What checking the row off completes: a task by id, or the application's next action. Interviews have none. */
   done: { kind: "task" | "followup"; id: string } | null;
+  /** Other open to-dos on the same application, waiting behind this one. */
+  more?: number;
 };
 
 /** Hide automated sender addresses in next-action text: "Reply to no-reply@x.io with…" reads "Reply to the recruiter with…". */
@@ -125,8 +127,19 @@ export function agenda(
   ].map((x) => ({ ...x, bucket: x.kind === "interview" && x.due && x.due >= tomorrow ? "soon" as const : bucket(x.due) }));
   const rank = { overdue: 0, today: 1, soon: 2 };
   items.sort((a, b) => rank[a.bucket] - rank[b.bucket] || (a.due?.getTime() ?? 0) - (b.due?.getTime() ?? 0));
-  const nudges = d.followUps.filter((a) => !a.nextActionDue).map((a) => ({ id: a.id, company: a.company, role: a.title, appliedAt: a.appliedAt }));
-  return { items, nudges };
+  // Each application shows once, with its one current action: an upcoming interview, else its most urgent to-do.
+  // The rest wait behind it ("+1 more"); checking it off brings up the next.
+  const current = new Map<string, AgendaItem>();
+  const more = new Map<string, number>();
+  for (const x of items) {
+    if (!x.appId) continue;
+    const cur = current.get(x.appId);
+    if (!cur) current.set(x.appId, x);
+    else { more.set(x.appId, (more.get(x.appId) ?? 0) + 1); if (x.kind === "interview" && cur.kind !== "interview") current.set(x.appId, x); }
+  }
+  const shown = items.filter((x) => !x.appId || current.get(x.appId) === x).map((x) => ({ ...x, more: x.appId ? more.get(x.appId) ?? 0 : 0 }));
+  const nudges = d.followUps.filter((a) => !a.nextActionDue && !current.has(a.id)).map((a) => ({ id: a.id, company: a.company, role: a.title, appliedAt: a.appliedAt }));
+  return { items: shown, nudges };
 }
 
 export type FeedItem = {

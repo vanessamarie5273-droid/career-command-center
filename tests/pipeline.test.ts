@@ -48,13 +48,33 @@ describe("Command Center lists", () => {
         { id: "a", title: "AE", nextAction: "Reply to no-reply@us.greenhouse-mail.io with your availability", nextActionDue: new Date("2026-11-01T15:00:00Z"), appliedAt: null, company: co },
         { id: "b", title: "AE", nextAction: null, nextActionDue: null, appliedAt: new Date("2026-10-14T18:00:00Z"), company: co },
       ],
-      dueTasks: [{ id: "t", title: "Send the POV", dueAt: new Date("2026-10-31T15:00:00Z"), application: { id: "a", title: "AE", company: co } }],
+      dueTasks: [{ id: "t", title: "Send the POV", dueAt: new Date("2026-10-31T15:00:00Z"), application: { id: "c", title: "AE", company: co } }],
       upcoming: [{ id: "i", title: "AE", interviewAt: new Date("2026-11-05T20:00:00Z"), company: co }],
     }, now);
     expect(r.items.map((x) => [x.kind, x.bucket])).toEqual([["task", "overdue"], ["followup", "today"], ["interview", "soon"]]);
     expect(r.items[1].text).toBe("Reply to the recruiter with your availability");
     expect(r.nudges.map((n) => n.id)).toEqual(["b"]);
     expect(r.items.map((x) => x.done)).toEqual([{ kind: "task", id: "t" }, { kind: "followup", id: "a" }, null]);
+  });
+
+  it("shows each application once, with its one current action, and keeps it out of the no-reply nudge", () => {
+    const now = new Date("2026-11-04T20:00:00Z");
+    const app = (id: string) => ({ id, title: "AE", company: co });
+    const r = agenda({
+      followUps: [
+        { id: "w", title: "AE", nextAction: "Follow up", nextActionDue: new Date("2026-11-04T08:00:00Z"), appliedAt: null, company: co },
+        { id: "q", title: "AE", nextAction: null, nextActionDue: null, appliedAt: new Date("2026-10-14T18:00:00Z"), company: co },
+      ],
+      dueTasks: [
+        { id: "pov", title: "Send the hiring manager your point of view", dueAt: new Date("2026-11-01T18:00:00Z"), application: app("v") },
+        { id: "rec", title: "Follow up with the recruiter", dueAt: new Date("2026-11-04T18:00:00Z"), application: app("v") },
+        { id: "w2", title: "Send thank-you note", dueAt: new Date("2026-11-03T18:00:00Z"), application: app("w") },
+        { id: "q1", title: "Ask for a referral", dueAt: new Date("2026-11-06T18:00:00Z"), application: app("q") },
+      ],
+      upcoming: [{ id: "w", title: "AE", interviewAt: new Date("2026-11-06T20:00:00Z"), company: co }],
+    }, now);
+    expect(r.items.map((x) => [x.id, x.more])).toEqual([["t-pov", 1], ["t-q1", 0], ["i-w", 2]]);
+    expect(r.nudges).toEqual([]);
   });
 
   it("shows a to-do once when a task and the next action say the same thing", () => {

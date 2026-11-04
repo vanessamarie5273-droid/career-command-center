@@ -6,7 +6,7 @@ vi.mock("@/lib/db", async () => ({ prisma: (await import("./setup-db")).testDb()
 
 import { prisma } from "@/lib/db";
 import { moveStage } from "@/lib/applications";
-import { completeNextAction, completeTask } from "@/lib/todos";
+import { clearStaleTodos, completeNextAction, completeTask } from "@/lib/todos";
 import { agenda, pipelineDashboard } from "@/lib/pipeline";
 import { markApplied } from "@/lib/apply";
 import { makeCompany } from "./setup-db";
@@ -54,19 +54,48 @@ describe("Command Center to-dos", () => {
     expect(after.activities.map((x) => x.body)).toContain("Done: Follow up");
   });
 
-  it("applying shows its recruiter follow-up once on the dashboard, and the row checks off", async () => {
+  it("applying shows one current action at a time on the dashboard, each checking off to the next", async () => {
     const now = new Date();
     const c = await makeCompany(db, { name: "Onceco" });
     const job = await db.job.create({ data: { companyId: c.id, fingerprint: `fp-${c.id}`, title: "Senior AE", applyUrl: "https://job-boards.greenhouse.io/onceco/jobs/1" } });
     const app = await markApplied(db, job.id, null, null, new Date(now.getTime() - 5 * 86400_000));
     const mine = (d: Awaited<ReturnType<typeof pipelineDashboard>>) => agenda(d, now).items.filter((x) => x.appId === app.id);
-    const rows = mine(await pipelineDashboard(db, now));
-    expect(rows.filter((x) => /recruiter/.test(x.text))).toHaveLength(1);
-    const row = rows.find((x) => /recruiter/.test(x.text))!;
-    expect(row.done?.kind).toBe("task");
-    expect(row.href).toBe(`/applications/${app.id}#todos`);
-    await completeTask(db, row.done!.id);
-    expect(mine(await pipelineDashboard(db, now)).filter((x) => /recruiter/.test(x.text))).toHaveLength(0);
+    // One row for the application: the overdue point-of-view task, with the recruiter follow-up waiting behind it.
+    const first = mine(await pipelineDashboard(db, now));
+    expect(first.map((x) => [x.text, x.more])).toEqual([[expect.stringMatching(/point of view/), 1]]);
+    expect(first[0].href).toBe(`/applications/${app.id}#todos`);
+    await completeTask(db, first[0].done!.id);
+    const next = mine(await pipelineDashboard(db, now));
+    expect(next.map((x) => [x.text, x.more])).toEqual([[expect.stringMatching(/recruiter/), 0]]);
+    expect(next[0].done?.kind).toBe("task");
+    await completeTask(db, next[0].done!.id);
+    expect(mine(await pipelineDashboard(db, now))).toHaveLength(0);
+  });
+
+  it("sweeps up to-dos left from a status change made before moves cleared them, and keeps newer ones", async () => {
+    const now = new Date();
+    const h = (n: number) => new Date(now.getTime() - n * 3600_000);
+    const c = await makeCompany(db, { name: "Sweepco" });
+    // Moved to Interviewing 5 hours ago by an email, with the old "Follow up" (due this morning) and a reminder left behind.
+    const old = await db.application.create({ data: { companyId: c.id, title: "AE, SLED", stage: "INTERVIEWING", applied: true, appliedAt: h(300), nextAction: "Follow up", nextActionDue: h(8), stageHistory: { create: [{ to: "APPLIED", at: h(300) }, { from: "APPLIED", to: "INTERVIEWING", at: h(5) }] } } });
+    const reminder = await db.task.create({ data: { applicationId: old.id, title: "Send the Sweepco hiring manager your point of view", dueAt: h(2), source: "system", createdAt: h(200) } });
+    const mine = await db.task.create({ data: { applicationId: old.id, title: "Ask Dana for a referral", dueAt: h(2), source: "manual", createdAt: h(200) } });
+    // Moved, then she typed a new next action: kept.
+    const edited = await db.application.create({ data: { companyId: c.id, title: "RVP", stage: "INTERVIEWING", nextAction: "Prepare for Interview", nextActionDue: h(10), stageHistory: { create: [{ from: "APPLIED", to: "INTERVIEWING", at: h(30) }] } } });
+    await db.auditLog.create({ data: { entity: "Application", entityId: edited.id, action: "update", changes: { nextAction: { from: null, to: "Prepare for Interview" } }, at: h(20) } });
+    // The interview email's reply action, booked moments after the move: kept.
+    const fresh = await db.application.create({ data: { companyId: c.id, title: "Director", stage: "INTERVIEWING", nextAction: "Reply to Sam with your availability", nextActionDue: h(1), stageHistory: { create: [{ from: "APPLIED", to: "INTERVIEWING", at: h(1) }] } } });
+
+    const r = await clearStaleTodos(db, now);
+    expect(r.actions).toBeGreaterThanOrEqual(1);
+    const o = await db.application.findUniqueOrThrow({ where: { id: old.id }, include: { activities: true } });
+    expect([o.nextAction, o.nextActionDue]).toEqual([null, null]);
+    expect(o.activities.map((x) => x.body).join()).toMatch(/already moved on.*Follow up; Send the Sweepco/);
+    expect((await db.task.findUniqueOrThrow({ where: { id: reminder.id } })).done).toBe(true);
+    expect((await db.task.findUniqueOrThrow({ where: { id: mine.id } })).done).toBe(false);
+    expect((await db.application.findUniqueOrThrow({ where: { id: edited.id } })).nextAction).toBe("Prepare for Interview");
+    expect((await db.application.findUniqueOrThrow({ where: { id: fresh.id } })).nextAction).toBe("Reply to Sam with your availability");
+    expect(await clearStaleTodos(db, now)).toEqual({ actions: 0, tasks: 0 });
   });
 
   it("tasks on closed applications leave the dashboard", async () => {
