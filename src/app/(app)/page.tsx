@@ -31,6 +31,9 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   const inboxApps = inbox.length ? await prisma.application.findMany({ where: { id: { in: inbox.map((e) => e.applicationId!).filter(Boolean) } }, select: { id: true, title: true, company: { select: { name: true, logoUrl: true } } } }) : [];
   const t = d.tiles;
   const todo = agenda(d);
+  // A req shows in one place: Going Quiet leaves out anything already in Your Next Moves.
+  const inMoves = new Set([...todo.items.map((x) => x.appId), ...todo.nudges.map((n) => n.id)]);
+  const quiet = d.quiet.filter((a) => !inMoves.has(a.id));
   const changes = feed(inbox, d.moves, inboxApps, KIND_LABEL);
   const looked = by === "date" ? date(`${q}T12:00:00-07:00`) : `“${q}”`;
 
@@ -65,9 +68,9 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
           <Card title={<Count n={changes.items.length}>What Changed</Count>} icon="arrows" tone="violet">
             <Changes items={changes.items} logged={changes.logged} outlook={!!mail} checked={mail?.lastSyncAt ?? null} />
           </Card>
-          <Card title={<Count n={d.quiet.length}>Going Quiet</Count>} icon="pause" tone="rose">
-            {d.quiet.length === 0 ? <AllClear>Every open application has moved in the last {QUIET_DAYS} days.</AllClear> : (
-              <ul className="space-y-0.5">{d.quiet.map((a) => <Row key={a.id} href={`/applications/${a.id}`} company={a.company} title={a.company.name} sub={`${a.title} · ${STAGE_LABEL[a.stage]}`} right={<Chip tone="rose">{ago(a.updatedAt).replace(" ago", "")} quiet</Chip>} />)}</ul>
+          <Card title={<Count n={quiet.length}>Going Quiet</Count>} icon="pause" tone="rose">
+            {quiet.length === 0 ? <AllClear>{d.quiet.length ? "Everything that has gone quiet already has a next move on the left." : `Every open application has moved in the last ${QUIET_DAYS} days.`}</AllClear> : (
+              <ul className="space-y-0.5">{quiet.map((a) => <Row key={a.id} href={`/applications/${a.id}`} company={a.company} title={a.company.name} sub={`${a.title} · ${STAGE_LABEL[a.stage]}`} right={<Chip tone="rose">{ago(a.updatedAt).replace(" ago", "")} quiet</Chip>} />)}</ul>
             )}
           </Card>
         </div>
@@ -129,7 +132,7 @@ function NextMoves({ items, nudges }: { items: AgendaItem[]; nudges: { id: strin
     .map((b) => [b, items.filter((x) => (b === "interview" ? x.kind === "interview" : x.kind !== "interview" && x.bucket === b))] as const)
     .filter(([, l]) => l.length);
   const row = (x: AgendaItem) => {
-    const r = <Row key={x.id} href={x.href ?? undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role].filter(Boolean).join(" · ")} right={<Due x={x} />} bare={!!x.done} />;
+    const r = <Row key={x.id} href={x.href ?? undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role, x.more ? `+${x.more} more to-do${x.more === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")} right={<Due x={x} />} bare={!!x.done} />;
     return x.done ? <DoneCheck key={x.id} kind={x.done.kind} id={x.done.id} label={x.text}>{r}</DoneCheck> : r;
   };
   return (
