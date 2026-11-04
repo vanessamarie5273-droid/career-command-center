@@ -173,9 +173,10 @@ function StagePill({ stage }: { stage: string }) {
 }
 
 const ORDER = ["READY_TO_APPLY", "APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"];
+const label = (stage: string | null) => STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage;
 const backward = (x: FeedItem) => Boolean(x.from && x.to && ORDER.indexOf(x.from) > ORDER.indexOf(x.to) && ORDER.includes(x.to));
 
-function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logged: { id: string; at: Date; appId: string | null; company: Co | null; label: string; from: string; subject: string; undone: boolean }[]; outlook: boolean; checked: Date | null }) {
+function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logged: { id: string; at: Date; appId: string | null; company: Co | null; label: string; from: string; subject: string; undone: boolean; more: number }[]; outlook: boolean; checked: Date | null }) {
   if (!items.length && !logged.length) return <AllClear>No status changes in the last two weeks.{outlook ? " Recruiter replies, interview requests, offers and rejections from your Outlook move applications for you and show here." : ""}</AllClear>;
   const row = (x: FeedItem) => (
     <li key={x.id} className="flex items-center gap-2">
@@ -183,7 +184,7 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
         {x.company ? <Logo src={x.company.logoUrl} name={x.company.name} size={34} /> : <span className="h-[34px] w-[34px] shrink-0 rounded-md bg-slate-100" />}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[15px] font-medium text-navy-950">{x.company?.name ?? "Application"}</span>{x.to && <StagePill stage={x.to} />}</span>
-          <span className="block truncate text-[13px] text-slate-500">{[x.role, backward(x) ? `Moved back from ${STAGE_LABEL[x.from as keyof typeof STAGE_LABEL] ?? x.from}` : null, x.via, ago(x.at)].filter(Boolean).join(" · ")}</span>
+          <span className="block truncate text-[13px] text-slate-500">{[x.role, backward(x) ? `Moved back from ${label(x.from)}` : x.start && x.start !== x.to ? `From ${label(x.start)}` : null, x.via, ago(x.at), x.updates > 1 ? `${x.updates} updates` : null].filter(Boolean).join(" · ")}</span>
         </span>
       </Link>
       {x.undoable && x.emailId && <UndoEmail id={x.emailId} />}
@@ -194,8 +195,8 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
       {items.length ? <ul className="space-y-0.5">{items.slice(0, 6).map(row)}</ul> : <p className="text-sm text-slate-500">No status changes in the last two weeks.</p>}
       {items.length > 6 && <More label={`Show ${items.length - 6} more`}><ul className="space-y-0.5">{items.slice(6).map(row)}</ul></More>}
       {logged.length > 0 && (
-        <More label={`${logged.length} more email${logged.length === 1 ? "" : "s"} reviewed with no status change${checked ? ` · Outlook synced ${ago(checked)}` : ""}`} icon>
-          <ul className="space-y-0.5">{logged.map((e) => <Row key={e.id} href={e.appId ? `/applications/${e.appId}` : undefined} company={e.company ?? undefined} title={`${e.company?.name ?? e.from}: ${e.label}${e.undone ? " (undone)" : ""}`} sub={`“${e.subject}” · ${ago(e.at)}`} small />)}</ul>
+        <More label={`Emails on ${logged.length} more application${logged.length === 1 ? "" : "s"} with no status change${checked ? ` · Outlook synced ${ago(checked)}` : ""}`} icon>
+          <ul className="space-y-0.5">{logged.map((e) => <Row key={e.id} href={e.appId ? `/applications/${e.appId}` : undefined} company={e.company ?? undefined} title={`${e.company?.name ?? e.from}: ${e.label}${e.undone ? " (undone)" : ""}`} sub={[`“${e.subject}”`, ago(e.at), e.more ? `+${e.more} more email${e.more === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")} small />)}</ul>
         </More>
       )}
     </div>

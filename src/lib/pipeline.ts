@@ -132,11 +132,15 @@ export function agenda(
 export type FeedItem = {
   id: string; at: Date; appId: string; company: Co | null; role: string | null;
   from: string | null; to: string | null; via: string; emailId: string | null; undoable: boolean;
+  /** The status before the first change in the window, and how many changes and emails this row stands for. */
+  start: string | null; updates: number;
 };
 
 /**
- * What changed in the last two weeks, newest first. A stage move that came from an email shows once, with the
- * email as its source and an Undo. Emails that changed nothing come back as `logged`, to be tucked away.
+ * What changed in the last two weeks, newest first, one row per application. The row shows the latest status and
+ * where it started; earlier moves and other emails on the same application fold into it. A stage move that came
+ * from an email shows with the email as its source and an Undo. Emails on applications that didn't move come back
+ * as `logged`, one per application, to be tucked away.
  */
 export function feed(
   emails: { id: string; applicationId: string | null; kind: string; fromName: string | null; fromEmail: string; subject: string; receivedAt: Date; prevStage: string | null; newStage: string | null; undone: boolean }[],
@@ -147,21 +151,47 @@ export function feed(
   const app = (id: string | null) => apps.find((a) => a.id === id) ?? moves.find((m) => m.applicationId === id)?.application ?? null;
   const items: FeedItem[] = [];
   const used = new Set<string>();
+  // The recorded stage move behind an email: same application and direction, closest in time.
+  const take = (appId: string, from: string | null, to: string, near: Date) => {
+    const m = moves.filter((x) => !used.has(x.id) && x.applicationId === appId && x.to === to && (from == null || x.from === from))
+      .sort((a, b) => Math.abs(a.at.getTime() - near.getTime()) - Math.abs(b.at.getTime() - near.getTime()))[0];
+    if (m) used.add(m.id);
+    return m;
+  };
+  // An undone email cancels out: hide both the move it made and the move back.
+  for (const e of emails) {
+    if (!e.applicationId || !e.newStage || !e.prevStage || !e.undone) continue;
+    take(e.applicationId, e.prevStage, e.newStage, e.receivedAt);
+    take(e.applicationId, e.newStage, e.prevStage, e.receivedAt);
+  }
   for (const e of emails) {
     if (!e.applicationId || !e.newStage || e.undone) continue;
-    const m = moves.find((x) => !used.has(x.id) && x.applicationId === e.applicationId && x.to === e.newStage);
-    if (m) used.add(m.id);
+    const m = take(e.applicationId, e.prevStage, e.newStage, e.receivedAt);
     const a = app(e.applicationId);
-    items.push({ id: `e-${e.id}`, at: e.receivedAt, appId: e.applicationId, company: a?.company ?? null, role: a?.title ?? null, from: e.prevStage ?? m?.from ?? null, to: e.newStage, via: `${kindLabel[e.kind] ?? e.kind} received by email`, emailId: e.id, undoable: true });
+    items.push({ id: `e-${e.id}`, at: e.receivedAt, appId: e.applicationId, company: a?.company ?? null, role: a?.title ?? null, from: e.prevStage ?? m?.from ?? null, to: e.newStage, via: `${kindLabel[e.kind] ?? e.kind} received by email`, emailId: e.id, undoable: true, start: null, updates: 1 });
   }
   for (const m of moves) {
     if (used.has(m.id)) continue;
-    items.push({ id: `m-${m.id}`, at: m.at, appId: m.applicationId, company: m.application.company, role: m.application.title, from: m.from, to: m.to, via: "Status updated manually", emailId: null, undoable: false });
+    items.push({ id: `m-${m.id}`, at: m.at, appId: m.applicationId, company: m.application.company, role: m.application.title, from: m.from, to: m.to, via: "Status updated manually", emailId: null, undoable: false, start: null, updates: 1 });
   }
   items.sort((a, b) => b.at.getTime() - a.at.getTime());
-  const logged = emails.filter((e) => !e.newStage || e.undone).map((e) => {
+  // Newest first, so the first change seen for an application is its latest; each older one moves `start` back.
+  const rows = new Map<string, FeedItem>();
+  for (const x of items) {
+    const r = rows.get(x.appId);
+    if (r) { r.start = x.from; r.updates++; } else rows.set(x.appId, { ...x, start: x.from, updates: 1 });
+  }
+  const quiet = new Map<string, { id: string; at: Date; appId: string | null; company: Co | null; label: string; from: string; subject: string; undone: boolean; more: number }>();
+  for (const e of emails) {
+    if (e.newStage && !e.undone) continue;
+    const row = e.applicationId ? rows.get(e.applicationId) : undefined;
+    if (row) { row.updates++; continue; }
+    const key = e.applicationId ?? `email-${e.id}`;
+    const seen = quiet.get(key);
+    if (seen) { seen.more++; continue; } // emails arrive newest first, so the first one kept is the latest
     const a = app(e.applicationId);
-    return { id: e.id, at: e.receivedAt, appId: e.applicationId, company: a?.company ?? null, label: kindLabel[e.kind] ?? e.kind, from: e.fromName ?? e.fromEmail, subject: e.subject, undone: e.undone };
-  });
-  return { items, logged };
+    quiet.set(key, { id: e.id, at: e.receivedAt, appId: e.applicationId, company: a?.company ?? null, label: kindLabel[e.kind] ?? e.kind, from: e.fromName ?? e.fromEmail, subject: e.subject, undone: e.undone, more: 0 });
+  }
+  const logged = [...quiet.values()].sort((a, b) => b.at.getTime() - a.at.getTime());
+  return { items: [...rows.values()], logged };
 }
