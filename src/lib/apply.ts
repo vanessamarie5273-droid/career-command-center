@@ -14,10 +14,13 @@ export function followUps(company: string, now = new Date()) {
 /** Marks the job applied with the kit's resume and letter, and adds the follow-up tasks once. */
 export async function markApplied(db: PrismaClient, jobId: string, kitId: string | null, userId: string | null, now = new Date()) {
   const job = await db.job.findUniqueOrThrow({ where: { id: jobId }, include: { company: true } });
-  const { app, created } = await ensureApplication(db, jobId, userId, "APPLIED");
+  const ensured = await ensureApplication(db, jobId, userId, "APPLIED");
+  const { created } = ensured;
+  let app = ensured.app;
   if (app.stage !== "APPLIED" && !app.applied) {
-    const r = await moveStage(db, app.id, "APPLIED", userId);
+    const r = await moveStage(db, app.id, "APPLIED", userId, { keepTodos: true });
     if (!r.ok) throw new Error(r.error);
+    app = r.app;
   }
   const kit = kitId ? await db.kit.findUnique({ where: { id: kitId } }) : null;
   const tasks = followUps(job.company.name, now);

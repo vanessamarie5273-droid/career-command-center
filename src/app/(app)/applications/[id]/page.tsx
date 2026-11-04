@@ -14,6 +14,7 @@ import { UndoEmail } from "@/components/MailWidgets";
 import { outreachPlan } from "@/lib/outreach";
 import { outlookConfigured } from "@/lib/mail/outlook";
 import { KIND_LABEL } from "@/lib/mail/sync";
+import { tidyAction, todoKey } from "@/lib/pipeline";
 
 export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -57,7 +58,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         <div className="lg:col-span-2 space-y-4">
           <Card title="Status">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-              <AutoField endpoint={ep} field="stage" type="select" label="Stage" value={a.stage} options={STAGES.map(([k, l]) => [k, l])} />
+              <AutoField endpoint={ep} field="stage" type="select" label="Stage" value={a.stage} options={STAGES.map(([k, l]) => [k, l])} refresh />
               <AutoField endpoint={ep} field="applied" type="checkbox" label="Applied" value={a.applied} className="pb-2" />
               <AutoField endpoint={ep} field="appliedAt" type="date" label="Application date" value={a.appliedAt?.toISOString()} />
               <AutoField endpoint={ep} field="interviewAt" type="datetime" label="Next interview" value={a.interviewAt?.toISOString()} />
@@ -111,7 +112,12 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           {a.jdSnapshot && <Card title={`Job description snapshot (saved ${date(a.jdSnapshotAt)})`}><pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-[13px] text-slate-700">{a.jdSnapshot}</pre></Card>}
         </div>
         <div className="space-y-4">
-          <Card title="Follow-up tasks"><TaskList applicationId={a.id} tasks={a.tasks.map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt?.toISOString() ?? null, done: t.done }))} /></Card>
+          <div id="todos" className="scroll-mt-20">
+            <Card title="To-dos" sub="Changing the stage clears the old stage's to-dos">
+              <TaskList applicationId={a.id} tasks={a.tasks.map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt?.toISOString() ?? null, done: t.done }))}
+                nextAction={(a.nextAction || a.nextActionDue) && !a.tasks.some((t) => !t.done && todoKey(t.title) === todoKey(a.nextAction || "Follow up")) ? { title: tidyAction(a.nextAction || "Follow up"), dueAt: a.nextActionDue?.toISOString() ?? null } : null} />
+            </Card>
+          </div>
           <Card title="Compensation" action={<FactTag type={a.compFactType} />}>
             <div className="grid grid-cols-2 gap-2">
               <AutoField endpoint={ep} field="baseSalary" type="number" label="Base salary" value={a.baseSalary} />
