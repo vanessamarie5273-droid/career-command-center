@@ -16,7 +16,7 @@ export default function ReadyToApply({ jobId, applyUrl, kit, extra }: { jobId: s
     <>
     <div className="flex flex-wrap items-center gap-2">
       <button className="btn-ghost" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Close review" : "Review & edit"}</button>
-      <a className="btn-gold" href={applyUrl} target="_blank" rel="noopener noreferrer">Open employer form ↗</a>
+      {applyUrl ? <a className="btn-gold" href={applyUrl} target="_blank" rel="noopener noreferrer">Open employer form ↗</a> : <span className="text-[13px] text-slate-500">Not posted yet: send it to your contact or the hiring manager.</span>}
       {resumeDocId && <a className="btn-ghost" href={`/api/documents/${resumeDocId}/export?format=pdf`}>Resume PDF</a>}
       {letterDocId && <a className="btn-ghost" href={`/api/documents/${letterDocId}/export?format=pdf`}>Letter PDF</a>}
       <button className="btn-ghost" onClick={() => copy("letter")}>{copied === "letter" ? "Copied" : "Copy letter"}</button>

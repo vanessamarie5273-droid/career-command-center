@@ -13,10 +13,11 @@ import MarkApplied from "@/components/MarkApplied";
 import ResumeMatch from "@/components/ResumeMatch";
 import ApplicationKit, { type KitRow } from "@/components/ApplicationKit";
 import { assistantConfigured } from "@/lib/assistant";
+import { foundViaLabel } from "@/lib/manualEntry";
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const j = await prisma.job.findUnique({ where: { id }, include: { company: true, sources: true, events: { orderBy: { at: "desc" }, take: 30 }, applications: true } });
+  const j = await prisma.job.findUnique({ where: { id }, include: { company: true, sources: true, referrer: true, events: { orderBy: { at: "desc" }, take: 30 }, applications: true } });
   if (!j) notFound();
   const resumes = await prisma.document.findMany({ where: { kind: "resume" }, select: { id: true, name: true, version: true, isTailored: true }, orderBy: { createdAt: "desc" } });
   const kits = await prisma.kit.findMany({ where: { jobId: id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, parts: true, checks: true, resumeDocId: true, letterDocId: true } });
@@ -24,6 +25,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const reasons = (j.scoreReasons ?? []) as Reason[];
   const app = j.applications[0];
   const specific = isSpecificJobUrl(j.applyUrl);
+  const posted = !!j.applyUrl;
+  const via = j.manual ? j.sources.find((s) => !s.externalId.startsWith("http")) ?? j.sources[0] : null;
   const pub = range(j.oteMin, j.oteMax);
   const base = range(j.salaryMin, j.salaryMax);
   return (
@@ -42,8 +45,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <a href={j.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-gold px-5 py-2.5 text-base">Open employer posting ↗</a>
-          {!specific && <span className="text-[13px] text-amber-700">This link may not be job-specific; verify before applying.</span>}
+          {posted ? <a href={j.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-gold px-5 py-2.5 text-base">Open employer posting ↗</a>
+            : <span className="chip bg-violet-50 text-violet-800 ring-1 ring-violet-600/20">Not posted yet</span>}
+          {posted && !specific && <span className="text-[13px] text-amber-700">This link may not be job-specific; verify before applying.</span>}
           {!app?.applied && <MarkApplied jobId={j.id} kitId={kits[0]?.id ?? null} />}
           {!app?.applied && kits[0] && <span className="text-[13px] text-slate-500">Attaches this kit's resume and letter and moves it to Applied.</span>}
           {!app ? <AddToPipeline jobId={j.id} /> : app.applied ? <Link href={`/applications/${app.id}`} className="link text-sm">In pipeline: {STAGE_LABEL[app.stage]} →</Link> : <Link href="/apply" className="link text-sm">Saved on Ready to Apply →</Link>}
@@ -83,6 +87,17 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </Card>
         </div>
         <div className="space-y-4">
+          {j.manual && (j.notes || j.foundUrl || j.referrer || !posted) && (
+            <Card title="How you found it">
+              <dl className="grid grid-cols-[110px_1fr] gap-y-2 text-sm">
+                {via && <><dt className="muted">Source</dt><dd>{foundViaLabel(via.provider)}</dd></>}
+                {j.referrer && <><dt className="muted">Mentioned by</dt><dd>{j.referrer.linkedinUrl ? <a className="link" href={j.referrer.linkedinUrl} target="_blank" rel="noopener noreferrer">{j.referrer.firstName} {j.referrer.lastName} ↗</a> : <>{j.referrer.firstName} {j.referrer.lastName}</>}{j.referrer.title && <div className="text-[13px] text-slate-500">{j.referrer.title}</div>}</dd></>}
+                {j.foundUrl && <><dt className="muted">Post</dt><dd><a className="link" href={j.foundUrl} target="_blank" rel="noopener noreferrer">Open the post or comment ↗</a></dd></>}
+                {j.notes && <><dt className="muted">Notes</dt><dd className="whitespace-pre-wrap">{j.notes}</dd></>}
+              </dl>
+              {!posted && <p className="mt-3 text-[13px] text-slate-500">Once it&apos;s posted under the same title and location, the job feed (or adding it again with the link) fills in the posting here instead of making a copy.</p>}
+            </Card>
+          )}
           <Card title="Role facts">
             <dl className="grid grid-cols-[110px_1fr] gap-y-2 text-sm">
               <dt className="muted">Location</dt><dd>{j.location || "—"}</dd>
@@ -112,7 +127,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </Card>
           <Card title="Your ranking override"><OverrideControl id={j.id} tier={j.overrideTier} score={j.overrideScore} note={j.overrideNote} aiScore={j.score} aiTier={j.tier} favorite={j.favorite} dismissed={j.dismissed} /></Card>
           <Card title="Sources">
-            <ul className="space-y-2 text-sm">{j.sources.map((s) => <li key={s.id}><a href={s.url} target="_blank" rel="noopener noreferrer" className="link">{s.provider.toLowerCase()} posting ↗</a><div className="text-[13px] text-slate-500">first seen {dateTime(s.firstSeenAt)} · last seen {dateTime(s.lastSeenAt)}</div></li>)}</ul>
+            <ul className="space-y-2 text-sm">{j.sources.map((s) => <li key={s.id}>{s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer" className="link">{s.externalId.startsWith("manual:") ? foundViaLabel(s.provider) : `${s.provider.toLowerCase()} posting`} ↗</a> : <span>{foundViaLabel(s.provider)} (added by you)</span>}<div className="text-[13px] text-slate-500">first seen {dateTime(s.firstSeenAt)} · last seen {dateTime(s.lastSeenAt)}</div></li>)}</ul>
           </Card>
           <Card title="History">
             <ul className="space-y-1.5 text-[13px]">{j.events.map((e) => <li key={e.id}><span className="font-medium capitalize">{e.kind}</span> · {dateTime(e.at)}{e.detail ? <div className="text-slate-500">{e.detail}</div> : null}</li>)}</ul>

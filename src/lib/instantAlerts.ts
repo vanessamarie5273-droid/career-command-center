@@ -115,7 +115,7 @@ export function alertEmail(input: AlertJob[] | AlertRole[], base: string) {
   </tr></table>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin-top:12px"><tr><td bgcolor="${TINT}" style="background-color:${TINT};border-left:3px solid ${MAGENTA};border-radius:0 8px 8px 0;padding:9px 12px;${FONT};font-size:14px;line-height:20px;color:${BODY}"><b style="color:${MAGENTA}">Why you:</b> ${esc(why)}</td></tr></table>
   <div style="${FONT};font-size:12px;color:${MUTED};margin:10px 0 12px">${j.postedAt ? `Posted ${day(j.postedAt)}` : ""}${jobs.length > 1 ? ` &nbsp;·&nbsp; One role listed in ${jobs.length} locations` : ""}</div>
-  ${button(mine, home ? "Open in Command Center" : `View on ${esc(j.company.name)}`, true)}${home ? button(j.applyUrl, `Apply on ${esc(j.company.name)}`, false) : ""}
+  ${button(mine, home ? "Open in Command Center" : `View on ${esc(j.company.name)}`, true)}${home && j.applyUrl ? button(j.applyUrl, `Apply on ${esc(j.company.name)}`, false) : ""}
 </td></tr></table>`;
   }).join("\n");
 

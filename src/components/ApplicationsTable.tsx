@@ -24,7 +24,7 @@ export default function ApplicationsTable({ apps }: { apps: AppRow[] }) {
               <td className="min-w-[200px]"><AutoField endpoint={ep} field="nextAction" value={a.nextAction} placeholder="e.g. Follow up with recruiter" /></td>
               <td className="min-w-[140px]"><AutoField endpoint={ep} field="nextActionDue" type="date" value={a.nextActionDue?.toISOString()} /></td>
               <td className="text-[13px] whitespace-nowrap">{a.interviewAt ? date(a.interviewAt) : "—"}</td>
-              <td>{a.job ? <a href={a.job.applyUrl} target="_blank" rel="noopener noreferrer" className="link text-[13px]">Open ↗</a> : <span className="text-[13px] text-slate-400">No posting</span>}</td>
+              <td>{a.job?.applyUrl ? <a href={a.job.applyUrl} target="_blank" rel="noopener noreferrer" className="link text-[13px]">Open ↗</a> : <span className="text-[13px] text-slate-400">No posting</span>}</td>
             </tr>
           );
         })}</tbody>

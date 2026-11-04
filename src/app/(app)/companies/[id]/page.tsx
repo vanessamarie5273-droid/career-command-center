@@ -53,7 +53,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col items-end gap-2">
           <AutoField endpoint={ep} field="favorite" type="checkbox" label="★ Favorite" value={c.favorite} />
           <RefreshButton companyId={c.id} label="Refresh this company's jobs" />
-          <Link className="link text-[13px]" href={`/jobs/new?company=${c.id}`}>+ Add a job by URL</Link>
+          <Link className="link text-[13px]" href={`/jobs/new?company=${c.id}`}>+ Add a role here</Link>
           <span className="text-[13px] text-slate-500 flex items-center gap-1.5"><StatusDot status={c.atsStatus} />Feed: {c.atsProvider !== "NONE" ? `${c.atsProvider.toLowerCase()} (${c.atsToken})` : c.atsStatus ?? "pending discovery"} · checked {dateTime(c.atsCheckedAt)}</span>
           {c.atsError && <span className="text-[13px] text-red-600 max-w-xs text-right">{c.atsError}</span>}
         </div>

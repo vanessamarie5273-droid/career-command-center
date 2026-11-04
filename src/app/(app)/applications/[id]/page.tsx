@@ -48,7 +48,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           {a.job && <div className="mt-1 flex items-center gap-2"><TierBadge tier={effectiveTier(a.job)} /><ScorePill score={effectiveScore(a.job)} confidence={a.job.confidence} />{a.job.status === "CLOSED" && <span className="chip bg-red-50 text-red-700">Posting closed {date(a.job.closedAt)}</span>}</div>}
         </div>
         <div className="flex items-center gap-2">
-          {a.job && <a href={a.job.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-gold">Open posting ↗</a>}
+          {a.job?.applyUrl && <a href={a.job.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-gold">Open posting ↗</a>}
           <DeleteApplication id={a.id} />
         </div>
       </div>

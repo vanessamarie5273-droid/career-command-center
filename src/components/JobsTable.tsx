@@ -73,7 +73,7 @@ export default function JobsTable({ rows, compact = false }: { rows: Row[]; comp
                 <td className="whitespace-nowrap text-slate-600">{x.postedAt ? d(x.postedAt) : <span className="text-[13px] text-slate-400" title="The source did not give a posted date">Not given</span>}</td>
                 <td className="whitespace-nowrap text-[13px] text-slate-500" title={new Date(x.lastVerifiedAt).toLocaleString()}>{d(x.lastVerifiedAt)}</td>
                 <td className="whitespace-nowrap text-[13px]">{x.application ? <Link className="link" href={`/applications/${x.application.id}`}>{x.application.applied ? "Applied" : x.application.stage.replace(/_/g, " ").toLowerCase()}</Link> : <span className="text-slate-400">—</span>}</td>
-                <td className="whitespace-nowrap">{!compact && !x.application && x.status === "OPEN" ? <button disabled={busy} onClick={() => save(x.id)} className="btn-primary !py-1 !px-2.5 text-[13px]" title="Moves this role to Ready to Apply">+ Save</button> : <a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost !py-1 !px-2.5 text-[13px]">Posting ↗</a>}</td>
+                <td className="whitespace-nowrap">{!compact && !x.application && x.status === "OPEN" ? <button disabled={busy} onClick={() => save(x.id)} className="btn-primary !py-1 !px-2.5 text-[13px]" title="Moves this role to Ready to Apply">+ Save</button> : x.applyUrl ? <a href={x.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost !py-1 !px-2.5 text-[13px]">Posting ↗</a> : <span className="text-[13px] text-slate-500">Not posted</span>}</td>
               </tr>
             ))}
           </tbody>

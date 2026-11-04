@@ -241,6 +241,11 @@ model Job {
   applications      Application[]
   kits              Kit[]
   manual            Boolean    @default(false)
+  // Roles she adds herself, often before they're posted (heard in a feed comment, from a contact)
+  notes             String?
+  foundUrl          String?    // the post or comment where she heard about it
+  referrerId        String?
+  referrer          Contact?   @relation("JobReferrer", fields: [referrerId], references: [id], onDelete: SetNull)
 
   @@index([companyId, status])
   @@index([status, score])
@@ -378,6 +383,7 @@ model Contact {
   updatedAt       DateTime  @updatedAt
   touches         OutreachTouch[]
   tasks           Task[]
+  referredJobs    Job[]     @relation("JobReferrer")
 
   @@unique([linkedinUrl])
 }
