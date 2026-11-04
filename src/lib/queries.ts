@@ -29,7 +29,8 @@ export function followUpWhere(now = new Date()): Prisma.ApplicationWhereInput {
     stage: { notIn: [...CLOSED_STAGES, "ON_HOLD"] },
     OR: [
       { nextActionDue: { lte: now } },
-      { nextActionDue: null, applied: true, stage: "APPLIED", appliedAt: { lte: new Date(now.getTime() - 7 * 86400_000) } },
+      // No reply 7 days after applying, and nothing done on it in that time (checking off a follow-up restarts the clock).
+      { nextActionDue: null, applied: true, stage: "APPLIED", appliedAt: { lte: new Date(now.getTime() - 7 * 86400_000) }, updatedAt: { lte: new Date(now.getTime() - 7 * 86400_000) } },
     ],
   };
 }

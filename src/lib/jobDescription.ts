@@ -34,7 +34,7 @@ async function fetchFull(applyUrl: string, sources: Source[], f: FetchLike): Pro
     const d = await getJson<{ content?: string }>(f, `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(token)}/jobs/${encodeURIComponent(id)}`, {}, 2).catch(() => null);
     if (d?.content) return d.content;
   }
-  for (const url of [...new Set([applyUrl, ...sources.map((s) => s.url)])]) {
+  for (const url of [...new Set([applyUrl, ...sources.map((s) => s.url)])].filter(Boolean)) {
     try {
       const res = await f(url, { headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(15000) });
       if (!res.ok) continue;

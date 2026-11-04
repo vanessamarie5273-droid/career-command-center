@@ -9,6 +9,7 @@ import Gem from "@/components/Gem";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import { STAGE_LABEL, ago, date } from "@/lib/format";
 import { UndoEmail } from "@/components/MailWidgets";
+import DoneCheck from "@/components/DoneCheck";
 import { KIND_LABEL } from "@/lib/mail/sync";
 
 export const metadata = { title: "Command Center" };
@@ -30,6 +31,9 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   const inboxApps = inbox.length ? await prisma.application.findMany({ where: { id: { in: inbox.map((e) => e.applicationId!).filter(Boolean) } }, select: { id: true, title: true, company: { select: { name: true, logoUrl: true } } } }) : [];
   const t = d.tiles;
   const todo = agenda(d);
+  // A req shows in one place: Going Quiet leaves out anything already in Your Next Moves.
+  const inMoves = new Set([...todo.items.map((x) => x.appId), ...todo.nudges.map((n) => n.id)]);
+  const quiet = d.quiet.filter((a) => !inMoves.has(a.id));
   const changes = feed(inbox, d.moves, inboxApps, KIND_LABEL);
   const looked = by === "date" ? date(`${q}T12:00:00-07:00`) : `“${q}”`;
 
@@ -64,9 +68,9 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
           <Card title={<Count n={changes.items.length}>What Changed</Count>} icon="arrows" tone="violet">
             <Changes items={changes.items} logged={changes.logged} outlook={!!mail} checked={mail?.lastSyncAt ?? null} />
           </Card>
-          <Card title={<Count n={d.quiet.length}>Going Quiet</Count>} icon="pause" tone="rose">
-            {d.quiet.length === 0 ? <AllClear>Every open application has moved in the last {QUIET_DAYS} days.</AllClear> : (
-              <ul className="space-y-0.5">{d.quiet.map((a) => <Row key={a.id} href={`/applications/${a.id}`} company={a.company} title={a.company.name} sub={`${a.title} · ${STAGE_LABEL[a.stage]}`} right={<Chip tone="rose">{ago(a.updatedAt).replace(" ago", "")} quiet</Chip>} />)}</ul>
+          <Card title={<Count n={quiet.length}>Going Quiet</Count>} icon="pause" tone="rose">
+            {quiet.length === 0 ? <AllClear>{d.quiet.length ? "Everything that has gone quiet already has a next move on the left." : `Every open application has moved in the last ${QUIET_DAYS} days.`}</AllClear> : (
+              <ul className="space-y-0.5">{quiet.map((a) => <Row key={a.id} href={`/applications/${a.id}`} company={a.company} title={a.company.name} sub={`${a.title} · ${STAGE_LABEL[a.stage]}`} right={<Chip tone="rose">{ago(a.updatedAt).replace(" ago", "")} quiet</Chip>} />)}</ul>
             )}
           </Card>
         </div>
@@ -127,7 +131,10 @@ function NextMoves({ items, nudges }: { items: AgendaItem[]; nudges: { id: strin
   const groups = (["interview", "overdue", "today", "soon"] as const)
     .map((b) => [b, items.filter((x) => (b === "interview" ? x.kind === "interview" : x.kind !== "interview" && x.bucket === b))] as const)
     .filter(([, l]) => l.length);
-  const row = (x: AgendaItem) => <Row key={x.id} href={x.appId ? `/applications/${x.appId}${x.kind === "interview" ? "#interview" : ""}` : undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role].filter(Boolean).join(" · ")} right={<Due x={x} />} />;
+  const row = (x: AgendaItem) => {
+    const r = <Row key={x.id} href={x.href ?? undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role, x.more ? `+${x.more} more to-do${x.more === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")} right={<Due x={x} />} bare={!!x.done} />;
+    return x.done ? <DoneCheck key={x.id} kind={x.done.kind} id={x.done.id} label={x.text}>{r}</DoneCheck> : r;
+  };
   return (
     <div className="space-y-3">
       {groups.map(([b, l]) => (
@@ -169,9 +176,10 @@ function StagePill({ stage }: { stage: string }) {
 }
 
 const ORDER = ["READY_TO_APPLY", "APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"];
+const label = (stage: string | null) => STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage;
 const backward = (x: FeedItem) => Boolean(x.from && x.to && ORDER.indexOf(x.from) > ORDER.indexOf(x.to) && ORDER.includes(x.to));
 
-function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logged: { id: string; at: Date; appId: string | null; company: Co | null; label: string; from: string; subject: string; undone: boolean }[]; outlook: boolean; checked: Date | null }) {
+function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logged: { id: string; at: Date; appId: string | null; company: Co | null; label: string; from: string; subject: string; undone: boolean; more: number }[]; outlook: boolean; checked: Date | null }) {
   if (!items.length && !logged.length) return <AllClear>No status changes in the last two weeks.{outlook ? " Recruiter replies, interview requests, offers and rejections from your Outlook move applications for you and show here." : ""}</AllClear>;
   const row = (x: FeedItem) => (
     <li key={x.id} className="flex items-center gap-2">
@@ -179,7 +187,7 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
         {x.company ? <Logo src={x.company.logoUrl} name={x.company.name} size={34} /> : <span className="h-[34px] w-[34px] shrink-0 rounded-md bg-slate-100" />}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[15px] font-medium text-navy-950">{x.company?.name ?? "Application"}</span>{x.to && <StagePill stage={x.to} />}</span>
-          <span className="block truncate text-[13px] text-slate-500">{[x.role, backward(x) ? `Moved back from ${STAGE_LABEL[x.from as keyof typeof STAGE_LABEL] ?? x.from}` : null, x.via, ago(x.at)].filter(Boolean).join(" · ")}</span>
+          <span className="block truncate text-[13px] text-slate-500">{[x.role, backward(x) ? `Moved back from ${label(x.from)}` : x.start && x.start !== x.to ? `From ${label(x.start)}` : null, x.via, ago(x.at), x.updates > 1 ? `${x.updates} updates` : null].filter(Boolean).join(" · ")}</span>
         </span>
       </Link>
       {x.undoable && x.emailId && <UndoEmail id={x.emailId} />}
@@ -190,8 +198,8 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
       {items.length ? <ul className="space-y-0.5">{items.slice(0, 6).map(row)}</ul> : <p className="text-sm text-slate-500">No status changes in the last two weeks.</p>}
       {items.length > 6 && <More label={`Show ${items.length - 6} more`}><ul className="space-y-0.5">{items.slice(6).map(row)}</ul></More>}
       {logged.length > 0 && (
-        <More label={`${logged.length} more email${logged.length === 1 ? "" : "s"} reviewed with no status change${checked ? ` · Outlook synced ${ago(checked)}` : ""}`} icon>
-          <ul className="space-y-0.5">{logged.map((e) => <Row key={e.id} href={e.appId ? `/applications/${e.appId}` : undefined} company={e.company ?? undefined} title={`${e.company?.name ?? e.from}: ${e.label}${e.undone ? " (undone)" : ""}`} sub={`“${e.subject}” · ${ago(e.at)}`} small />)}</ul>
+        <More label={`Emails on ${logged.length} more application${logged.length === 1 ? "" : "s"} with no status change${checked ? ` · Outlook synced ${ago(checked)}` : ""}`} icon>
+          <ul className="space-y-0.5">{logged.map((e) => <Row key={e.id} href={e.appId ? `/applications/${e.appId}` : undefined} company={e.company ?? undefined} title={`${e.company?.name ?? e.from}: ${e.label}${e.undone ? " (undone)" : ""}`} sub={[`“${e.subject}”`, ago(e.at), e.more ? `+${e.more} more email${e.more === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")} small />)}</ul>
         </More>
       )}
     </div>
@@ -227,10 +235,12 @@ function AllClear({ children }: { children: ReactNode }) {
 }
 
 /** One application in a dashboard list: logo, a main line, a quiet second line, and an optional chip on the right. */
-function Row({ href, company, title, sub, right, small }: { href?: string; company?: Co; title: string; sub?: string; right?: ReactNode; small?: boolean }) {
+function Row({ href, company, title, sub, right, small, bare }: { href?: string; company?: Co; title: string; sub?: string; right?: ReactNode; small?: boolean; bare?: boolean }) {
   const size = small ? 26 : 34;
-  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`block truncate font-medium text-navy-950 ${small ? "text-[13.5px]" : "text-[15px]"}`}>{title}</span>{sub && <span className="block truncate text-[13px] text-slate-500">{sub}</span>}</span>{right}</>;
-  return <li>{href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>}</li>;
+  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`todo-title block truncate font-medium text-navy-950 ${small ? "text-[13.5px]" : "text-[15px]"}`}>{title}</span>{sub && <span className="block truncate text-[13px] text-slate-500">{sub}</span>}</span>{right}</>;
+  const body = href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>;
+  // bare: the caller supplies the <li> (a to-do row wraps this in its check button).
+  return bare ? body : <li>{body}</li>;
 }
 
 /** The Command Center banner: violet gradient, her greeting, a crystal on the right, and the headline numbers as glass tiles. */

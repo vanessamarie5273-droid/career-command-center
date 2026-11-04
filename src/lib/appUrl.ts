@@ -16,9 +16,20 @@ export async function rememberAppUrl(db: PrismaClient, origin: string | null) {
   await db.integrationStatus.upsert({ where: { id: ID }, create: { id: ID, name: "Web address", status: "connected", detail: origin }, update: { detail: origin, checkedAt: new Date() } }).catch(() => {});
 }
 
+/** APP_URL or RENDER_EXTERNAL_URL, but only when it is really a web address. A value pasted into the wrong
+ * variable (once, the Microsoft client secret) must never end up in an email link. */
+export function envBase() {
+  for (const v of [process.env.APP_URL, process.env.RENDER_EXTERNAL_URL]) {
+    const t = v?.trim();
+    if (!t) continue;
+    try { const u = new URL(t); if (u.protocol === "https:" || u.protocol === "http:") return u.origin; } catch {}
+  }
+  return null;
+}
+
 export async function appBase(db: PrismaClient) {
-  const env = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
-  if (env) return env.replace(/\/+$/, "");
+  const env = envBase();
+  if (env) return env;
   const row = await db.integrationStatus.findUnique({ where: { id: ID } }).catch(() => null);
   return row?.detail ?? "";
 }

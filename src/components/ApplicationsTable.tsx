@@ -17,14 +17,14 @@ export default function ApplicationsTable({ apps }: { apps: AppRow[] }) {
           return (
             <tr key={a.id}>
               <td className="min-w-[220px]"><Link href={`/applications/${a.id}`} className="font-medium hover:underline inline-flex items-center gap-2"><Logo src={a.company.logoUrl} name={a.company.name} size={18} />{a.title}</Link><div className="text-[13px] text-slate-500">{a.company.name}</div></td>
-              <td className="min-w-[170px]"><AutoField endpoint={ep} field="stage" type="select" value={a.stage} options={STAGES.map(([k, l]) => [k, l])} /></td>
+              <td className="min-w-[170px]"><AutoField endpoint={ep} field="stage" type="select" value={a.stage} options={STAGES.map(([k, l]) => [k, l])} refresh /></td>
               <td><AutoField endpoint={ep} field="applied" type="checkbox" value={a.applied} /></td>
               <td className="whitespace-nowrap text-[13px]">{date(a.appliedAt)}</td>
               <td className="text-[13px]">{a.resume?.name ?? "—"}</td>
               <td className="min-w-[200px]"><AutoField endpoint={ep} field="nextAction" value={a.nextAction} placeholder="e.g. Follow up with recruiter" /></td>
               <td className="min-w-[140px]"><AutoField endpoint={ep} field="nextActionDue" type="date" value={a.nextActionDue?.toISOString()} /></td>
               <td className="text-[13px] whitespace-nowrap">{a.interviewAt ? date(a.interviewAt) : "—"}</td>
-              <td>{a.job ? <a href={a.job.applyUrl} target="_blank" rel="noopener noreferrer" className="link text-[13px]">Open ↗</a> : <span className="text-[13px] text-slate-400">No posting</span>}</td>
+              <td>{a.job?.applyUrl ? <a href={a.job.applyUrl} target="_blank" rel="noopener noreferrer" className="link text-[13px]">Open ↗</a> : <span className="text-[13px] text-slate-400">No posting</span>}</td>
             </tr>
           );
         })}</tbody>

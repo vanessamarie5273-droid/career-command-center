@@ -4,8 +4,10 @@ import { useState } from "react";
 
 const post = (url: string, body: unknown, method = "POST") => fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
-export function TaskList({ applicationId, tasks }: { applicationId: string; tasks: { id: string; title: string; dueAt: string | null; done: boolean }[] }) {
+/** The application's to-dos: its next action (when no task already says the same) and its tasks, each with a checkbox. */
+export function TaskList({ applicationId, tasks, nextAction }: { applicationId: string; tasks: { id: string; title: string; dueAt: string | null; done: boolean }[]; nextAction?: { title: string; dueAt: string | null } | null }) {
   const r = useRouter();
+  const due = (d: string | null, done: boolean) => d && <span className={`ml-1 text-[13px] ${!done && new Date(d) < new Date() ? "text-red-600" : "text-slate-500"}`}>· {new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Phoenix" })}</span>;
   async function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -14,11 +16,19 @@ export function TaskList({ applicationId, tasks }: { applicationId: string; task
   }
   return (
     <div className="text-sm">
-      <ul className="space-y-1.5 mb-3">{tasks.map((t) => (
-        <li key={t.id} className="flex items-start gap-2">
-          <input type="checkbox" className="mt-1" checked={t.done} onChange={async (e) => { await post(`/api/tasks/${t.id}`, { done: e.target.checked }, "PATCH"); r.refresh(); }} />
-          <span className={t.done ? "line-through text-slate-400" : ""}>{t.title}{t.dueAt && <span className={`ml-1 text-[13px] ${!t.done && new Date(t.dueAt) < new Date() ? "text-red-600" : "text-slate-500"}`}>· {new Date(t.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}</span>
-        </li>))}
+      <ul className="space-y-1.5 mb-3">
+        {nextAction && (
+          <li className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={false} aria-label={`Mark done: ${nextAction.title}`} onChange={async () => { await post("/api/todos/done", { kind: "followup", id: applicationId }); r.refresh(); }} />
+            <span>{nextAction.title}{due(nextAction.dueAt, false)} <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Next action</span></span>
+          </li>
+        )}
+        {tasks.map((t) => (
+          <li key={t.id} className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={t.done} aria-label={`${t.done ? "Reopen" : "Mark done"}: ${t.title}`} onChange={async (e) => { await post(`/api/tasks/${t.id}`, { done: e.target.checked }, "PATCH"); r.refresh(); }} />
+            <span className={t.done ? "line-through text-slate-400" : ""}>{t.title}{due(t.dueAt, t.done)}</span>
+          </li>))}
+        {!nextAction && !tasks.length && <li className="text-[13px] text-slate-500">Nothing to do here yet.</li>}
       </ul>
       <form onSubmit={add} className="flex gap-1.5"><input name="title" required placeholder="New task" className="input" /><input name="dueAt" type="date" className="input w-36" /><button className="btn-primary">Add</button></form>
     </div>

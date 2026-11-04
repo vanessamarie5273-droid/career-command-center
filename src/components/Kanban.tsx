@@ -1,13 +1,15 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Logo from "./Logo";
 
 type Card = { id: string; title: string; stage: string; company: string; logo: string | null; score: number | null; nextAction: string | null; due: string | null; applied: boolean };
 
 export default function Kanban({ stages, cards }: { stages: [string, string][]; cards: Card[] }) {
   const [items, setItems] = useState(cards);
+  // After a move the server clears the old stage's next action; take the refreshed cards.
+  useEffect(() => setItems(cards), [cards]);
   const [drag, setDrag] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const r = useRouter();

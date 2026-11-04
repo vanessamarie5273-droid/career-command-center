@@ -125,7 +125,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   const fits = await ensureFitBriefs(db, picks, { connections, minScore, allowDelegate: opts.allowDelegate }, now);
   const opportunities: Opportunity[] = picks.map((j) => ({
     id: j.id, title: j.title, company: j.company.name, logo: j.company.logoUrl, pay: payOf(j), location: j.location, remote: j.isRemote,
-    postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(), verifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl, href: `${base}/jobs/${j.id}`,
+    postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(), verifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl || `${base}/jobs/${j.id}`, href: `${base}/jobs/${j.id}`,
     score: effectiveScore(j), tier: effectiveTier(j), isNew: j.firstSeenAt >= since && !!j.postedAt && j.postedAt.getTime() >= now.getTime() - NEW_POSTING_DAYS * DAY, connections: connections.get(j.companyId) ?? 0, fit: fits.get(j.id)!.fit, checks: fits.get(j.id)!.checks,
   }));
 
@@ -246,7 +246,7 @@ export async function buildBriefing(db: PrismaClient, now = new Date(), opts: { 
   return {
     generatedAt: now.toISOString(),
     lastRun: lastRun ? { at: lastRun.finishedAt?.toISOString() ?? null, status: lastRun.status, created: lastRun.created, closed: lastRun.closed, errors: lastRun.errors } : null,
-    newJobs: newJobs.map((j) => ({ id: j.id, title: j.title, company: j.company.name, score: effectiveScore(j), tier: effectiveTier(j), location: j.location, url: j.applyUrl })),
+    newJobs: newJobs.map((j) => ({ id: j.id, title: j.title, company: j.company.name, score: effectiveScore(j), tier: effectiveTier(j), location: j.location, url: j.applyUrl || `${base}/jobs/${j.id}` })),
     tier1: tier1.map((j) => ({ id: j.id, title: j.title, company: j.company.name, score: effectiveScore(j), applied: j.applications.some((a) => a.applied), url: `${base}/jobs/${j.id}` })),
     closedJobs: closedJobs.map((j) => ({ id: j.id, title: j.title, company: j.company.name })),
     companyNews: news.slice(0, 15).map((n) => ({ company: n.company.name, headline: n.headline, kind: n.kind, url: n.url })),

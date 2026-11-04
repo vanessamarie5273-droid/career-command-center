@@ -41,7 +41,7 @@ export default async function ApplyPage() {
                 </div>
                 {kit
                   ? <ReadyToApply key={kit.id} jobId={j.id} applyUrl={j.applyUrl} kit={JSON.parse(JSON.stringify(kit)) as KitRow} extra={<DeleteSaved appId={app.id} jobId={j.id} />} />
-                  : <div className="flex flex-wrap items-center gap-2"><Link className="btn-gold" href={`/jobs/${j.id}#kit`}>Build kit →</Link><a className="btn-ghost" href={j.applyUrl} target="_blank" rel="noopener noreferrer">Open employer form ↗</a><MarkApplied jobId={j.id} kitId={null} /><DeleteSaved appId={app.id} jobId={j.id} /></div>}
+                  : <div className="flex flex-wrap items-center gap-2"><Link className="btn-gold" href={`/jobs/${j.id}#kit`}>Build kit →</Link>{j.applyUrl && <a className="btn-ghost" href={j.applyUrl} target="_blank" rel="noopener noreferrer">Open employer form ↗</a>}<MarkApplied jobId={j.id} kitId={null} /><DeleteSaved appId={app.id} jobId={j.id} /></div>}
               </div>
             </section>
           );
