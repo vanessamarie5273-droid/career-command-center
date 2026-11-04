@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ingestCompany } from "@/lib/ingest/run";
 import { relinkContacts } from "@/lib/network";
 import { createCompany, findCompanyByName } from "@/lib/companies";
+import { researchNewCompany } from "@/lib/research";
 
 // Expand the universe: add a company, then immediately try to discover its public job board.
 export const POST = route("EDITOR", async (req, _c, u) => {
@@ -12,5 +13,6 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   const c = await createCompany(prisma, b, u.sub);
   await relinkContacts(prisma); // her LinkedIn connections who already work there show up on the account and in My Network
   const outcome = await ingestCompany(prisma, c).catch((e: Error) => ({ status: "error", error: e.message }));
-  return { id: c.id, feed: outcome };
+  const researching = await researchNewCompany(prisma, c.id); // fills the profile in the background
+  return { id: c.id, feed: outcome, researching };
 });

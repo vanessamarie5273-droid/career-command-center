@@ -6,6 +6,8 @@ import AutoField from "@/components/AutoField";
 import { growthOutlook } from "@/lib/growth";
 import JobsTable from "@/components/JobsTable";
 import RefreshButton from "@/components/RefreshButton";
+import ResearchButton from "@/components/ResearchButton";
+import { researchActive } from "@/lib/research";
 import NewApplication from "@/components/NewApplication";
 import { NoteForm } from "@/components/CrmWidgets";
 import { AddLeader, AddNews, VerifyProfile } from "@/components/CompanyWidgets";
@@ -37,6 +39,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
   const growth = growthOutlook(c);
   const rows = c.jobs.map((j) => ({ id: j.id, title: j.title, company: { id: c.id, name: c.name, logoUrl: c.logoUrl, category: c.category }, location: j.location, arrangement: j.workArrangement, postedAt: j.postedAt?.toISOString() ?? null, firstSeenAt: j.firstSeenAt.toISOString(), lastVerifiedAt: j.lastVerifiedAt.toISOString(), applyUrl: j.applyUrl, score: effectiveScore(j), aiScore: j.score, tier: effectiveTier(j), overridden: !!(j.overrideTier || j.overrideScore), confidence: j.confidence, salaryMin: j.salaryMin, salaryMax: j.salaryMax, oteMin: j.oteMin, oteMax: j.oteMax, category: j.category, status: j.status, favorite: j.favorite, family: j.roleFamily, sources: [...new Set(j.sources.map((s) => s.provider))], application: j.applications[0] ?? null, excludedReason: j.excludedReason }));
   const pos = positioning(c.category, c.maturity);
+  // Fields the last company research wrote are labelled, so she can tell them from her own entries.
+  const fromResearch = new Set(c.researchedFields);
+  const rl = (label: string, field: string) => (fromResearch.has(field) ? `${label} · from research` : label);
+  const researching = researchActive(c);
+  const research = { status: researching ? c.researchStatus! : c.researchStatus === "running" || c.researchStatus === "queued" ? "error" : c.researchStatus ?? "never", active: researching, researchedAt: c.researchedAt?.toISOString() ?? null, summary: c.researchSummary, error: c.researchError ?? (c.researchStatus === "running" || c.researchStatus === "queued" ? "Research stopped before it finished. Try again." : null) };
+  const sources = (Array.isArray(c.researchSources) ? c.researchSources : []) as { title: string; url: string }[];
+  const financeResearched = ["revenue", "revenueGrowth", "fundingSummary", "valuation", "investors", "liquidityNotes"].some((f) => fromResearch.has(f));
   return (
     <>
       <div className="mb-5 flex flex-wrap items-start gap-4">
@@ -52,6 +61,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
         </div>
         <div className="flex flex-col items-end gap-2">
           <AutoField endpoint={ep} field="favorite" type="checkbox" label="★ Favorite" value={c.favorite} />
+          <ResearchButton companyId={c.id} initial={research} />
           <RefreshButton companyId={c.id} label="Refresh this company's jobs" />
           <Link className="link text-[13px]" href={`/jobs/new?company=${c.id}`}>+ Add a role here</Link>
           <span className="text-[13px] text-slate-500 flex items-center gap-1.5"><StatusDot status={c.atsStatus} />Feed: {c.atsProvider !== "NONE" ? `${c.atsProvider.toLowerCase()} (${c.atsToken})` : c.atsStatus ?? "pending discovery"} · checked {dateTime(c.atsCheckedAt)}</span>
@@ -78,32 +88,38 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           )}
           <Card title="Company overview" action={<span className="flex items-center gap-2"><FactTag type={c.profileFactType} /><span className="text-[13px] text-slate-500">{c.profileVerifiedAt ? `verified ${date(c.profileVerifiedAt)}` : "not yet verified"}</span></span>}>
             <div className="grid sm:grid-cols-2 gap-3">
-              <AutoField endpoint={ep} field="description" type="textarea" label="Business & positioning" value={c.description} className="sm:col-span-2" />
-              <AutoField endpoint={ep} field="keyProducts" type="textarea" label="Key products" value={c.keyProducts} rows={2} />
-              <AutoField endpoint={ep} field="buyerPersonas" type="textarea" label="Target buyer personas" value={c.buyerPersonas} rows={2} />
-              <AutoField endpoint={ep} field="customers" type="textarea" label="Major customers" value={c.customers} rows={2} placeholder="Add only customers named publicly by the company" />
-              <AutoField endpoint={ep} field="footprint" type="textarea" label="Geographic footprint" value={c.footprint} rows={2} />
+              <AutoField endpoint={ep} field="description" type="textarea" label={rl("Business & positioning", "description")} value={c.description} className="sm:col-span-2" />
+              <AutoField endpoint={ep} field="keyProducts" type="textarea" label={rl("Key products", "keyProducts")} value={c.keyProducts} rows={2} />
+              <AutoField endpoint={ep} field="buyerPersonas" type="textarea" label={rl("Target buyer personas", "buyerPersonas")} value={c.buyerPersonas} rows={2} />
+              <AutoField endpoint={ep} field="customers" type="textarea" label={rl("Major customers", "customers")} value={c.customers} rows={2} placeholder="Add only customers named publicly by the company" />
+              <AutoField endpoint={ep} field="footprint" type="textarea" label={rl("Geographic footprint", "footprint")} value={c.footprint} rows={2} />
               <AutoField endpoint={ep} field="category" type="select" label="Industry" value={c.category} options={CATEGORIES.map((x) => [x, x])} />
-              <AutoField endpoint={ep} field="maturity" label="Maturity" value={c.maturity} />
+              <AutoField endpoint={ep} field="maturity" label={rl("Maturity", "maturity")} value={c.maturity} />
             </div>
             <p className="mt-3 text-[13px] text-slate-500">Source: {c.profileSource}</p>
+            {sources.length > 0 && (
+              <details className="mt-1 text-[13px]">
+                <summary className="cursor-pointer text-slate-500">Research sources ({sources.length}){c.researchedAt ? ` · ${dateTime(c.researchedAt)}` : ""}</summary>
+                <ul className="mt-1 space-y-0.5">{sources.map((x) => <li key={x.url}><a className="link" href={x.url} target="_blank" rel="noopener noreferrer">{x.title} ↗</a></li>)}</ul>
+              </details>
+            )}
             <VerifyProfile id={c.id} />
           </Card>
-          <Card title="Financial profile" action={c.financialVerifiedAt ? <span className="text-[13px] text-slate-500">verified {date(c.financialVerifiedAt)}</span> : <span className="chip bg-slate-100 text-slate-500">No verified figures</span>}>
-            <p className="text-[13px] text-slate-500 mb-3">Enter only figures you have confirmed, with the source link. Nothing here is estimated or generated.</p>
+          <Card title="Financial profile" action={c.financialVerifiedAt ? <span className="text-[13px] text-slate-500">{financeResearched ? "from research" : "verified"} {date(c.financialVerifiedAt)}</span> : <span className="chip bg-slate-100 text-slate-500">No verified figures</span>}>
+            <p className="text-[13px] text-slate-500 mb-3">{financeResearched ? "Figures marked \"from research\" are as stated in the source link below. Open it before you quote a number." : "Enter only figures you have confirmed, with the source link. Nothing here is estimated or generated."} Research only fills a figure when a source it found states it.</p>
             <div className="grid sm:grid-cols-2 gap-3">
-              <AutoField endpoint={ep} field="revenue" label="Revenue" value={c.revenue} placeholder="e.g. $X ARR (FY2026)" />
-              <AutoField endpoint={ep} field="revenueGrowth" label="Revenue growth" value={c.revenueGrowth} />
-              <AutoField endpoint={ep} field="fundingSummary" label="Funding history" value={c.fundingSummary} />
-              <AutoField endpoint={ep} field="valuation" label="Valuation" value={c.valuation} />
-              <AutoField endpoint={ep} field="investors" label="Investors" value={c.investors} />
-              <AutoField endpoint={ep} field="liquidityNotes" label="Potential liquidity events" value={c.liquidityNotes} />
+              <AutoField endpoint={ep} field="revenue" label={rl("Revenue", "revenue")} value={c.revenue} placeholder="e.g. $X ARR (FY2026)" />
+              <AutoField endpoint={ep} field="revenueGrowth" label={rl("Revenue growth", "revenueGrowth")} value={c.revenueGrowth} />
+              <AutoField endpoint={ep} field="fundingSummary" label={rl("Funding history", "fundingSummary")} value={c.fundingSummary} />
+              <AutoField endpoint={ep} field="valuation" label={rl("Valuation", "valuation")} value={c.valuation} />
+              <AutoField endpoint={ep} field="investors" label={rl("Investors", "investors")} value={c.investors} />
+              <AutoField endpoint={ep} field="liquidityNotes" label={rl("Potential liquidity events", "liquidityNotes")} value={c.liquidityNotes} />
               <AutoField endpoint={ep} field="financialSourceUrl" type="url" label="Source URL" value={c.financialSourceUrl} className="sm:col-span-2" />
             </div>
           </Card>
           <Card title="Recent developments & hiring signals">
             <ul className="space-y-2 text-sm mb-3">{c.news.map((n) => <li key={n.id}><span className="chip bg-slate-100 text-slate-600 mr-1">{n.kind}</span>{n.url ? <a className="link" href={n.url} target="_blank" rel="noopener noreferrer">{n.headline} ↗</a> : n.headline} <span className="text-[13px] text-slate-400">{date(n.publishedAt)}</span></li>)}</ul>
-            {c.news.length === 0 && <p className="text-sm text-slate-500 mb-3">No developments recorded yet. Add announcements with their source link; they feed the morning briefing.</p>}
+            {c.news.length === 0 && <p className="text-sm text-slate-500 mb-3">No developments recorded yet. Research this company to pull recent ones, or add announcements with their source link; they feed the morning briefing.</p>}
             <AddNews companyId={c.id} />
           </Card>
           <Card title="My activity">
@@ -117,25 +133,25 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           <Card title="Career intelligence" action={<FactTag type="AI_ASSESSMENT" />}>
             <div className="grid grid-cols-2 gap-2 mb-3 text-center">
               <div className="rounded-lg bg-navy-950 p-3 text-white col-span-2"><div className="text-[12px] uppercase tracking-wider text-gold-300">Attractiveness</div><div className="text-3xl font-semibold tabular-nums">{attract}</div><div className="text-[12px] text-white/50">as a place to work, independent of open roles</div></div>
-              <AutoField endpoint={ep} field="marketPositionScore" type="number" label="Market position" value={c.marketPositionScore} />
-              <AutoField endpoint={ep} field="equityUpsideScore" type="number" label="Equity upside" value={c.equityUpsideScore} />
-              <AutoField endpoint={ep} field="compCompetitiveness" type="number" label="Comp competitiveness" value={c.compCompetitiveness} />
-              <AutoField endpoint={ep} field="growthScore" type="number" label="Growth potential" value={c.growthScore} />
+              <AutoField endpoint={ep} field="marketPositionScore" type="number" label={rl("Market position", "marketPositionScore")} value={c.marketPositionScore} />
+              <AutoField endpoint={ep} field="equityUpsideScore" type="number" label={rl("Equity upside", "equityUpsideScore")} value={c.equityUpsideScore} />
+              <AutoField endpoint={ep} field="compCompetitiveness" type="number" label={rl("Comp competitiveness", "compCompetitiveness")} value={c.compCompetitiveness} />
+              <AutoField endpoint={ep} field="growthScore" type="number" label={rl("Growth potential", "growthScore")} value={c.growthScore} />
               <AutoField endpoint={ep} field="userPriority" type="select" label="My priority" value={c.userPriority?.toString() ?? ""} options={[["", "—"], ["1", "1 · Top"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"]]} />
             </div>
             <div className="label">Growth outlook: {growth.label} ({growth.score}/100)</div>
             <ul className="text-sm space-y-1 mb-3">{growth.signals.map((g) => <li key={g.text} className="flex gap-1.5"><span className={g.delta === "+" ? "text-emerald-600" : g.delta === "-" ? "text-rose-600" : "text-slate-400"}>{g.delta === "=" ? "•" : g.delta}</span>{g.text}</li>)}</ul>
             <div className="label">How to position yourself</div>
             <ul className="list-disc ml-4 text-sm space-y-1 mb-3">{pos.map((p) => <li key={p}>{p}</li>)}</ul>
-            <AutoField endpoint={ep} field="assessmentRationale" type="textarea" label="Why this company is attractive" value={c.assessmentRationale} />
+            <AutoField endpoint={ep} field="assessmentRationale" type="textarea" label={rl("Why this company is attractive", "assessmentRationale")} value={c.assessmentRationale} />
             <AutoField endpoint={ep} field="myContribution" type="textarea" label="My potential contribution" value={c.myContribution} className="mt-2" />
-            <AutoField endpoint={ep} field="risks" type="textarea" label="Risks (equity, culture, stability)" value={c.risks} className="mt-2" />
-            <AutoField endpoint={ep} field="cultureNotes" type="textarea" label="Culture & employment considerations" value={c.cultureNotes} className="mt-2" />
+            <AutoField endpoint={ep} field="risks" type="textarea" label={rl("Risks (equity, culture, stability)", "risks")} value={c.risks} className="mt-2" />
+            <AutoField endpoint={ep} field="cultureNotes" type="textarea" label={rl("Culture & employment considerations", "cultureNotes")} value={c.cultureNotes} className="mt-2" />
             <AutoField endpoint={ep} field="engagementStrategy" type="textarea" label="My engagement strategy" value={c.engagementStrategy} className="mt-2" />
-            <p className="mt-2 text-[12px] text-slate-500">Scores are AI assessments from public positioning; edit them as you learn more. Changes rescore this company&apos;s jobs.</p>
+            <p className="mt-2 text-[12px] text-slate-500">Scores are AI assessments from public positioning; edit them as you learn more. Changes rescore this company&apos;s jobs. Company research updates them, but never a score or field you changed yourself.</p>
           </Card>
           <Card title="Leadership & network">
-            <ul className="space-y-2 text-sm mb-3">{c.leaders.map((l) => <li key={l.id}><div className="flex items-center gap-1.5"><b>{l.name}</b><FactTag type={l.factType} /></div><div className="text-[13px] text-slate-500">{l.title}{l.verifiedAt ? ` · verified ${date(l.verifiedAt)}` : ""}</div>{l.linkedinUrl && <a className="link text-[13px]" href={l.linkedinUrl} target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>}</li>)}</ul>
+            <ul className="space-y-2 text-sm mb-3">{c.leaders.map((l) => <li key={l.id}><div className="flex items-center gap-1.5"><b>{l.name}</b><FactTag type={l.factType} /></div><div className="text-[13px] text-slate-500">{l.title}{l.verifiedAt ? ` · verified ${date(l.verifiedAt)}` : ""}</div><span className="flex gap-2">{l.linkedinUrl && <a className="link text-[13px]" href={l.linkedinUrl} target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>}{l.sourceUrl && <a className="link text-[13px]" href={l.sourceUrl} target="_blank" rel="noopener noreferrer">source ↗</a>}</span></li>)}</ul>
             <AddLeader companyId={c.id} />
             <div className="label mt-4">Find on LinkedIn (opens LinkedIn search)</div>
             <div className="flex flex-wrap gap-1.5 text-[13px]">{["Chief Revenue Officer", "VP Sales", "Regional Vice President", "Director of Sales Development", "Head of Public Sector", "Sales Recruiter", "Talent Acquisition"].map((r) => <a key={r} className="chip bg-slate-100 text-navy-700 hover:bg-slate-200" href={li(c.name, r)} target="_blank" rel="noopener noreferrer">{r} ↗</a>)}</div>

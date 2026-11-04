@@ -10,6 +10,7 @@ import { ingestCompany } from "@/lib/ingest/run";
 import { relinkContacts } from "@/lib/network";
 import { boardHintFromUrl, createCompany, findCompanyByName, websiteFromUrl } from "@/lib/companies";
 import { addCompanyNote, foundViaLabel, FOUND_VIA_KEYS, saveContact } from "@/lib/manualEntry";
+import { researchNewCompany } from "@/lib/research";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const opt = <T extends z.ZodTypeAny>(t: T) => z.preprocess(blank, t.optional());
@@ -45,6 +46,8 @@ export const POST = route("EDITOR", async (req, _c, u) => {
       await relinkContacts(prisma);
       // Pull the new company's board first, so this posting (if it is on that board) dedupes onto the feed copy.
       await ingestCompany(prisma, c).catch(() => null);
+      // Fill its profile (overview, scores, leaders, news) from public sources while she carries on.
+      await researchNewCompany(prisma, c.id);
       companyId = c.id; addedCompany = true;
     }
   }

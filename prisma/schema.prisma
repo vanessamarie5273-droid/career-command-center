@@ -138,6 +138,15 @@ model Company {
   totalOpenings      Int?         // all openings at the company (hiring momentum), not just suitable ones
   lastIngestedAt     DateTime?
 
+  // Company research (AI with web search): run from the account page or when she adds a company
+  researchStatus     String?      // queued | running | done | error
+  researchStartedAt  DateTime?
+  researchedAt       DateTime?
+  researchError      String?
+  researchSummary    String?      // what the last research changed, in a sentence
+  researchSources    Json?        // [{ title, url }] the public pages it drew on
+  researchedFields   String[]     @default([]) // fields the last research wrote (shown as "from research")
+
   favorite           Boolean      @default(false)
   userPriority       Int?         // manual override 1-5
   notes              String?
