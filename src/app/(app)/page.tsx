@@ -9,6 +9,7 @@ import Gem from "@/components/Gem";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import { STAGE_LABEL, ago, date } from "@/lib/format";
 import { UndoEmail } from "@/components/MailWidgets";
+import DoneCheck from "@/components/DoneCheck";
 import { KIND_LABEL } from "@/lib/mail/sync";
 
 export const metadata = { title: "Command Center" };
@@ -127,7 +128,10 @@ function NextMoves({ items, nudges }: { items: AgendaItem[]; nudges: { id: strin
   const groups = (["interview", "overdue", "today", "soon"] as const)
     .map((b) => [b, items.filter((x) => (b === "interview" ? x.kind === "interview" : x.kind !== "interview" && x.bucket === b))] as const)
     .filter(([, l]) => l.length);
-  const row = (x: AgendaItem) => <Row key={x.id} href={x.appId ? `/applications/${x.appId}${x.kind === "interview" ? "#interview" : ""}` : undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role].filter(Boolean).join(" · ")} right={<Due x={x} />} />;
+  const row = (x: AgendaItem) => {
+    const r = <Row key={x.id} href={x.href ?? undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role].filter(Boolean).join(" · ")} right={<Due x={x} />} bare={!!x.done} />;
+    return x.done ? <DoneCheck key={x.id} kind={x.done.kind} id={x.done.id} label={x.text}>{r}</DoneCheck> : r;
+  };
   return (
     <div className="space-y-3">
       {groups.map(([b, l]) => (
@@ -227,10 +231,12 @@ function AllClear({ children }: { children: ReactNode }) {
 }
 
 /** One application in a dashboard list: logo, a main line, a quiet second line, and an optional chip on the right. */
-function Row({ href, company, title, sub, right, small }: { href?: string; company?: Co; title: string; sub?: string; right?: ReactNode; small?: boolean }) {
+function Row({ href, company, title, sub, right, small, bare }: { href?: string; company?: Co; title: string; sub?: string; right?: ReactNode; small?: boolean; bare?: boolean }) {
   const size = small ? 26 : 34;
-  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`block truncate font-medium text-navy-950 ${small ? "text-[13.5px]" : "text-[15px]"}`}>{title}</span>{sub && <span className="block truncate text-[13px] text-slate-500">{sub}</span>}</span>{right}</>;
-  return <li>{href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>}</li>;
+  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`todo-title block truncate font-medium text-navy-950 ${small ? "text-[13.5px]" : "text-[15px]"}`}>{title}</span>{sub && <span className="block truncate text-[13px] text-slate-500">{sub}</span>}</span>{right}</>;
+  const body = href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>;
+  // bare: the caller supplies the <li> (a to-do row wraps this in its check button).
+  return bare ? body : <li>{body}</li>;
 }
 
 /** The Command Center banner: violet gradient, her greeting, a crystal on the right, and the headline numbers as glass tiles. */

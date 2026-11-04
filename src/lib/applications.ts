@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient, Stage } from "@prisma/client";
+import { STAGE_LABEL } from "./format";
 
 export const STAGE_ORDER: Stage[] = ["RESEARCHING", "PRIORITIZED", "RESUME_PREP", "READY_TO_APPLY", "APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED", "REJECTED", "WITHDRAWN", "ON_HOLD"];
 const TERMINAL: Stage[] = ["ACCEPTED", "REJECTED", "WITHDRAWN"];
@@ -31,12 +32,20 @@ export function transition(from: Stage, to: Stage, app: { applied: boolean; appl
   return { ok: true, patch };
 }
 
-export async function moveStage(db: PrismaClient, id: string, to: Stage, userId: string | null) {
+/** keepTodos: leave the next action and tasks alone (Mark Applied keeps what she set and books its own follow-ups). */
+export async function moveStage(db: PrismaClient, id: string, to: Stage, userId: string | null, { keepTodos = false } = {}) {
   const app = await db.application.findUniqueOrThrow({ where: { id } });
   const t = transition(app.stage, to, app);
   if (!t.ok) return t;
   if (app.stage === to) return { ok: true as const, app };
-  const updated = await db.application.update({ where: { id }, data: { ...t.patch, stageHistory: { create: { from: app.stage, to } } } });
+  // A new status retires the old status's to-dos: the next action, and the reminders the app booked for it.
+  // Tasks she wrote herself and networking follow-ups with a contact stay open.
+  const stale = keepTodos ? [] : await db.task.findMany({ where: { applicationId: id, done: false, source: { not: "manual" }, contactId: null }, select: { id: true, title: true } });
+  const clear = keepTodos ? {} : { nextAction: null, nextActionDue: null };
+  const updated = await db.application.update({ where: { id }, data: { ...t.patch, ...clear, stageHistory: { create: { from: app.stage, to } } } });
+  if (stale.length) await db.task.updateMany({ where: { id: { in: stale.map((x) => x.id) } }, data: { done: true, doneAt: new Date() } });
+  const cleared = keepTodos ? [] : [...new Set([app.nextAction ?? (app.nextActionDue ? "Follow up" : null), ...stale.map((x) => x.title)].filter((x): x is string => !!x))];
+  if (cleared.length) await db.activity.create({ data: { applicationId: id, kind: "note", body: `Moved to ${STAGE_LABEL[to] ?? to}, so these to-dos were cleared: ${cleared.join("; ")}` } });
   await db.auditLog.create({ data: { userId, entity: "Application", entityId: id, action: "update", changes: { stage: { from: app.stage, to } } } });
   return { ok: true as const, app: updated };
 }

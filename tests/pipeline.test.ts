@@ -54,6 +54,19 @@ describe("Command Center lists", () => {
     expect(r.items.map((x) => [x.kind, x.bucket])).toEqual([["task", "overdue"], ["followup", "today"], ["interview", "soon"]]);
     expect(r.items[1].text).toBe("Reply to the recruiter with your availability");
     expect(r.nudges.map((n) => n.id)).toEqual(["b"]);
+    expect(r.items.map((x) => x.done)).toEqual([{ kind: "task", id: "t" }, { kind: "followup", id: "a" }, null]);
+  });
+
+  it("shows a to-do once when a task and the next action say the same thing", () => {
+    const now = new Date("2026-11-01T20:00:00Z");
+    const due = new Date("2026-11-01T18:00:00Z");
+    const title = "Follow up on your Vanta application with the recruiter";
+    const r = agenda({
+      followUps: [{ id: "v", title: "Senior AE", nextAction: title, nextActionDue: due, appliedAt: null, company: co }],
+      dueTasks: [{ id: "t1", title, dueAt: due, application: { id: "v", title: "Senior AE", company: co } }, { id: "t2", title: `${title}.`, dueAt: due, application: { id: "v", title: "Senior AE", company: co } }],
+      upcoming: [],
+    }, now);
+    expect(r.items.map((x) => x.id)).toEqual(["t-t1"]);
   });
 
   it("shows an email-driven stage move once, with its Undo, and tucks away emails that changed nothing", () => {

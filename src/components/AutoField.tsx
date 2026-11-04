@@ -1,10 +1,13 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   endpoint: string; field: string; value: string | number | boolean | null | undefined; label?: string;
   type?: "text" | "textarea" | "date" | "datetime" | "number" | "select" | "checkbox" | "url";
   options?: [string, string][]; placeholder?: string; rows?: number; className?: string; onSaved?: () => void;
+  /** Reload the page's data after a save, for fields whose change updates others (a new stage clears the next action). */
+  refresh?: boolean;
 };
 
 const toInput = (v: Props["value"], type: Props["type"]) => {
@@ -15,15 +18,20 @@ const toInput = (v: Props["value"], type: Props["type"]) => {
 };
 
 /** Inline-editable field that saves automatically (on change for selects/checkboxes, debounced for text). */
-export default function AutoField({ endpoint, field, value, label, type = "text", options, placeholder, rows = 3, className = "", onSaved }: Props) {
-  const [v, setV] = useState<string | boolean>(type === "checkbox" ? !!value : toInput(value, type));
+export default function AutoField({ endpoint, field, value, label, type = "text", options, placeholder, rows = 3, className = "", onSaved, refresh }: Props) {
+  const router = useRouter();
+  const initial = type === "checkbox" ? !!value : toInput(value, type);
+  const [v, setV] = useState<string | boolean>(initial);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [err, setErr] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const last = useRef(v);
+  const dirty = useRef(false);
+  // Take a new value from the server (after another field's save changed this one) unless she is mid-edit here.
+  useEffect(() => { if (!dirty.current && initial !== last.current) { setV(initial); last.current = initial; } }, [initial]);
 
   async function save(next: string | boolean) {
-    if (next === last.current) return;
+    if (next === last.current) { dirty.current = false; return; }
     setState("saving");
     let payload: unknown = next;
     if (type === "number") payload = next === "" ? null : Number(next);
@@ -31,11 +39,12 @@ export default function AutoField({ endpoint, field, value, label, type = "text"
     if (type === "datetime" && next) payload = new Date(next as string).toISOString();
     if (type !== "checkbox" && type !== "number" && next === "") payload = null;
     const res = await fetch(endpoint, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: payload }) });
-    if (res.ok) { last.current = next; setState("saved"); setErr(null); onSaved?.(); setTimeout(() => setState("idle"), 1500); }
+    if (res.ok) { last.current = next; dirty.current = false; setState("saved"); setErr(null); onSaved?.(); if (refresh) router.refresh(); setTimeout(() => setState("idle"), 1500); }
     else { setState("error"); setErr((await res.json().catch(() => ({}))).error ?? "Save failed"); }
   }
   const change = (next: string | boolean, immediate = false) => {
     setV(next);
+    dirty.current = true;
     if (timer.current) clearTimeout(timer.current);
     if (immediate) save(next); else timer.current = setTimeout(() => save(next), 800);
   };

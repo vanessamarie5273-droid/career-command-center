@@ -17,7 +17,7 @@ export default function ApplicationsTable({ apps }: { apps: AppRow[] }) {
           return (
             <tr key={a.id}>
               <td className="min-w-[220px]"><Link href={`/applications/${a.id}`} className="font-medium hover:underline inline-flex items-center gap-2"><Logo src={a.company.logoUrl} name={a.company.name} size={18} />{a.title}</Link><div className="text-[13px] text-slate-500">{a.company.name}</div></td>
-              <td className="min-w-[170px]"><AutoField endpoint={ep} field="stage" type="select" value={a.stage} options={STAGES.map(([k, l]) => [k, l])} /></td>
+              <td className="min-w-[170px]"><AutoField endpoint={ep} field="stage" type="select" value={a.stage} options={STAGES.map(([k, l]) => [k, l])} refresh /></td>
               <td><AutoField endpoint={ep} field="applied" type="checkbox" value={a.applied} /></td>
               <td className="whitespace-nowrap text-[13px]">{date(a.appliedAt)}</td>
               <td className="text-[13px]">{a.resume?.name ?? "—"}</td>
