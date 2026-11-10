@@ -78,6 +78,15 @@ describe("adding a company or a role by hand", () => {
     expect((await res.json()).issues[0].message).toBe('Give the role a title, or choose "Just the company"');
   });
 
+  it("saves a Workday posting link from the current /details/ site", async () => {
+    const co = await db.company.findFirstOrThrow({ where: { name: "Quiet Hire Co" } });
+    const url = "https://workday.wd5.myworkdayjobs.com/en-US/Workday/details/Manager--Business-Development_JR-0111232?q=business+development";
+    const res = await post({ companyId: co.id, title: "Business Development Manager", remote: true, url, source: "MANUAL" });
+    expect(res.status).toBe(200);
+    const job = await db.job.findUniqueOrThrow({ where: { id: (await res.json()).id } });
+    expect(job.applyUrl).toBe(url);
+  });
+
   it("still turns away a careers homepage given as the posting link", async () => {
     const co = await db.company.findFirstOrThrow({ where: { name: "Quiet Hire Co" } });
     const res = await post({ companyId: co.id, title: "Account Executive", url: "https://quiethire.example.com/careers" });
