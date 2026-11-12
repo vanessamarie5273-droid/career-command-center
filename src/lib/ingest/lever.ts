@@ -1,5 +1,5 @@
 import { getJson } from "./http";
-import type { BoardResult, FetchLike, RawPosting } from "./types";
+import { BoardNotFound, type BoardResult, type FetchLike, type RawPosting } from "./types";
 
 type LV = {
   id: string; text: string; hostedUrl: string; applyUrl?: string; createdAt?: number; workplaceType?: string;
@@ -10,9 +10,14 @@ type LV = {
 }[];
 
 export async function fetchLever(site: string, f: FetchLike = fetch): Promise<BoardResult> {
-  const data = await getJson<LV>(f, `https://api.lever.co/v0/postings/${encodeURIComponent(site)}?mode=json`);
+  // Lever hosts EU accounts on a separate API (api.eu.lever.co); a board that moved there answers 404 on the U.S. one.
+  const path = `/v0/postings/${encodeURIComponent(site)}?mode=json`;
+  const data = await getJson<LV>(f, `https://api.lever.co${path}`).catch((e) => {
+    if (e instanceof BoardNotFound) return getJson<LV>(f, `https://api.eu.lever.co${path}`);
+    throw e;
+  });
   if (!Array.isArray(data)) throw new Error("Unexpected Lever response");
-  const postings: RawPosting[] = data.map((j) => {
+  const postings: RawPosting[] = data.filter((j) => j.text?.trim() && j.hostedUrl).map((j) => {
     const html = [j.description || "", ...(j.lists || []).map((l) => `<h3>${l.text}</h3><ul>${l.content}</ul>`), j.additional || ""].join("\n");
     const annual = j.salaryRange && (j.salaryRange.interval || "").toLowerCase().includes("year") && (j.salaryRange.currency || "USD") === "USD";
     return {

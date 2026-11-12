@@ -4,7 +4,7 @@ import { getJson } from "./http";
 import type { BoardResult, FetchLike, RawPosting } from "./types";
 import { classifyTitle, isRelevantFamily } from "../roles";
 
-type Search = { total: number; jobPostings: { title: string; externalPath: string; locationsText?: string; postedOn?: string; remoteType?: string }[] };
+type Search = { total: number; jobPostings: { title?: string; externalPath: string; locationsText?: string; postedOn?: string; remoteType?: string }[] };
 type Detail = { jobPostingInfo?: { jobDescription?: string; location?: string; startDate?: string; externalUrl?: string; jobReqId?: string; remoteType?: string; additionalLocations?: string[] } };
 
 const QUERIES = ["account executive", "sales director", "business development", "sales development", "account director", "head of sales", "vice president sales"];
@@ -20,17 +20,19 @@ export async function fetchWorkday(token: string, f: FetchLike = fetch): Promise
   for (const q of QUERIES) {
     for (let offset = 0; offset < 200; offset += 20) {
       const r = await post({ appliedFacets: {}, limit: 20, offset, searchText: q });
-      for (const p of r.jobPostings || []) seen.set(p.externalPath, p);
+      // Some Workday sites mix untitled entries into search results; they are not readable postings.
+      for (const p of r.jobPostings || []) if (p.title?.trim() && p.externalPath) seen.set(p.externalPath, p);
       if (!r.jobPostings || r.jobPostings.length < 20) break;
     }
   }
   const postings: RawPosting[] = [];
   for (const p of seen.values()) {
-    if (!isRelevantFamily(classifyTitle(p.title).family)) continue;
+    const title = p.title!.trim();
+    if (!isRelevantFamily(classifyTitle(title).family)) continue;
     const d = await getJson<Detail>(f, `${api}${p.externalPath}`).catch(() => null);
     const info = d?.jobPostingInfo;
     postings.push({
-      provider: "WORKDAY", externalId: `${tenant}:${info?.jobReqId || p.externalPath}`, title: p.title.trim(),
+      provider: "WORKDAY", externalId: `${tenant}:${info?.jobReqId || p.externalPath}`, title,
       location: [info?.location || p.locationsText, ...(info?.additionalLocations || [])].filter(Boolean).join("; "),
       isRemote: /remote/i.test(info?.remoteType || p.remoteType || ""), workplaceType: info?.remoteType || p.remoteType || null,
       descriptionHtml: info?.jobDescription || null, applyUrl: info?.externalUrl || `${host}/${site}${p.externalPath}`,
