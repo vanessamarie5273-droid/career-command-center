@@ -6,6 +6,7 @@ import type { Company, PrismaClient } from "@prisma/client";
 import { getJson } from "./http";
 import type { FetchLike, RawPosting } from "./types";
 import { classifyTitle, isRelevantFamily } from "../roles";
+import { offLimitsReason } from "../offLimits";
 import { parseLocation } from "../normalize";
 import { upsertPosting } from "./run";
 
@@ -92,6 +93,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
         if (seen.has(id) || !j.company_name) continue;
         seen.add(id);
         if (STAFFING.test(j.company_name)) { out.skippedStaffing++; continue; }
+        if (offLimitsReason({ name: j.company_name })) continue;
         if (!isRelevantFamily(classifyTitle(j.title).family)) continue;
         const remote = !!j.detected_extensions?.work_from_home || /remote|anywhere/i.test(j.location ?? "");
         const location = remote && !/remote/i.test(j.location ?? "") ? `Remote, ${j.location || "United States"}` : j.location || null;

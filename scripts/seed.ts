@@ -3,6 +3,7 @@
 import { PrismaClient } from "@prisma/client";
 import { SEED_COMPANIES } from "../src/data/companies";
 import { PROFILE } from "../src/lib/profile";
+import { offLimitsReason, removeOffLimitsCompanies } from "../src/lib/offLimits";
 
 const db = new PrismaClient();
 
@@ -20,6 +21,7 @@ function careersFor(c: (typeof SEED_COMPANIES)[number]) {
 export async function seed(client = db) {
   let created = 0;
   for (const c of SEED_COMPANIES) {
+    if (offLimitsReason(c)) continue;
     const host = new URL(c.website).hostname.replace(/^www\./, "");
     const data = {
       name: c.name, website: c.website, careersUrl: careersFor(c),
@@ -52,9 +54,11 @@ export async function seed(client = db) {
   for (const id of ["email", "anthropic", "linkedin", "storage"]) {
     await client.integrationStatus.upsert({ where: { id }, update: {}, create: { id, name: id, status: "not_configured", detail: "Not yet checked" } });
   }
-  return { total: SEED_COMPANIES.length, created };
+  // Runs on every deploy, so companies she ruled out (food and restaurant, Nov 12) leave the live site too.
+  const offLimits = await removeOffLimitsCompanies(client);
+  return { total: SEED_COMPANIES.length, created, offLimits };
 }
 
 if (process.argv[1]?.endsWith("seed.ts")) {
-  seed().then((r) => { console.log(`Seeded companies: ${r.created} new of ${r.total}`); return db.$disconnect(); }).catch((e) => { console.error(e); process.exit(1); });
+  seed().then((r) => { console.log(`Seeded companies: ${r.created} new of ${r.total}`); if (r.offLimits.removed.length) console.log(`Removed food/restaurant companies: ${r.offLimits.removed.join(", ")}`); if (r.offLimits.kept.length) console.log(`Kept (has applications): ${r.offLimits.kept.join(", ")}`); return db.$disconnect(); }).catch((e) => { console.error(e); process.exit(1); });
 }
