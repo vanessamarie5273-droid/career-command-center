@@ -2,7 +2,7 @@
 // Weights are exactly as specified: qualifications 25, compensation 20, company 15, equity 15,
 // location 10, leadership scope 10, hiring momentum 5. Every point awarded or withheld has a reason.
 
-import { classifyTitle, FAMILY_LABEL, type RoleFamily } from "./roles";
+import { classifyTitle, offTargetReason, FAMILY_LABEL, type RoleFamily } from "./roles";
 import { PROFILE } from "./profile";
 import { parseLocation } from "./normalize";
 
@@ -220,7 +220,7 @@ export function scoreJob(j: ScoreInput, now = new Date()): ScoreResult {
   if (j.requiresClearance) { category = "EXCLUDED"; excludedReason = "Requires an active security clearance"; reasons.push({ criterion: "qualifications", delta: "-", text: "Requires an active security clearance you do not hold" }); }
   if (!loc.isUS) excludedReason = "Outside the United States";
   if (eastReason) excludedReason = eastReason;
-  if (family === "NOT_RELEVANT") { category = "EXCLUDED"; excludedReason = "Not a sales or sales-leadership role"; }
+  if (family === "NOT_RELEVANT") { category = "EXCLUDED"; excludedReason = offTargetReason(j.title) ?? "Not a sales or sales-leadership role"; }
   if (family === "SDR_IC") { category = "EXCLUDED"; excludedReason = "Entry-level SDR/BDR role, below your level"; }
   const listedAt = j.postedAt ?? j.firstSeenAt;
   const age = listedAt ? Math.floor((now.getTime() - listedAt.getTime()) / 86400000) : null;

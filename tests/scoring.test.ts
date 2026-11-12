@@ -25,7 +25,6 @@ describe("title classification", () => {
     ["Business Development Leader", "BD_LEADER"],
     ["Business Development Director", "BD_LEADER"],
     ["Business Development Manager", "BD_LEADER"],
-    ["Business Development Manager, Content Partnerships", "BD_LEADER"],
     ["Sales Development Leader", "SDR_LEADER"],
     ["Sales Development Director", "SDR_LEADER"],
     ["Sales Development Manager", "SDR_LEADER"],
@@ -37,6 +36,60 @@ describe("title classification", () => {
     ["Senior Software Engineer", "NOT_RELEVANT"],
     ["Solutions Engineer, Enterprise", "NOT_RELEVANT"],
   ])("%s → %s", (t, f) => expect(classifyTitle(t).family).toBe(f));
+});
+
+describe("product, partnership, growth and program roles are excluded", () => {
+  it.each([
+    "Senior Product Manager, Sales Cloud",
+    "Product Manager - Growth",
+    "Group Product Manager, Revenue Platform",
+    "Director of Product, Go-to-Market",
+    "Head of Product, Commercial",
+    "VP, Product Management - Sales Tools",
+    "Principal Product Owner, CRM",
+    "Product Lead, Business Development Platform",
+    "Director, Strategic Partnerships",
+    "Partnerships Manager",
+    "Head of Partnerships & Alliances",
+    "Alliance Director, AWS",
+    "Global Alliances Manager - SAP",
+    "Strategic Alliances Lead",
+    "Partner Manager, Public Sector",
+    "Partner Account Manager",
+    "Partner Sales Manager - SLED",
+    "Partner Development Manager",
+    "Channel Account Manager",
+    "Channel Sales Director, West",
+    "Director, Business Development & Partnerships",
+    "Business Development Manager, Content Partnerships",
+    "Ecosystem Sales Lead",
+    "Growth Manager",
+    "Senior Growth Manager, Enterprise",
+    "Head of Growth",
+    "Director, Growth & Strategy",
+    "Growth Lead - Commercial",
+    "Program Manager, Sales",
+    "Senior Program Manager - Go-to-Market",
+    "Technical Program Manager, Revenue",
+    "Director of Programs, Business Development",
+  ])("%s", (t) => {
+    expect(classifyTitle(t).family).toBe("NOT_RELEVANT");
+    const r = scoreJob({ title: t, descriptionText: desc, location: "Remote - US", isRemote: true, company: strong });
+    expect(r.category).toBe("EXCLUDED");
+    expect(r.excludedReason).toMatch(/Product management|Partnerships, alliances or channel|Program management|Growth role/);
+  });
+  it.each([
+    ["Client Partner, Healthcare", "ACCOUNT_DIRECTOR"],
+    ["Enterprise Account Executive, Public Sector", "ENTERPRISE_AE"],
+    ["Strategic Account Executive - Product Led Growth", "STRATEGIC_AE"],
+    ["Director of Business Development", "BD_LEADER"],
+    ["Sales Development Manager", "SDR_LEADER"],
+    ["Regional Sales Director", "SALES_DIRECTOR"],
+    ["OEM Account Manager, Strategic", "STRATEGIC_AE"],
+    ["Growth Account Executive", "AE_OTHER"],
+    ["Enterprise Account Executive, Growth", "ENTERPRISE_AE"],
+    ["Sales Manager, Growth", "GTM_LEADER"],
+  ])("keeps %s", (t, f) => expect(classifyTitle(t).family).toBe(f));
 });
 
 describe("scoring", () => {
