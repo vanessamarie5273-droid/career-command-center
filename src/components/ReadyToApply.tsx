@@ -8,8 +8,8 @@ export default function ReadyToApply({ jobId, applyUrl, kit, extra }: { jobId: s
   const { id: kitId, parts, resumeDocId, letterDocId } = kit;
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  async function copy(key: "letter" | "answers") {
-    await navigator.clipboard.writeText(parts[key]);
+  async function copy(key: "letter" | "note" | "answers") {
+    await navigator.clipboard.writeText(parts[key] ?? "");
     setCopied(key); setTimeout(() => setCopied(null), 1500);
   }
   return (
@@ -20,6 +20,7 @@ export default function ReadyToApply({ jobId, applyUrl, kit, extra }: { jobId: s
       {resumeDocId && <a className="btn-ghost" href={`/api/documents/${resumeDocId}/export?format=pdf`}>Resume PDF</a>}
       {letterDocId && <a className="btn-ghost" href={`/api/documents/${letterDocId}/export?format=pdf`}>Letter PDF</a>}
       <button className="btn-ghost" onClick={() => copy("letter")}>{copied === "letter" ? "Copied" : "Copy letter"}</button>
+      {parts.note && <button className="btn-ghost" onClick={() => copy("note")} title="Send on LinkedIn once you've applied">{copied === "note" ? "Copied" : "Copy hiring manager note"}</button>}
       <button className="btn-ghost" onClick={() => copy("answers")}>{copied === "answers" ? "Copied" : "Copy answers"}</button>
       <MarkApplied jobId={jobId} kitId={kitId} />
       {extra}

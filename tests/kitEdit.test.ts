@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import type { PrismaClient } from "@prisma/client";
-import { saveKitPart } from "@/lib/kitEdit";
+import { hiringManagerFor, saveKitPart } from "@/lib/kitEdit";
 import type { KitChecks, KitParts } from "@/lib/kitParts";
 import { testDb, makeCompany } from "./setup-db";
 
@@ -44,5 +44,15 @@ describe("editing a kit part", () => {
     const k = await kit();
     await saveKitPart(db, k.id, "pov", "A new point of view.");
     expect((await db.document.findUniqueOrThrow({ where: { id: k.letterDocId! } })).text).toBe("old letter");
+  });
+
+  it("finds the hiring manager's name for the note: the application first, then a hiring manager contact", async () => {
+    const c = await makeCompany(db, { name: "Note Co" });
+    const job = await db.job.create({ data: { companyId: c.id, fingerprint: `hm-${Math.random()}`, title: "Account Executive", applyUrl: "https://example.com/j" } });
+    expect(await hiringManagerFor(db, job)).toBeNull();
+    await db.contact.create({ data: { companyId: c.id, firstName: "Dana", lastName: "Whitfield", role: "hiring_manager" } });
+    expect(await hiringManagerFor(db, job)).toBe("Dana Whitfield");
+    await db.application.create({ data: { companyId: c.id, jobId: job.id, title: job.title, hiringManagerName: "Priya Shah" } });
+    expect(await hiringManagerFor(db, job)).toBe("Priya Shah");
   });
 });

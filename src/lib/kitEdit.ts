@@ -32,13 +32,21 @@ export function kitInput(job: JobWithCompany, resumeText: string): KitInput {
   };
 }
 
+/** The hiring manager's name for a job, when she has one: on her application for it, or a hiring manager contact at the company. */
+export async function hiringManagerFor(db: PrismaClient, job: { id: string; companyId: string }) {
+  const app = await db.application.findFirst({ where: { jobId: job.id, hiringManagerName: { not: null } }, orderBy: { updatedAt: "desc" }, select: { hiringManagerName: true } });
+  if (app?.hiringManagerName?.trim()) return app.hiringManagerName.trim();
+  const c = await db.contact.findFirst({ where: { companyId: job.companyId, role: "hiring_manager" }, orderBy: { updatedAt: "desc" }, select: { firstName: true, lastName: true } });
+  return c ? `${c.firstName} ${c.lastName ?? ""}`.trim() : null;
+}
+
 /** A kit with the job and company it was written for, and the resume its facts come from. */
 export async function kitSources(db: PrismaClient, kitId: string) {
   const kit = await db.kit.findUniqueOrThrow({ where: { id: kitId }, include: { job: { include: { company: { include: { news: { orderBy: { createdAt: "desc" }, take: 5 } } } } } } });
   const base = (kit.baseResumeId ? await db.document.findUnique({ where: { id: kit.baseResumeId }, select: { text: true } }) : null)
     ?? await db.document.findFirst({ where: { kind: "resume", isTailored: false }, orderBy: { createdAt: "desc" }, select: { text: true } });
   const resumeText = base?.text ?? "";
-  return { kit, resumeText, input: kitInput(kit.job, resumeText) };
+  return { kit, resumeText, input: { ...kitInput(kit.job, resumeText), hiringManager: await hiringManagerFor(db, kit.job) } };
 }
 
 /** Replaces one part's text, re-runs that part's checks against the kit's base resume, and updates the saved resume or letter in place. */
