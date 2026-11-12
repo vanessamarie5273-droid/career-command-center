@@ -1,9 +1,9 @@
-// Application Kit: per-job tailored resume, Why Me letter, point of view, buying-committee notes and form answers.
+// Application Kit: per-job tailored resume, Why Me letter, hiring manager note, point of view, buying-committee notes and form answers.
 // Generated text may only use facts from her resume and stated profile; checkKit() flags anything that slips through.
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL } from "./assistant";
 import { positioning } from "./positioning";
-import { COMMERCIAL_LETTER, herLetter, LETTER_MAX_WORDS, PUBLIC_SECTOR_LETTER, letterBody } from "./letterStyle";
+import { COMMERCIAL_LETTER, herLetter, HM_NOTE, LETTER_MAX_WORDS, NOTE_MAX_WORDS, NOTE_NAME, PUBLIC_SECTOR_LETTER, letterBody } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
 
 export { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts };
@@ -22,6 +22,8 @@ export const BRIEF = [
 
 export type KitInput = {
   resumeText: string;
+  /** The hiring manager's name when she has one on file (the application or a hiring manager contact at the company). */
+  hiringManager?: string | null;
   job: { title: string; location: string | null; descriptionText: string | null; requiredQuals: string | null; preferredQuals: string | null;
     department?: string | null; seniority?: string | null; territory?: string | null };
   company: { name: string; category: string; maturity: string | null; description: string | null; keyProducts: string | null; customers: string | null; buyerPersonas: string | null; risks: string | null; news: string[];
@@ -62,6 +64,15 @@ ${PUBLIC_SECTOR_LETTER}
 
 HER COMMERCIAL LETTER:
 ${COMMERCIAL_LETTER}`,
+  note: `Write the short LinkedIn note she sends the hiring manager right after she applies on the company site. It is her own template. Fill in only the parts in brackets and keep every other word as written:
+
+${HM_NOTE}
+
+- [Name]: NAME_RULE
+- [one need]: the single most important thing this hire must do, taken from the posting, in a short plain phrase in the hiring manager's terms. One need, not a list. Do not paste a long run of words from the posting.
+- [Industry or role] and [years]: the industry or kind of selling from RESUME that best matches that need, and the length of time RESUME supports for it, written in words ("nine years"). Never more than RESUME supports.
+- [relevant work, with its number] and [company]: one result from RESUME, with its figure, that proves she can do that need, and the employer where she did it. One figure only. Never a quota or attainment figure.
+- One paragraph, three or four sentences, under 100 words. No subject line, no sign-off.`,
   pov: `Write a one-page point of view she can send to the hiring manager or bring to the interview. Under 450 words. Sections:
 THE PROBLEM: the highest-stakes problem this role exists to solve, stated as an inference from the posting and company context.
 MY POSITION: what the role must achieve in year one, and one assumption about the role worth challenging, framed constructively.
@@ -84,7 +95,7 @@ SALARY EXPECTATIONS (write "[Your number]" and one sentence anchoring on total c
 WORK AUTHORIZATION AND NOTICE PERIOD (write "[Fill in]")`,
 };
 
-const EFFORT: Record<KitPart, "medium" | "high"> = { resume: "high", letter: "high", pov: "high", committee: "medium", answers: "medium" };
+const EFFORT: Record<KitPart, "medium" | "high"> = { resume: "high", letter: "high", note: "high", pov: "high", committee: "medium", answers: "medium" };
 
 const block = (label: string, v: string | null | undefined) => (v && v.trim() ? `${label}:\n${v.trim()}\n` : "");
 
@@ -129,14 +140,21 @@ export async function writeOver(client: Anthropic, instructions: string, context
   return res.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
 }
 
-const writePart = (client: Anthropic, part: KitPart, context: string) => writeOver(client, SYSTEM, context, [{ role: "user", content: TASK[part] }], EFFORT[part], KIT_LABEL[part].toLowerCase());
+/** The task for one part. The note's greeting uses the hiring manager's first name when it is on file. */
+export function task(part: KitPart, hiringManager?: string | null) {
+  if (part !== "note") return TASK[part];
+  const first = hiringManager?.trim().split(/\s+/)[0];
+  return TASK.note.replace("NAME_RULE", first ? `write "${first}".` : `no hiring manager is on file, so leave "[Name]" exactly as it is for her to fill in.`);
+}
+
+const writePart = (client: Anthropic, part: KitPart, context: string, hiringManager?: string | null) => writeOver(client, SYSTEM, context, [{ role: "user", content: task(part, hiringManager) }], EFFORT[part], KIT_LABEL[part].toLowerCase());
 
 export async function generateKit(input: KitInput): Promise<KitParts> {
   const client = new Anthropic();
   const context = kitContext(input);
   // The letter is her own: the public sector or the commercial version, with the company and position filled in.
   const letter = herLetter(input.job, input.company);
-  const written = await Promise.all(KIT_PARTS.map(async (p) => [p, p === "letter" ? letter : await writePart(client, p, context)] as const));
+  const written = await Promise.all(KIT_PARTS.map(async (p) => [p, p === "letter" ? letter : await writePart(client, p, context, input.hiringManager)] as const));
   return Object.fromEntries(written) as KitParts;
 }
 
@@ -195,14 +213,16 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
       const m = text.match(re);
       if (m) issues.push({ kind: "language", text: m[0], detail });
     }
-    // Resume and letter speak about her, so their figures must come from her resume; other parts may quote the posting.
-    const sources = p === "resume" || p === "letter" ? herFacts : `${herFacts}\n${src.contextText}`;
-    for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: p === "resume" || p === "letter" ? "Not in your resume. Verify it or remove it." : "Not in your resume, the posting or the company record. Verify it or remove it." });
+    // Resume, letter and note speak about her, so their figures must come from her resume; other parts may quote the posting.
+    const aboutHer = p === "resume" || p === "letter" || p === "note";
+    const sources = aboutHer ? herFacts : `${herFacts}\n${src.contextText}`;
+    for (const f of unsupportedFigures(text, sources)) issues.push({ kind: "figure", text: f, detail: aboutHer ? "Not in your resume. Verify it or remove it." : "Not in your resume, the posting or the company record. Verify it or remove it." });
     if (p !== "resume") {
-      const max = p === "letter" ? 35 : 30;
+      const max = p === "letter" ? 35 : p === "note" ? 40 : 30;
       const long = sentences(text).filter((s) => s.split(/\s+/).length > max);
       if (long.length) issues.push({ kind: "length", text: `${long.length} long sentence${long.length > 1 ? "s" : ""}`, detail: `Over ${max} words: “${long[0].slice(0, 80)}…”. Short sentences carry stakes.` });
     }
+    if (p === "note" && text) issues.push(...checkNote(text, herFacts, src.input));
     if (p === "letter" && /\[[^\]]+\]/.test(text)) issues.push({ kind: "language", text: text.match(/\[[^\]]+\]/)![0], detail: "A template placeholder was left in. Fill it in before sending." });
     if (p === "letter" && text) {
       const body = letterBody(text);
@@ -226,6 +246,25 @@ export function checkKit(parts: Partial<KitParts>, src: { resumeText: string; co
   return out;
 }
 
+/** The hiring manager note: her template's shape, one proof point, and her full name so the recruiter can find the application. */
+function checkNote(text: string, herFacts: string, input?: KitInput): KitIssue[] {
+  const issues: KitIssue[] = [];
+  const left = [...text.matchAll(/\[[^\]]+\]/g)].map((m) => m[0]).find((m) => m !== NOTE_NAME);
+  if (left) issues.push({ kind: "language", text: left, detail: "A template placeholder was left in. Fill it in before sending." });
+  if (!/\bVanessa Morales\b/.test(text)) issues.push({ kind: "structure", text: "Your name is missing", detail: "End with “your recruiter can pull up my résumé under Vanessa Morales” so they can find your application in one search." });
+  if (!/\balready applied\b/i.test(text)) issues.push({ kind: "structure", text: "Doesn't say you applied", detail: "Say you've already applied, so the hiring manager can hand you straight to the recruiter." });
+  const figures = new Set(text.match(/\$\d+(?:\.\d+)?\s?[MKB]?|\d+(?:\.\d+)?%/gi) ?? []);
+  if (figures.size > 2) issues.push({ kind: "structure", text: `${figures.size} figures`, detail: "One need, one proof point. Save the rest for the call." });
+  const posting = input ? [input.job.descriptionText, input.job.requiredQuals, input.job.preferredQuals].filter(Boolean).join("\n") : "";
+  const echoed = posting ? copiedFrom(text, posting, 9) : null;
+  if (echoed) issues.push({ kind: "structure", text: "Repeats the posting", detail: `“${echoed}…” comes straight from the job description. Name the need in a few words of your own.` });
+  const copied = copiedFrom(text, herFacts, 10);
+  if (copied) issues.push({ kind: "structure", text: "Copies your resume", detail: `“${copied}…” is a resume line pasted in. Keep the result, say it the way you would out loud.` });
+  const count = text.split(/\s+/).filter(Boolean).length;
+  if (count > NOTE_MAX_WORDS) issues.push({ kind: "length", text: `${count} words`, detail: `About three sentences. Keep it under ${NOTE_MAX_WORDS} words.` });
+  return issues;
+}
+
 // ---- Suggested fixes: one flagged issue at a time, as a find-and-replace she can apply ----
 
 export type KitFix = { find: string; replace: string; why: string };
@@ -243,7 +282,7 @@ Fix only that issue. Change as little as possible and keep everything else word 
 Reply with JSON only, no other text: {"find": "<text copied exactly from the current document that should change: a whole sentence or paragraph>", "replace": "<the new text>", "why": "<one short sentence on what changed>"}
 
 ORIGINAL TASK:
-${TASK[part]}
+${task(part, input.hiringManager)}
 
 <current>
 ${text}

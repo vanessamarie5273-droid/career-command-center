@@ -519,7 +519,7 @@ model Kit {
   baseResumeId  String?
   resumeDocId   String?  // tailored resume saved to the library
   letterDocId   String?  // cover letter saved to the library
-  parts         Json     // { resume, letter, pov, committee, answers }
+  parts         Json     // { resume, letter, note, pov, committee, answers }
   checks        Json     // per-part issues from checkKit()
   model         String
   createdAt     DateTime @default(now())

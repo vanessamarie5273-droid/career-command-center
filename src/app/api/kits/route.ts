@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { assistantConfigured, MODEL } from "@/lib/assistant";
 import { atsReport } from "@/lib/resume";
 import { checkKit, generateKit, kitContext } from "@/lib/kit";
-import { kitInput } from "@/lib/kitEdit";
+import { hiringManagerFor, kitInput } from "@/lib/kitEdit";
 import { ensureApplication } from "@/lib/applications";
 import { ensureDescription } from "@/lib/jobDescription";
 
@@ -16,7 +16,7 @@ export const GET = route("VIEWER", async (req) => {
   return { items: await prisma.kit.findMany({ where: { jobId }, orderBy: { createdAt: "desc" }, take: 10 }) };
 });
 
-// Builds the kit for one job from a base resume (the chosen one, or the newest), saves the resume and letter with the job (they show on its company and application, not in the Resume Library).
+// Builds the kit for one job from a base resume (the chosen one, or the newest), saves the resume and letter with the job (the hiring manager note lives in the kit) (they show on its company and application, not in the Resume Library).
 export const POST = route("EDITOR", async (req, _c, u) => {
   if (!assistantConfigured()) return aiNotConfigured("The Application Kit");
   const b = z.object({ jobId: z.string(), documentId: z.string().optional() }).parse(await req.json());
@@ -29,7 +29,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   if (!base?.text || base.text.trim().split(/\s+/).length < 100) return Response.json({ error: "Upload a text-based resume to the Resume Library first. The kit only uses facts from it." }, { status: 400 });
 
   const c = job.company;
-  const input = kitInput(job, base.text);
+  const input = { ...kitInput(job, base.text), hiringManager: await hiringManagerFor(prisma, job) };
   let parts;
   try { parts = await generateKit(input); }
   catch (e) { return aiError(e); }
