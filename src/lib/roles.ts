@@ -16,7 +16,7 @@ const LEADS_SELLING = /\b(sales|business development|account) (director|leader|v
 const SELLING_ROLE = /\b(account executive|sales|account director|account manager|business development|client director|client partner)\b/i;
 
 export function classifyTitle(title: string): { family: RoleFamily; seniority: Seniority; adjacent: boolean; stretch: boolean } {
-  const t = title.toLowerCase().replace(/[,|()\-–—/]+/g, " ").replace(/\s+/g, " ");
+  const t = (title ?? "").toLowerCase().replace(/[,|()\-–—/]+/g, " ").replace(/\s+/g, " ");
   const seniority: Seniority =
     /\b(chief revenue|cro|chief sales|chief commercial|chief business)\b/.test(t) ? "EXEC"
     : /\b(svp|senior vice president|evp|vp|vice president)\b/.test(t) ? "VP"
