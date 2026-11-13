@@ -1,6 +1,7 @@
 // Seeds the company universe and profile. Idempotent: existing companies keep user edits;
 // only empty fields are filled from the seed.
 import { PrismaClient } from "@prisma/client";
+import { mergeDuplicateCompanies } from "../src/lib/companyMerge";
 import { SEED_COMPANIES } from "../src/data/companies";
 import { PROFILE } from "../src/lib/profile";
 
@@ -40,10 +41,25 @@ export async function seed(client = db) {
       for (const [k, v] of Object.entries(data)) if ((existing as unknown as Record<string, unknown>)[k] == null || (Array.isArray(v) && !((existing as unknown as Record<string, unknown[]>)[k]?.length))) fill[k] = v;
       // New feed hints reach companies that have no working board yet; a board found or set by hand is kept.
       const hints = c.hints ?? [];
-      if (existing.atsProvider === "NONE" && hints.length && JSON.stringify(existing.atsHints) !== JSON.stringify(hints)) Object.assign(fill, { atsHints: hints, atsStatus: "pending", atsError: null });
+      const hintsChanged = hints.length > 0 && JSON.stringify(existing.atsHints) !== JSON.stringify(hints);
+      // A board that came from an earlier seed hint follows the hint when it changes (Mistral AI moved from Lever to Ashby).
+      const fromOldHint = existing.atsProvider !== "NONE" && existing.atsHints.some((h) => h.toLowerCase() === `${existing.atsProvider.toLowerCase()}:${(existing.atsToken ?? "").toLowerCase()}`);
+      if (hintsChanged && (existing.atsProvider === "NONE" || fromOldHint)) {
+        Object.assign(fill, { atsHints: hints, atsStatus: "pending", atsError: null, atsCheckedAt: null });
+        if (fromOldHint) {
+          Object.assign(fill, { atsProvider: "NONE", atsToken: null });
+          if (existing.careersUrl === careersFor({ ...c, hints: existing.atsHints, careers: undefined })) fill.careersUrl = careersFor(c);
+        }
+      }
       if (Object.keys(fill).length) await client.company.update({ where: { id: existing.id }, data: fill });
     }
   }
+  // The same employer stored twice under different spellings becomes one account (Nov 13).
+  const merged = await mergeDuplicateCompanies(client);
+  // Lookups that a rate limit or server error cut short were saved as "no public board" before Nov 13; look again.
+  const relook = await client.company.updateMany({ where: { atsStatus: "not_found", atsProvider: "NONE", atsError: { contains: "HTTP " } }, data: { atsStatus: "pending", atsCheckedAt: null } });
+  for (const m of merged) console.log(`Merged duplicate companies into ${m.kept}: ${m.removed.join(", ")}`);
+  if (relook.count) console.log(`Looking again for the job boards of ${relook.count} companies whose last lookup was cut short`);
   await client.profile.upsert({
     where: { id: "me" },
     create: { id: "me", summary: PROFILE.summary, targetRoles: PROFILE.targetRoles, keywords: Object.values(PROFILE.strengths).flat(), homeBase: PROFILE.homeBase, preferences: { remoteUS: true, southwest: true, hybridPhoenix: true, relocationSeparate: true, excludeClearance: true } },
