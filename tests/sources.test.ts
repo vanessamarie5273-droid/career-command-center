@@ -37,10 +37,10 @@ describe("more first-party job sources", () => {
     expect(r.postings[0]).toMatchObject({ provider: "ORACLE", isRemote: true, descriptionHtml: DESC, applyUrl: "https://eeho.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_45001/job/300" });
   });
 
-  it("looks for SmartRecruiters and Workable boards when discovering a company's feed", async () => {
+  it("looks for SmartRecruiters boards when discovering a company's feed, and Workable boards the careers link names", async () => {
     const providers = new Set(candidates("acme", "Acme", []).map((c) => c.provider));
-    expect([...providers]).toEqual(["GREENHOUSE", "ASHBY", "LEVER", "SMARTRECRUITERS", "WORKABLE"]);
-    const d = await discoverBoard("acme", "Acme", [], mockFetch({ "apply.workable.com/api/v1/widget/accounts/acme": { jobs: [{ title: "Account Executive", shortcode: "X1" }] } }));
+    expect([...providers]).toEqual(["GREENHOUSE", "ASHBY", "LEVER", "SMARTRECRUITERS"]);
+    const d = await discoverBoard("acme", "Acme", [], mockFetch({ "apply.workable.com/api/v1/widget/accounts/acme": { jobs: [{ title: "Account Executive", shortcode: "X1" }] } }), ["https://apply.workable.com/acme/"]);
     expect(d).toMatchObject({ provider: "WORKABLE", token: "acme" });
   });
 });

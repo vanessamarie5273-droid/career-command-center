@@ -4,11 +4,11 @@ import { htmlToText, parseCompensation, parseLocation, parseYearsRequired, requi
 import { jobFingerprint, contentHash } from "../dedupe";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
-import type { FetchLike, RawPosting } from "./types";
+import { RateLimited, type FetchLike, type RawPosting } from "./types";
 import { range } from "../format";
 import { runGoogleJobs } from "./googleJobs";
 
-export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
+export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported" | "pending"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
 export function buildJobData(company: Pick<Company, "id">, p: RawPosting) {
   const text = p.descriptionText || htmlToText(p.descriptionHtml);
@@ -119,10 +119,12 @@ export async function upsertPosting(db: PrismaClient, company: Company, p: RawPo
   return changed || reopened || diffs.length ? "updated" : "verified";
 }
 
-/** Close jobs from this company/provider not seen in a successful fetch. Never called after a failed fetch. */
+/** Close jobs from this company's job board not seen in a successful fetch. Never called after a failed fetch.
+ *  Jobs read from a board the company no longer uses (Mistral moved from Lever to Ashby) close too, once the new board
+ *  has been read and they were not on it. Google Jobs results close on their own schedule. */
 export async function closeMissing(db: PrismaClient, companyId: string, provider: string, runStart: Date, now: Date) {
   const stale = await db.job.findMany({
-    where: { companyId, status: "OPEN", manual: false, sources: { some: { provider } } },
+    where: { companyId, status: "OPEN", manual: false, sources: { some: { provider: { not: "GOOGLE_JOBS" } } } },
     include: { sources: true },
   });
   let closed = 0;
@@ -130,7 +132,8 @@ export async function closeMissing(db: PrismaClient, companyId: string, provider
     const seenThisRun = j.sources.some((s) => s.lastSeenAt >= runStart);
     if (seenThisRun) continue;
     await db.job.update({ where: { id: j.id }, data: { status: "CLOSED", closedAt: now } });
-    await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: `No longer listed on ${provider} board`, at: now } });
+    const moved = !j.sources.some((x) => x.provider === provider);
+    await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: moved ? `Not on the company's current ${provider} board` : `No longer listed on ${provider} board`, at: now } });
     closed++;
   }
   return closed;
@@ -147,14 +150,20 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
         return { ...out, status: "unsupported" };
       }
       // A company with no public board was probed recently: don't spend 15 lookups on it every hour.
-      if (company.atsStatus === "not_found" && company.atsCheckedAt && runStart.getTime() - company.atsCheckedAt.getTime() < REPROBE_DAYS * 86400_000) {
-        return { ...out, status: "not_found" };
+      const since = company.atsCheckedAt ? runStart.getTime() - company.atsCheckedAt.getTime() : Infinity;
+      if (company.atsStatus === "not_found" && since < REPROBE_DAYS * 86400_000) return { ...out, status: "not_found" };
+      // A lookup cut short by a rate limit or an outage is tried again a few hours later, not every hour.
+      if (company.atsStatus === "pending" && since < RETRY_LOOKUP_HOURS * 3600_000) return { ...out, status: "pending" };
+      const d = await discoverBoard(company.slug, company.name, company.atsHints, f, [company.careersUrl]);
+      if ((!d.provider || !d.result) && d.inconclusive) {
+        // Not "no public board": a lookup failed (429, 422, timeout), so nothing was learned. Shown as pending, never as an error.
+        await db.company.update({ where: { id: company.id }, data: { atsStatus: "pending", atsCheckedAt: new Date(), atsError: `Lookup not finished, trying again within ${RETRY_LOOKUP_HOURS} hours: ${d.errors.slice(0, 3).join("; ")}`.slice(0, 500) } });
+        return { ...out, status: "pending", error: d.errors[0] };
       }
-      const d = await discoverBoard(company.slug, company.name, company.atsHints, f);
       if (!d.provider || !d.result) {
         // Employers found through Google Jobs are looked up once; without a public board they stay on Google results.
-        await db.company.update({ where: { id: company.id }, data: { ...(company.addedBy === "job-site" ? { atsHints: ["none"] } : {}), atsStatus: "not_found", atsCheckedAt: new Date(), atsError: d.errors.length ? d.errors.slice(0, 3).join("; ") : "No public Greenhouse, Lever, Ashby, SmartRecruiters or Workable board found for this company" } });
-        return { ...out, status: d.errors.length ? "error" : "not_found", error: d.errors[0] };
+        await db.company.update({ where: { id: company.id }, data: { ...(company.addedBy === "job-site" ? { atsHints: ["none"] } : {}), atsStatus: "not_found", atsCheckedAt: new Date(), atsError: "No public Greenhouse, Lever, Ashby or SmartRecruiters board found for this company" } });
+        return { ...out, status: "not_found" };
       }
       provider = d.provider; token = d.token;
       await db.company.update({ where: { id: company.id }, data: { atsProvider: provider, atsToken: token } });
@@ -175,7 +184,12 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
     await db.company.update({ where: { id: company.id }, data: { atsStatus: "ok", atsError: null, atsCheckedAt: now, totalOpenings: board.total, lastIngestedAt: now } });
     return out;
   } catch (e) {
-    const msg = (e as Error).message?.slice(0, 500) || String(e);
+    let msg = (e as Error).message?.slice(0, 500) || String(e);
+    if (e instanceof RateLimited) {
+      // The board exists and its openings stay as last read: nothing is closed after a failed read.
+      const kept = await db.job.count({ where: { companyId: company.id, status: "OPEN", sources: { some: { provider } } } });
+      msg = `${provider[0]}${provider.slice(1).toLowerCase()} is limiting requests from the app's server (HTTP 429). Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${company.lastIngestedAt.toISOString().slice(0, 10)}` : ""}; trying again next refresh.`;
+    }
     await db.company.update({ where: { id: company.id }, data: { atsStatus: "error", atsError: msg, atsCheckedAt: new Date() } });
     return { ...out, status: "error", error: msg };
   }
@@ -192,6 +206,8 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
 
 /** Companies without a public job board are looked up again after this many days. */
 export const REPROBE_DAYS = 3;
+/** A lookup that a rate limit or outage cut short is tried again after this many hours. */
+export const RETRY_LOOKUP_HOURS = 6;
 /** When the next scheduled refresh starts: ccc-daily at 6 AM and ccc-hourly 7 AM to 9 PM, Arizona time (UTC-7, no daylight saving). */
 export function nextScheduledRefresh(now = new Date()) {
   const az = new Date(now.getTime() - 7 * 3600_000);
