@@ -5,13 +5,13 @@ import { SEED_COMPANIES } from "@/data/companies";
 import { testDb, makeCompany } from "./setup-db";
 
 describe("food and restaurant companies are off limits", () => {
-  it.each(["Toast", "Toast, Inc.", "DoorDash", "Grubhub", "Instacart", "Olo Inc", "Sysco Corporation", "Domino's Pizza", "Chipotle Mexican Grill", "Starbucks Coffee Company", "Kraft Heinz Foods"])("%s", (name) => {
+  it.each(["Toast", "Toast, Inc.", "DoorDash", "Grubhub", "Instacart", "Olo Inc", "Sysco Corporation", "Domino's Pizza", "Chipotle Mexican Grill", "Starbucks Coffee Company", "Kraft Heinz Foods", "Kraft Heinz", "The Kraft Heinz Company", "DoorDash USA", "DoorDash USA, Inc.", "Doordash Inc", "PepsiCo", "McDonald's"])("%s", (name) => {
     expect(offLimitsReason({ name })).toBeDefined();
   });
   it("catches a researched company whose profile is about restaurants", () => {
     expect(offLimitsReason({ name: "Acme Systems", description: "Point of sale and payments for restaurant groups." })).toBeDefined();
   });
-  it.each(["Salesforce", "Palantir", "Uber", "ServiceNow", "Oracle", "Snowflake", "Samsara"])("keeps %s", (name) => {
+  it.each(["Salesforce", "Palantir", "Uber", "ServiceNow", "Oracle", "Snowflake", "Samsara", "Toasted Labs AI", "Mars Hill Software", "Olson Systems", "Subwave Networks", "Marsh McLennan"])("keeps %s", (name) => {
     expect(offLimitsReason({ name })).toBeUndefined();
   });
   it("no seeded company is a food or restaurant company", () => {
