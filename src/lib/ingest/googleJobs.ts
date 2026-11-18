@@ -93,11 +93,13 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
         const id = j.job_id || `${j.company_name}|${j.title}|${j.location}`;
         if (seen.has(id) || !j.company_name) continue;
         seen.add(id);
-        if (STAFFING.test(j.company_name) || aggregatorReason(j.company_name)) { out.skippedStaffing++; continue; }
+        if (STAFFING.test(j.company_name)) { out.skippedStaffing++; continue; }
         if (!isRelevantFamily(classifyTitle(j.title).family)) continue;
         const remote = !!j.detected_extensions?.work_from_home || /remote|anywhere/i.test(j.location ?? "");
         const location = remote && !/remote/i.test(j.location ?? "") ? `Remote, ${j.location || "United States"}` : j.location || null;
         if (!parseLocation(location, { remoteFlag: remote }).isUS) continue;
+        // A job board named as the employer (Jobgether, Ladders, "Lead @ Sierra") is a repost, not a company (Nov 18).
+        if (aggregatorReason(j.company_name)) { out.skippedStaffing++; continue; }
         const applyUrl = bestApplyLink(j.apply_options, j.share_link);
         if (!applyUrl) continue;
         out.relevant++;
