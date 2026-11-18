@@ -1,5 +1,6 @@
 // Adding a company to her accounts: from Accounts → Add company, or inline while adding a job by URL.
 import type { PrismaClient } from "@prisma/client";
+import { companyKey } from "./companyMerge";
 
 export type NewCompany = { name: string; website?: string; category: string; headquarters?: string; ownership?: string; description?: string; atsHint?: string };
 
@@ -19,6 +20,9 @@ export function boardHintFromUrl(url: string): string | undefined {
   if (host === "jobs.lever.co" && seg[0]) return `lever:${seg[0]}`;
   if (host === "jobs.ashbyhq.com" && seg[0]) return `ashby:${seg[0]}`;
   if (/^(jobs|careers)\.smartrecruiters\.com$/.test(host) && seg[0]) return `smartrecruiters:${seg[0]}`;
+  if (host === "apply.workable.com" && seg[0] && !["api", "j"].includes(seg[0])) return `workable:${seg[0]}`;
+  const wk = host.match(/^([a-z0-9-]+)\.workable\.com$/);
+  if (wk && !["www", "apply", "jobs", "help", "resources"].includes(wk[1])) return `workable:${wk[1]}`;
   const wd = host.match(/^([a-z0-9-]+)\.(wd\d+)\.myworkdayjobs\.com$/);
   if (wd) {
     const site = (/^[a-z]{2}-[A-Z]{2}$/.test(seg[0] ?? "") ? seg[1] : seg[0]);
@@ -40,7 +44,13 @@ export function websiteFromUrl(url: string): string | undefined {
 
 export async function findCompanyByName(db: PrismaClient, name: string) {
   const slug = companySlug(name);
-  return (await db.company.findUnique({ where: { slug } })) ?? db.company.findFirst({ where: { name: { equals: name.trim(), mode: "insensitive" } } });
+  const exact = (await db.company.findUnique({ where: { slug } })) ?? (await db.company.findFirst({ where: { name: { equals: name.trim(), mode: "insensitive" } } }));
+  if (exact) return exact;
+  // "Gong.io" or "Cisco Systems, Inc" is the Gong or Cisco already on the list.
+  const key = companyKey(name);
+  const all = await db.company.findMany({ select: { id: true, name: true } });
+  const hit = all.find((c) => companyKey(c.name) === key);
+  return hit ? db.company.findUnique({ where: { id: hit.id } }) : null;
 }
 
 export async function createCompany(db: PrismaClient, b: NewCompany, userId: string) {

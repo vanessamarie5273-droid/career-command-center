@@ -9,6 +9,8 @@ import { classifyTitle, isRelevantFamily } from "../roles";
 import { offLimitsReason } from "../offLimits";
 import { parseLocation } from "../normalize";
 import { upsertPosting } from "./run";
+import { companyKey } from "../companyMerge";
+import { aggregatorReason } from "../aggregators";
 
 export const GOOGLE_JOBS = "GOOGLE_JOBS";
 export const JOB_SITE_CATEGORY = "Found on Google Jobs";
@@ -80,7 +82,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
 
   try {
     const companies = await db.company.findMany();
-    const byName = new Map(companies.map((c) => [normalizeCompanyName(c.name), c]));
+    const byName = new Map(companies.map((c) => [companyKey(c.name), c]));
     const seen = new Set<string>();
     for (const s of SEARCHES) {
       const url = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(s.q)}&location=${encodeURIComponent(s.location)}&hl=en&gl=us&api_key=${encodeURIComponent(key)}`;
@@ -98,17 +100,19 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
         const remote = !!j.detected_extensions?.work_from_home || /remote|anywhere/i.test(j.location ?? "");
         const location = remote && !/remote/i.test(j.location ?? "") ? `Remote, ${j.location || "United States"}` : j.location || null;
         if (!parseLocation(location, { remoteFlag: remote }).isUS) continue;
+        // A job board named as the employer (Jobgether, Ladders, "Lead @ Sierra") is a repost, not a company (Nov 18).
+        if (aggregatorReason(j.company_name)) { out.skippedStaffing++; continue; }
         const applyUrl = bestApplyLink(j.apply_options, j.share_link);
         if (!applyUrl) continue;
         out.relevant++;
 
-        let company: Company | undefined = byName.get(normalizeCompanyName(j.company_name));
+        let company: Company | undefined = byName.get(companyKey(j.company_name));
         if (!company) {
           const base = slugify(j.company_name) || "company";
           const slug = companies.some((c) => c.slug === base) ? `${base}-${Math.random().toString(36).slice(2, 6)}` : base;
           company = await db.company.create({ data: { slug, name: j.company_name.trim(), category: JOB_SITE_CATEGORY, logoUrl: j.thumbnail ?? null, linkedinUrl: `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(j.company_name)}`, addedBy: "job-site", profileSource: "Found on Google Jobs; not yet researched" } });
           companies.push(company);
-          byName.set(normalizeCompanyName(company.name), company);
+          byName.set(companyKey(company.name), company);
           out.companiesAdded++;
         }
         const posting: RawPosting = {
@@ -125,7 +129,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
       await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: `Not seen in Google Jobs for ${STALE_DAYS} days`, at: now } });
     }
     out.closed = stale.length;
-    const detail = `${out.searches} searches, ${out.relevant} sales roles, ${out.created} new, ${out.companiesAdded} companies added, ${out.skippedStaffing} staffing-agency posts skipped`;
+    const detail = `${out.searches} searches, ${out.relevant} sales roles, ${out.created} new, ${out.companiesAdded} companies added, ${out.skippedStaffing} job-board and staffing-agency posts skipped`;
     await db.integrationStatus.upsert({ where: { id: STATUS_ID }, create: { id: STATUS_ID, name: "Google Jobs", status: "connected", detail, checkedAt: now }, update: { status: "connected", detail, checkedAt: now } });
     return out;
   } catch (e) {

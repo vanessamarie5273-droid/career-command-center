@@ -20,4 +20,7 @@ export type BoardResult = { postings: RawPosting[]; total: number };
 
 export class BoardNotFound extends Error {}
 
+/** The job board's server answered 429 (too many requests) through every retry. Says nothing about whether the board exists. */
+export class RateLimited extends Error {}
+
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;

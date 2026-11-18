@@ -3,19 +3,20 @@ import { fetchGreenhouse } from "./greenhouse";
 import { fetchLever } from "./lever";
 import { fetchAshby } from "./ashby";
 import { fetchSmartRecruiters } from "./smartrecruiters";
-import { fetchWorkday } from "./workday";
+import { fetchWorkday, type KnownWorkdayJob } from "./workday";
 import { fetchWorkable } from "./workable";
 import { fetchAmazon } from "./amazon";
 import { fetchOracle } from "./oracle";
 import { BoardNotFound, type BoardResult, type FetchLike } from "./types";
+import { boardHintFromUrl } from "../companies";
 
-export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = fetch): Promise<BoardResult> {
+export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = fetch, ctx: { workdayKnown?: Map<string, KnownWorkdayJob> } = {}): Promise<BoardResult> {
   switch (provider) {
     case "GREENHOUSE": return fetchGreenhouse(token, f);
     case "LEVER": return fetchLever(token, f);
     case "ASHBY": return fetchAshby(token, f);
     case "SMARTRECRUITERS": return fetchSmartRecruiters(token, f);
-    case "WORKDAY": return fetchWorkday(token, f);
+    case "WORKDAY": return fetchWorkday(token, f, ctx.workdayKnown);
     case "WORKABLE": return fetchWorkable(token, f);
     case "AMAZON": return fetchAmazon(token, f);
     case "ORACLE": return fetchOracle(token, f);
@@ -24,17 +25,20 @@ export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = 
 }
 
 const PREFIX: Record<string, AtsProvider> = { greenhouse: "GREENHOUSE", lever: "LEVER", ashby: "ASHBY", smartrecruiters: "SMARTRECRUITERS", workday: "WORKDAY", workable: "WORKABLE", amazon: "AMAZON", oracle: "ORACLE" };
-/** Boards found from the company's name alone: every provider with a public, keyless job API. */
-const PROBED: AtsProvider[] = ["GREENHOUSE", "ASHBY", "LEVER", "SMARTRECRUITERS", "WORKABLE"];
+/** Boards guessed from the company's name alone. Workable is not guessed: it answers 429 to the app's server when it is
+ *  asked about many accounts, and those 429s were hiding real boards and marking ~56 companies "no public board" (Nov 13).
+ *  A Workable board is still read when a hint or the company's careers link points to it. */
+export const PROBED: AtsProvider[] = ["GREENHOUSE", "ASHBY", "LEVER", "SMARTRECRUITERS"];
 
-/** Candidate (provider, token) pairs: explicit hints first, then slug variants on the public-API providers. */
-export function candidates(slug: string, name: string, hints: string[]): { provider: AtsProvider; token: string }[] {
+/** Candidate (provider, token) pairs: explicit hints first, then the board the careers link points to, then slug variants on the public-API providers. */
+export function candidates(slug: string, name: string, hints: string[], links: (string | null | undefined)[] = []): { provider: AtsProvider; token: string }[] {
   const out: { provider: AtsProvider; token: string }[] = [];
-  for (const h of hints) {
+  const fromLinks = links.map((l) => (l ? boardHintFromUrl(l) : undefined)).filter((h): h is string => !!h);
+  for (const h of [...hints, ...fromLinks]) {
     const i = h.indexOf(":");
     if (i < 0) continue;
     const p = PREFIX[h.slice(0, i).toLowerCase()];
-    if (p) out.push({ provider: p, token: h.slice(i + 1) });
+    if (p && !out.some((o) => o.provider === p && o.token === h.slice(i + 1))) out.push({ provider: p, token: h.slice(i + 1) });
   }
   if (hints.includes("none")) return out;
   const variants = [...new Set([slug, slug.replace(/-/g, ""), name.toLowerCase().replace(/[^a-z0-9]/g, "")])];
@@ -42,9 +46,11 @@ export function candidates(slug: string, name: string, hints: string[]): { provi
   return out;
 }
 
-export async function discoverBoard(slug: string, name: string, hints: string[], f: FetchLike = fetch) {
+/** Looks for the company's board. `inconclusive` means a lookup failed for a reason other than "no such board"
+ *  (rate limit, timeout, server error), so "no public board" cannot be concluded from this run. */
+export async function discoverBoard(slug: string, name: string, hints: string[], f: FetchLike = fetch, links: (string | null | undefined)[] = []) {
   const errors: string[] = [];
-  for (const c of candidates(slug, name, hints)) {
+  for (const c of candidates(slug, name, hints, links)) {
     try {
       const r = await fetchBoard(c.provider, c.token, f);
       if (r.postings.length > 0 || hints.some((h) => h.toLowerCase() === `${c.provider.toLowerCase()}:${c.token.toLowerCase()}`)) return { ...c, result: r };
@@ -52,5 +58,5 @@ export async function discoverBoard(slug: string, name: string, hints: string[],
       if (!(e instanceof BoardNotFound)) errors.push(`${c.provider}:${c.token} ${(e as Error).message}`);
     }
   }
-  return { provider: null, token: null, result: null, errors };
+  return { provider: null, token: null, result: null, errors, inconclusive: errors.length > 0 };
 }

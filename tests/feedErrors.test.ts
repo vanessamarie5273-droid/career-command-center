@@ -24,7 +24,7 @@ describe("feeds that failed on the Nov 12 refresh", () => {
     const f = async (url: string, init?: RequestInit) => {
       if (init?.method === "POST") {
         const body = JSON.parse(String(init.body));
-        if (body.limit === 1) return json({ total: 2000, jobPostings: [] });
+        if (body.searchText === "") return json({ total: 2000, jobPostings: [] });
         if (body.searchText !== "account executive" || body.offset > 0) return json({ total: 0, jobPostings: [] });
         return json({ total: 2, jobPostings: [{ externalPath: "/job/blank" }, { title: "Account Executive, Public Sector", externalPath: "/job/AE-1", locationsText: "Phoenix, AZ" }] });
       }

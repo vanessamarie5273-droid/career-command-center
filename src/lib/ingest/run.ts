@@ -4,11 +4,12 @@ import { htmlToText, parseCompensation, parseLocation, parseYearsRequired, requi
 import { jobFingerprint, contentHash } from "../dedupe";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
-import type { FetchLike, RawPosting } from "./types";
+import { workdayPath, type KnownWorkdayJob } from "./workday";
+import { RateLimited, type FetchLike, type RawPosting } from "./types";
 import { range } from "../format";
 import { runGoogleJobs } from "./googleJobs";
 
-export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
+export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported" | "pending" | "limited" | "skipped"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
 export function buildJobData(company: Pick<Company, "id">, p: RawPosting) {
   const text = p.descriptionText || htmlToText(p.descriptionHtml);
@@ -119,10 +120,12 @@ export async function upsertPosting(db: PrismaClient, company: Company, p: RawPo
   return changed || reopened || diffs.length ? "updated" : "verified";
 }
 
-/** Close jobs from this company/provider not seen in a successful fetch. Never called after a failed fetch. */
+/** Close jobs from this company's job board not seen in a successful fetch. Never called after a failed fetch.
+ *  Jobs read from a board the company no longer uses (Mistral moved from Lever to Ashby) close too, once the new board
+ *  has been read and they were not on it. Google Jobs results close on their own schedule. */
 export async function closeMissing(db: PrismaClient, companyId: string, provider: string, runStart: Date, now: Date) {
   const stale = await db.job.findMany({
-    where: { companyId, status: "OPEN", manual: false, sources: { some: { provider } } },
+    where: { companyId, status: "OPEN", manual: false, sources: { some: { provider: { not: "GOOGLE_JOBS" } } } },
     include: { sources: true },
   });
   let closed = 0;
@@ -130,13 +133,25 @@ export async function closeMissing(db: PrismaClient, companyId: string, provider
     const seenThisRun = j.sources.some((s) => s.lastSeenAt >= runStart);
     if (seenThisRun) continue;
     await db.job.update({ where: { id: j.id }, data: { status: "CLOSED", closedAt: now } });
-    await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: `No longer listed on ${provider} board`, at: now } });
+    const moved = !j.sources.some((x) => x.provider === provider);
+    await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: moved ? `Not on the company's current ${provider} board` : `No longer listed on ${provider} board`, at: now } });
     closed++;
   }
   return closed;
 }
 
-export async function ingestCompany(db: PrismaClient, company: Company, f: FetchLike = fetch, runStart = new Date()): Promise<CompanyOutcome> {
+/** Saved Workday roles for this company, so a refresh only fetches descriptions for roles it has not seen. */
+async function knownWorkdayJobs(db: PrismaClient, companyId: string) {
+  const sources = await db.jobSource.findMany({ where: { provider: "WORKDAY", job: { companyId, OR: [{ description: { not: null } }, { descriptionText: { not: null } }] } }, select: { externalId: true, url: true, job: { select: { location: true, postedAt: true, isRemote: true } } } });
+  const known = new Map<string, KnownWorkdayJob>();
+  for (const s of sources) {
+    const path = s.url ? workdayPath(s.url) : null;
+    if (path) known.set(path, { externalId: s.externalId, location: s.job.location, applyUrl: s.url!, postedAt: s.job.postedAt, isRemote: s.job.isRemote });
+  }
+  return known;
+}
+
+export async function ingestCompany(db: PrismaClient, company: Company, f: FetchLike = fetch, runStart = new Date(), opts: { scheduled?: boolean } = {}): Promise<CompanyOutcome> {
   const out: CompanyOutcome = { company: company.name, status: "ok", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0 };
   let provider = company.atsProvider;
   let token = company.atsToken;
@@ -147,19 +162,29 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
         return { ...out, status: "unsupported" };
       }
       // A company with no public board was probed recently: don't spend 15 lookups on it every hour.
-      if (company.atsStatus === "not_found" && company.atsCheckedAt && runStart.getTime() - company.atsCheckedAt.getTime() < REPROBE_DAYS * 86400_000) {
-        return { ...out, status: "not_found" };
+      const since = company.atsCheckedAt ? runStart.getTime() - company.atsCheckedAt.getTime() : Infinity;
+      if (company.atsStatus === "not_found" && since < REPROBE_DAYS * 86400_000) return { ...out, status: "not_found" };
+      // A lookup cut short by a rate limit or an outage is tried again a few hours later, not every hour.
+      if (company.atsStatus === "pending" && since < RETRY_LOOKUP_HOURS * 3600_000) return { ...out, status: "pending" };
+      const d = await discoverBoard(company.slug, company.name, company.atsHints, f, [company.careersUrl]);
+      if ((!d.provider || !d.result) && d.inconclusive) {
+        // Not "no public board": a lookup failed (429, 422, timeout), so nothing was learned. Shown as pending, never as an error.
+        await db.company.update({ where: { id: company.id }, data: { atsStatus: "pending", atsCheckedAt: new Date(), atsError: `Lookup not finished, trying again within ${RETRY_LOOKUP_HOURS} hours: ${d.errors.slice(0, 3).join("; ")}`.slice(0, 500) } });
+        return { ...out, status: "pending", error: d.errors[0] };
       }
-      const d = await discoverBoard(company.slug, company.name, company.atsHints, f);
       if (!d.provider || !d.result) {
         // Employers found through Google Jobs are looked up once; without a public board they stay on Google results.
-        await db.company.update({ where: { id: company.id }, data: { ...(company.addedBy === "job-site" ? { atsHints: ["none"] } : {}), atsStatus: "not_found", atsCheckedAt: new Date(), atsError: d.errors.length ? d.errors.slice(0, 3).join("; ") : "No public Greenhouse, Lever, Ashby, SmartRecruiters or Workable board found for this company" } });
-        return { ...out, status: d.errors.length ? "error" : "not_found", error: d.errors[0] };
+        await db.company.update({ where: { id: company.id }, data: { ...(company.addedBy === "job-site" ? { atsHints: ["none"] } : {}), atsStatus: "not_found", atsCheckedAt: new Date(), atsError: "No public Greenhouse, Lever, Ashby or SmartRecruiters board found for this company" } });
+        return { ...out, status: "not_found" };
       }
       provider = d.provider; token = d.token;
       await db.company.update({ where: { id: company.id }, data: { atsProvider: provider, atsToken: token } });
     }
-    const board = await fetchBoard(provider, token!, f);
+    // Workday boards are big and share one rate limit, so a scheduled refresh reads each at most every few hours.
+    if (opts.scheduled && provider === "WORKDAY" && company.atsStatus === "ok" && company.lastIngestedAt && runStart.getTime() - company.lastIngestedAt.getTime() < WORKDAY_EVERY_HOURS * 3600_000) {
+      return { ...out, status: "skipped" };
+    }
+    const board = await fetchBoard(provider, token!, f, provider === "WORKDAY" ? { workdayKnown: await knownWorkdayJobs(db, company.id) } : {});
     out.fetched = board.postings.length;
     const now = new Date();
     for (const p of board.postings) {
@@ -175,7 +200,17 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
     await db.company.update({ where: { id: company.id }, data: { atsStatus: "ok", atsError: null, atsCheckedAt: now, totalOpenings: board.total, lastIngestedAt: now } });
     return out;
   } catch (e) {
-    const msg = (e as Error).message?.slice(0, 500) || String(e);
+    let msg = (e as Error).message?.slice(0, 500) || String(e);
+    if (e instanceof RateLimited) {
+      // The board exists and its openings stay as last read: nothing is closed after a failed read. A board that was
+      // working stays live (it is the job site asking the app to slow down, not a broken feed) with a note saying so.
+      const kept = await db.job.count({ where: { companyId: company.id, status: "OPEN", sources: { some: { provider } } } });
+      msg = `${provider[0]}${provider.slice(1).toLowerCase()} asked the app to slow down (HTTP 429). Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${company.lastIngestedAt.toISOString().slice(0, 10)}` : ""}; trying again next refresh.`;
+      if (company.atsStatus === "ok") {
+        await db.company.update({ where: { id: company.id }, data: { atsError: msg, atsCheckedAt: new Date() } });
+        return { ...out, status: "limited", error: msg };
+      }
+    }
     await db.company.update({ where: { id: company.id }, data: { atsStatus: "error", atsError: msg, atsCheckedAt: new Date() } });
     return { ...out, status: "error", error: msg };
   }
@@ -192,6 +227,10 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
 
 /** Companies without a public job board are looked up again after this many days. */
 export const REPROBE_DAYS = 3;
+/** A lookup that a rate limit or outage cut short is tried again after this many hours. */
+export const RETRY_LOOKUP_HOURS = 6;
+/** A scheduled refresh reads a working Workday board at most this often. */
+export const WORKDAY_EVERY_HOURS = 3;
 /** When the next scheduled refresh starts: ccc-daily at 6 AM and ccc-hourly 7 AM to 9 PM, Arizona time (UTC-7, no daylight saving). */
 export function nextScheduledRefresh(now = new Date()) {
   const az = new Date(now.getTime() - 7 * 3600_000);
@@ -240,7 +279,7 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   const beat = () => db.ingestionRun.update({ where: { id: run.id }, data: { log: { heartbeat: new Date().toISOString(), done, total: companies.length } } }).catch(() => undefined);
   await beat();
   const outcomes = await pool(companies, 2, async (c) => {
-    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt);
+    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt, { scheduled: !opts.companyIds });
     done++;
     await beat(); // progress for the banner, and proof of life so a crashed run can be told apart from a slow one
     return o;
