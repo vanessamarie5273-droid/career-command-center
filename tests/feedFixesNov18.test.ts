@@ -121,3 +121,36 @@ describe("job boards listed as employers (Jobgether, Ladders, ClearanceJobs)", (
     expect(await db.company.findUnique({ where: { id: real.id } })).not.toBeNull();
   });
 });
+
+describe("a company removed while a refresh is running (Nov 18 hourly crash)", () => {
+  let db: PrismaClient;
+  beforeAll(() => { db = testDb(); });
+  afterAll(() => db.$disconnect());
+
+  it("skips a company that was merged or removed after the refresh listed it", async () => {
+    const c = await makeCompany(db, { name: "Gone Before Its Turn" });
+    await db.company.delete({ where: { id: c.id } });
+    const o = await ingestCompany(db, c, mockFetch({}), new Date());
+    expect(o.status).toBe("skipped");
+  });
+
+  it("does not crash when the company disappears halfway through its own read", async () => {
+    const c = await makeCompany(db, { name: "Gone Mid Read", atsProvider: "GREENHOUSE", atsToken: "gonemid" });
+    const f = async () => { await db.company.delete({ where: { id: c.id } }); return new Response("boom", { status: 500 }); };
+    const o = await ingestCompany(db, c, f, new Date());
+    expect(o.status).toBe("skipped");
+  });
+
+  it("finishes the whole refresh when one company is removed mid-run", async () => {
+    const { runIngestion } = await import("@/lib/ingest/run");
+    await db.ingestionRun.updateMany({ where: { status: "running" }, data: { status: "interrupted" } });
+    const a = await makeCompany(db, { name: "Stays", atsProvider: "GREENHOUSE", atsToken: "stays" });
+    const b = await makeCompany(db, { name: "Removed Mid Run", atsProvider: "GREENHOUSE", atsToken: "removedmid" });
+    const f = async (url: string) => {
+      if (url.includes("/removedmid/")) { await db.company.deleteMany({ where: { id: b.id } }); return new Response("boom", { status: 500 }); }
+      return json({ jobs: [], meta: { total: 0 } });
+    };
+    const r = await runIngestion(db, { trigger: "test", companyIds: [a.id, b.id], fetchImpl: f });
+    expect(r.outcomes.map((o) => o.status).sort()).toEqual(["ok", "skipped"]);
+  });
+});

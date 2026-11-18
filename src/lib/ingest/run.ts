@@ -151,8 +151,12 @@ async function knownWorkdayJobs(db: PrismaClient, companyId: string) {
   return known;
 }
 
-export async function ingestCompany(db: PrismaClient, company: Company, f: FetchLike = fetch, runStart = new Date(), opts: { scheduled?: boolean } = {}): Promise<CompanyOutcome> {
-  const out: CompanyOutcome = { company: company.name, status: "ok", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0 };
+export async function ingestCompany(db: PrismaClient, listed: Company, f: FetchLike = fetch, runStart = new Date(), opts: { scheduled?: boolean } = {}): Promise<CompanyOutcome> {
+  const out: CompanyOutcome = { company: listed.name, status: "ok", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0 };
+  // A refresh lists its companies when it starts. One can be merged into another or removed before its turn comes
+  // (the deploy that merges duplicates ran while the 11 AM refresh was going, Nov 18): skip it, never fail the run.
+  const company = await db.company.findUnique({ where: { id: listed.id } });
+  if (!company) return { ...out, status: "skipped", error: "Company was merged or removed during the refresh" };
   let provider = company.atsProvider;
   let token = company.atsToken;
   try {
@@ -207,11 +211,12 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
       const kept = await db.job.count({ where: { companyId: company.id, status: "OPEN", sources: { some: { provider } } } });
       msg = `${provider[0]}${provider.slice(1).toLowerCase()} asked the app to slow down (HTTP 429). Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${company.lastIngestedAt.toISOString().slice(0, 10)}` : ""}; trying again next refresh.`;
       if (company.atsStatus === "ok") {
-        await db.company.update({ where: { id: company.id }, data: { atsError: msg, atsCheckedAt: new Date() } });
+        await db.company.update({ where: { id: company.id }, data: { atsError: msg, atsCheckedAt: new Date() } }).catch(() => null);
         return { ...out, status: "limited", error: msg };
       }
     }
-    await db.company.update({ where: { id: company.id }, data: { atsStatus: "error", atsError: msg, atsCheckedAt: new Date() } });
+    const saved = await db.company.update({ where: { id: company.id }, data: { atsStatus: "error", atsError: msg, atsCheckedAt: new Date() } }).catch(() => null);
+    if (!saved && !(await db.company.findUnique({ where: { id: company.id }, select: { id: true } }))) return { ...out, status: "skipped", error: "Company was merged or removed during the refresh" };
     return { ...out, status: "error", error: msg };
   }
 }
@@ -279,7 +284,9 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   const beat = () => db.ingestionRun.update({ where: { id: run.id }, data: { log: { heartbeat: new Date().toISOString(), done, total: companies.length } } }).catch(() => undefined);
   await beat();
   const outcomes = await pool(companies, 2, async (c) => {
-    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt, { scheduled: !opts.companyIds });
+    // One company's failure is that company's error, never the whole refresh's.
+    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt, { scheduled: !opts.companyIds })
+      .catch((e: Error): CompanyOutcome => ({ company: c.name, status: "error", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, error: (e?.message || String(e)).slice(0, 500) }));
     done++;
     await beat(); // progress for the banner, and proof of life so a crashed run can be told apart from a slow one
     return o;
