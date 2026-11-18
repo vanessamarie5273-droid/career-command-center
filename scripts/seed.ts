@@ -2,6 +2,7 @@
 // only empty fields are filled from the seed.
 import { PrismaClient } from "@prisma/client";
 import { mergeDuplicateCompanies } from "../src/lib/companyMerge";
+import { removeAggregatorCompanies } from "../src/lib/aggregators";
 import { SEED_COMPANIES } from "../src/data/companies";
 import { PROFILE } from "../src/lib/profile";
 
@@ -60,6 +61,9 @@ export async function seed(client = db) {
   const relook = await client.company.updateMany({ where: { atsStatus: "not_found", atsProvider: "NONE", atsError: { contains: "HTTP " } }, data: { atsStatus: "pending", atsCheckedAt: null } });
   for (const m of merged) console.log(`Merged duplicate companies into ${m.kept}: ${m.removed.join(", ")}`);
   if (relook.count) console.log(`Looking again for the job boards of ${relook.count} companies whose last lookup was cut short`);
+  // Job boards that Google Jobs listed as employers (Jobgether, Ladders, ClearanceJobs) are not companies (Nov 18).
+  const boards = await removeAggregatorCompanies(client);
+  if (boards.removed.length) console.log(`Removed job boards stored as companies: ${boards.removed.join(", ")}`);
   await client.profile.upsert({
     where: { id: "me" },
     create: { id: "me", summary: PROFILE.summary, targetRoles: PROFILE.targetRoles, keywords: Object.values(PROFILE.strengths).flat(), homeBase: PROFILE.homeBase, preferences: { remoteUS: true, southwest: true, hybridPhoenix: true, relocationSeparate: true, excludeClearance: true } },

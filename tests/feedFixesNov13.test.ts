@@ -70,7 +70,7 @@ describe("board lookups and reads that a rate limit cuts short", () => {
     const o = await ingestCompany(db, c, async () => limited(), new Date());
     expect(o.status).toBe("error");
     const after = await db.company.findUniqueOrThrow({ where: { id: c.id } });
-    expect(after.atsError).toBe("Workable is limiting requests from the app's server (HTTP 429). Keeping the 1 saved opening from 2026-11-12; trying again next refresh.");
+    expect(after.atsError).toBe("Workable asked the app to slow down (HTTP 429). Keeping the 1 saved opening from 2026-11-12; trying again next refresh.");
     expect(await db.job.count({ where: { companyId: c.id, status: "OPEN" } })).toBe(1);
   });
 });

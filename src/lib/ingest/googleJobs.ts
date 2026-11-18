@@ -9,6 +9,7 @@ import { classifyTitle, isRelevantFamily } from "../roles";
 import { parseLocation } from "../normalize";
 import { upsertPosting } from "./run";
 import { companyKey } from "../companyMerge";
+import { aggregatorReason } from "../aggregators";
 
 export const GOOGLE_JOBS = "GOOGLE_JOBS";
 export const JOB_SITE_CATEGORY = "Found on Google Jobs";
@@ -92,7 +93,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
         const id = j.job_id || `${j.company_name}|${j.title}|${j.location}`;
         if (seen.has(id) || !j.company_name) continue;
         seen.add(id);
-        if (STAFFING.test(j.company_name)) { out.skippedStaffing++; continue; }
+        if (STAFFING.test(j.company_name) || aggregatorReason(j.company_name)) { out.skippedStaffing++; continue; }
         if (!isRelevantFamily(classifyTitle(j.title).family)) continue;
         const remote = !!j.detected_extensions?.work_from_home || /remote|anywhere/i.test(j.location ?? "");
         const location = remote && !/remote/i.test(j.location ?? "") ? `Remote, ${j.location || "United States"}` : j.location || null;
@@ -124,7 +125,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
       await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: `Not seen in Google Jobs for ${STALE_DAYS} days`, at: now } });
     }
     out.closed = stale.length;
-    const detail = `${out.searches} searches, ${out.relevant} sales roles, ${out.created} new, ${out.companiesAdded} companies added, ${out.skippedStaffing} staffing-agency posts skipped`;
+    const detail = `${out.searches} searches, ${out.relevant} sales roles, ${out.created} new, ${out.companiesAdded} companies added, ${out.skippedStaffing} job-board and staffing-agency posts skipped`;
     await db.integrationStatus.upsert({ where: { id: STATUS_ID }, create: { id: STATUS_ID, name: "Google Jobs", status: "connected", detail, checkedAt: now }, update: { status: "connected", detail, checkedAt: now } });
     return out;
   } catch (e) {

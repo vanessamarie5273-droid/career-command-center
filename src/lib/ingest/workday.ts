@@ -9,7 +9,16 @@ type Detail = { jobPostingInfo?: { jobDescription?: string; location?: string; s
 
 const QUERIES = ["account executive", "sales director", "business development", "sales development", "account director", "head of sales", "vice president sales"];
 
-export async function fetchWorkday(token: string, f: FetchLike = fetch): Promise<BoardResult> {
+/** A Workday role already saved from an earlier read, keyed by its path on the careers site ("/job/Phoenix-AZ/Account-Executive_R123"). */
+export type KnownWorkdayJob = { externalId: string; location: string | null; applyUrl: string; postedAt: Date | null; isRemote: boolean };
+
+/** The posting's path on the careers site, from a saved apply link ("https://x.wd5.myworkdayjobs.com/Site/job/..." → "/job/..."). */
+export function workdayPath(url: string) {
+  const i = url.indexOf("/job/");
+  return i >= 0 ? url.slice(i).split("?")[0] : null;
+}
+
+export async function fetchWorkday(token: string, f: FetchLike = fetch, known: Map<string, KnownWorkdayJob> = new Map()): Promise<BoardResult> {
   const [tenant, wd, site] = token.split("|");
   if (!tenant || !wd || !site) throw new Error(`Bad Workday token "${token}" (expected tenant|wdN|Site)`);
   const host = `https://${tenant}.${wd}.myworkdayjobs.com`;
@@ -40,6 +49,13 @@ export async function fetchWorkday(token: string, f: FetchLike = fetch): Promise
   for (const p of seen.values()) {
     const title = p.title!.trim();
     if (!isRelevantFamily(classifyTitle(title).family)) continue;
+    // A role read on an earlier refresh keeps its saved description and location: only new roles cost a detail call.
+    // Workday counts every call against one limit for the app's server, and most roles are the same from hour to hour.
+    const saved = known.get(p.externalPath);
+    if (saved) {
+      postings.push({ provider: "WORKDAY", externalId: saved.externalId, title, location: saved.location, isRemote: saved.isRemote, workplaceType: p.remoteType || null, descriptionHtml: null, applyUrl: saved.applyUrl, postedAt: saved.postedAt });
+      continue;
+    }
     const d = await getJson<Detail>(f, `${api}${p.externalPath}`).catch(() => null);
     const info = d?.jobPostingInfo;
     postings.push({

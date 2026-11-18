@@ -3,20 +3,20 @@ import { fetchGreenhouse } from "./greenhouse";
 import { fetchLever } from "./lever";
 import { fetchAshby } from "./ashby";
 import { fetchSmartRecruiters } from "./smartrecruiters";
-import { fetchWorkday } from "./workday";
+import { fetchWorkday, type KnownWorkdayJob } from "./workday";
 import { fetchWorkable } from "./workable";
 import { fetchAmazon } from "./amazon";
 import { fetchOracle } from "./oracle";
 import { BoardNotFound, type BoardResult, type FetchLike } from "./types";
 import { boardHintFromUrl } from "../companies";
 
-export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = fetch): Promise<BoardResult> {
+export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = fetch, ctx: { workdayKnown?: Map<string, KnownWorkdayJob> } = {}): Promise<BoardResult> {
   switch (provider) {
     case "GREENHOUSE": return fetchGreenhouse(token, f);
     case "LEVER": return fetchLever(token, f);
     case "ASHBY": return fetchAshby(token, f);
     case "SMARTRECRUITERS": return fetchSmartRecruiters(token, f);
-    case "WORKDAY": return fetchWorkday(token, f);
+    case "WORKDAY": return fetchWorkday(token, f, ctx.workdayKnown);
     case "WORKABLE": return fetchWorkable(token, f);
     case "AMAZON": return fetchAmazon(token, f);
     case "ORACLE": return fetchOracle(token, f);

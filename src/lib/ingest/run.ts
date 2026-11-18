@@ -4,11 +4,12 @@ import { htmlToText, parseCompensation, parseLocation, parseYearsRequired, requi
 import { jobFingerprint, contentHash } from "../dedupe";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
+import { workdayPath, type KnownWorkdayJob } from "./workday";
 import { RateLimited, type FetchLike, type RawPosting } from "./types";
 import { range } from "../format";
 import { runGoogleJobs } from "./googleJobs";
 
-export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported" | "pending"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
+export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported" | "pending" | "limited" | "skipped"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
 export function buildJobData(company: Pick<Company, "id">, p: RawPosting) {
   const text = p.descriptionText || htmlToText(p.descriptionHtml);
@@ -139,7 +140,18 @@ export async function closeMissing(db: PrismaClient, companyId: string, provider
   return closed;
 }
 
-export async function ingestCompany(db: PrismaClient, company: Company, f: FetchLike = fetch, runStart = new Date()): Promise<CompanyOutcome> {
+/** Saved Workday roles for this company, so a refresh only fetches descriptions for roles it has not seen. */
+async function knownWorkdayJobs(db: PrismaClient, companyId: string) {
+  const sources = await db.jobSource.findMany({ where: { provider: "WORKDAY", job: { companyId, OR: [{ description: { not: null } }, { descriptionText: { not: null } }] } }, select: { externalId: true, url: true, job: { select: { location: true, postedAt: true, isRemote: true } } } });
+  const known = new Map<string, KnownWorkdayJob>();
+  for (const s of sources) {
+    const path = s.url ? workdayPath(s.url) : null;
+    if (path) known.set(path, { externalId: s.externalId, location: s.job.location, applyUrl: s.url!, postedAt: s.job.postedAt, isRemote: s.job.isRemote });
+  }
+  return known;
+}
+
+export async function ingestCompany(db: PrismaClient, company: Company, f: FetchLike = fetch, runStart = new Date(), opts: { scheduled?: boolean } = {}): Promise<CompanyOutcome> {
   const out: CompanyOutcome = { company: company.name, status: "ok", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0 };
   let provider = company.atsProvider;
   let token = company.atsToken;
@@ -168,7 +180,11 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
       provider = d.provider; token = d.token;
       await db.company.update({ where: { id: company.id }, data: { atsProvider: provider, atsToken: token } });
     }
-    const board = await fetchBoard(provider, token!, f);
+    // Workday boards are big and share one rate limit, so a scheduled refresh reads each at most every few hours.
+    if (opts.scheduled && provider === "WORKDAY" && company.atsStatus === "ok" && company.lastIngestedAt && runStart.getTime() - company.lastIngestedAt.getTime() < WORKDAY_EVERY_HOURS * 3600_000) {
+      return { ...out, status: "skipped" };
+    }
+    const board = await fetchBoard(provider, token!, f, provider === "WORKDAY" ? { workdayKnown: await knownWorkdayJobs(db, company.id) } : {});
     out.fetched = board.postings.length;
     const now = new Date();
     for (const p of board.postings) {
@@ -186,9 +202,14 @@ export async function ingestCompany(db: PrismaClient, company: Company, f: Fetch
   } catch (e) {
     let msg = (e as Error).message?.slice(0, 500) || String(e);
     if (e instanceof RateLimited) {
-      // The board exists and its openings stay as last read: nothing is closed after a failed read.
+      // The board exists and its openings stay as last read: nothing is closed after a failed read. A board that was
+      // working stays live (it is the job site asking the app to slow down, not a broken feed) with a note saying so.
       const kept = await db.job.count({ where: { companyId: company.id, status: "OPEN", sources: { some: { provider } } } });
-      msg = `${provider[0]}${provider.slice(1).toLowerCase()} is limiting requests from the app's server (HTTP 429). Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${company.lastIngestedAt.toISOString().slice(0, 10)}` : ""}; trying again next refresh.`;
+      msg = `${provider[0]}${provider.slice(1).toLowerCase()} asked the app to slow down (HTTP 429). Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${company.lastIngestedAt.toISOString().slice(0, 10)}` : ""}; trying again next refresh.`;
+      if (company.atsStatus === "ok") {
+        await db.company.update({ where: { id: company.id }, data: { atsError: msg, atsCheckedAt: new Date() } });
+        return { ...out, status: "limited", error: msg };
+      }
     }
     await db.company.update({ where: { id: company.id }, data: { atsStatus: "error", atsError: msg, atsCheckedAt: new Date() } });
     return { ...out, status: "error", error: msg };
@@ -208,6 +229,8 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
 export const REPROBE_DAYS = 3;
 /** A lookup that a rate limit or outage cut short is tried again after this many hours. */
 export const RETRY_LOOKUP_HOURS = 6;
+/** A scheduled refresh reads a working Workday board at most this often. */
+export const WORKDAY_EVERY_HOURS = 3;
 /** When the next scheduled refresh starts: ccc-daily at 6 AM and ccc-hourly 7 AM to 9 PM, Arizona time (UTC-7, no daylight saving). */
 export function nextScheduledRefresh(now = new Date()) {
   const az = new Date(now.getTime() - 7 * 3600_000);
@@ -256,7 +279,7 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   const beat = () => db.ingestionRun.update({ where: { id: run.id }, data: { log: { heartbeat: new Date().toISOString(), done, total: companies.length } } }).catch(() => undefined);
   await beat();
   const outcomes = await pool(companies, 2, async (c) => {
-    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt);
+    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt, { scheduled: !opts.companyIds });
     done++;
     await beat(); // progress for the banner, and proof of life so a crashed run can be told apart from a slow one
     return o;

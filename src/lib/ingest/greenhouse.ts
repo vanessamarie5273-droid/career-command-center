@@ -10,7 +10,8 @@ export async function fetchGreenhouse(token: string, f: FetchLike = fetch): Prom
   const base = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(token)}/jobs`;
   // The list without content stays small even for boards with thousands of roles. Asking for every
   // description at once (content=true) returned tens of megabytes and ran the web server out of memory.
-  const data = await getJson<GH>(f, base);
+  // Very large boards (Anduril lists 2,600+ roles) can take longer than 25 s to answer: a minute is allowed for the list.
+  const data = await getJson<GH>(f, base, {}, 3, 60_000);
   // Descriptions only for roles we will actually evaluate, four at a time: one by one, a big board took minutes.
   const wanted = (data.jobs || []).filter((j) => isRelevantFamily(classifyTitle(j.title).family) && parseLocation(j.location?.name ?? null).isUS);
   const details = new Map<number, GHJob | null>();
