@@ -177,7 +177,6 @@ export const GROWTH: Record<string, [score: number, thesis: string]> = {
   motive: [80, "AI platform for physical operations growing fast"],
   boomi: [55, "Established integration platform with moderate growth"],
   qualtrics: [58, "Experience management leader with steady growth"],
-  toast: [74, "Restaurant platform still growing fast, expanding into retail and enterprise"],
   workiva: [60, "Office of the CFO reporting platform with steady growth"],
   socure: [70, "Identity verification leader growing with fraud and government demand"],
   godaddy: [55, "Tempe-based; steady growth, mostly small-business customers"],

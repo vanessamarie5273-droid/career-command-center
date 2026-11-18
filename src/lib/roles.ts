@@ -11,9 +11,29 @@ const NOT_SALES = /\b(engineer(ing)?|developer|scientist|researcher|designer|cou
 
 // Finance roles that match on "revenue". Checked apart from NOT_SALES so an Account Executive selling billing or accounting software still counts.
 const FINANCE_ROLE = /\b(accounting|revenue (recognition|assurance|cycle|integrity)|billing|collections|fp ?& ?a|financial (planning|reporting|analysis))\b/i;
-// A sales or business development leadership title stays relevant even when it names a non-sales area, e.g. "Business Development Manager, Content Partnerships".
+// A sales or business development leadership title stays relevant even when it names a non-sales area, e.g. "Director of Sales, Content".
 const LEADS_SELLING = /\b(sales|business development|account) (director|leader|vp|vice|head)\b|\b(director|head|vp|vice president) (of )?(sales|business development|sales development)\b|\b(business development|sales development|bdrs?|sdrs?) (manager|lead|leader)\b|\b(manager|lead|leader) (of )?(business development|sales development|bdrs?|sdrs?)\b/;
 const SELLING_ROLE = /\b(account executive|sales|account director|account manager|business development|client director|client partner)\b/i;
+
+// Product management, partnerships/alliances/channel, growth and program management roles are off target: she is a direct seller and sales leader (Nov 12).
+// These win over every sales word in the title, so "Product Manager, Sales Cloud" or "Director, Strategic Partnerships" never match.
+const PRODUCT_ROLE = /\b(product (manager|management|owner|lead|leader|director|strategy|operations|ops|analyst|designer)|(director|head|vp|vice president|svp|chief|gm|general manager) (of )?product|cpo)\b/;
+const PARTNER_ROLE = /\b(partnerships?|alliances?|ecosystems?|channels?|(?<!client )partner (manager|management|development|account|sales|success|marketing|programs?|lead|leader|director|executive|business|relations|enablement|operations)|resellers?|isvs?)\b/;
+
+// Growth and program management are off target too (Nov 12). A growth title is kept only when it is plainly a selling role,
+// e.g. "Growth Account Executive" or "Sales Manager, Growth"; "Growth Manager" or "Head of Growth" is excluded.
+const PROGRAM_ROLE = /\b(program(me)? (manager|management|lead|leader|director|specialist|coordinator|analyst|owner)|(director|head|vp|vice president) (of )?programs?)\b/;
+const GROWTH_ROLE = /\bgrowth\b/;
+const SELLS = /\b(sales|account executive|\bae\b|account director|account manager|business development|sales development|bdrs?|sdrs?)\b/;
+
+export function offTargetReason(title: string): string | undefined {
+  const t = (title ?? "").toLowerCase().replace(/[,|()\-–—/&]+/g, " ").replace(/\s+/g, " ");
+  if (PRODUCT_ROLE.test(t)) return "Product management role, not a sales role";
+  if (PARTNER_ROLE.test(t)) return "Partnerships, alliances or channel role, not direct sales";
+  if (PROGRAM_ROLE.test(t)) return "Program management role, not a sales role";
+  if (GROWTH_ROLE.test(t) && !SELLS.test(t)) return "Growth role, not a sales role";
+  return undefined;
+}
 
 export function classifyTitle(title: string): { family: RoleFamily; seniority: Seniority; adjacent: boolean; stretch: boolean } {
   const t = (title ?? "").toLowerCase().replace(/[,|()\-–—/]+/g, " ").replace(/\s+/g, " ");
@@ -27,7 +47,7 @@ export function classifyTitle(title: string): { family: RoleFamily; seniority: S
     : "IC";
 
   const sales = /\b(sales|account executive|\bae\b|account director|account manager|business development|bdrs?|sdrs?|revenue|go to market|gtm|commercial|partnerships?|alliances|territory|client partner|client director|customer director|enterprise (growth|accounts?)|new business|market development|growth)\b/.test(t);
-  if (!sales || (FINANCE_ROLE.test(t) && !SELLING_ROLE.test(t)) || (NOT_SALES.test(t) && !LEADS_SELLING.test(t))) {
+  if (!sales || offTargetReason(t) || (FINANCE_ROLE.test(t) && !SELLING_ROLE.test(t)) || (NOT_SALES.test(t) && !LEADS_SELLING.test(t))) {
     return { family: "NOT_RELEVANT", seniority, adjacent: false, stretch: false };
   }
 
@@ -40,8 +60,6 @@ export function classifyTitle(title: string): { family: RoleFamily; seniority: S
   } else if (/\b(business development)\b/.test(t)) {
     family = ["DIRECTOR", "HEAD", "VP", "EXEC", "MANAGER"].includes(seniority) ? "BD_LEADER" : "AE_OTHER";
     adjacent = family === "AE_OTHER";
-  } else if (/\b(partnerships?|alliances|channel)\b/.test(t)) {
-    family = "PARTNER_ALLIANCES"; adjacent = true;
   } else if (/\baccount director|client director|client partner|customer director|global account (director|manager|executive)|strategic account manager\b/.test(t)) {
     family = "ACCOUNT_DIRECTOR";
   } else if (/\b(account executive|\bae\b|account manager|sales executive|sales representative|territory (manager|executive)|new business)\b/.test(t)) {
@@ -64,6 +82,7 @@ export function isRelevantFamily(f: RoleFamily) {
   return f !== "NOT_RELEVANT" && f !== "SDR_IC";
 }
 
+// PARTNER_ALLIANCES is no longer assigned (see PARTNER_ROLE); its label stays for jobs and applications stored before Nov 12.
 export const FAMILY_LABEL: Record<RoleFamily, string> = {
   STRATEGIC_AE: "Strategic Account Executive", ENTERPRISE_AE: "Enterprise Account Executive", ACCOUNT_DIRECTOR: "Account Director",
   SALES_DIRECTOR: "Sales Director", SALES_VP: "VP / Executive Sales", BD_LEADER: "Business Development Leadership",
