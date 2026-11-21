@@ -23,6 +23,7 @@ export function boardHintFromUrl(url: string): string | undefined {
   if (host === "apply.workable.com" && seg[0] && !["api", "j"].includes(seg[0])) return `workable:${seg[0]}`;
   const wk = host.match(/^([a-z0-9-]+)\.workable\.com$/);
   if (wk && !["www", "apply", "jobs", "help", "resources"].includes(wk[1])) return `workable:${wk[1]}`;
+  if (host === "ats.rippling.com" && seg[0] && seg[1] === "jobs") return `rippling:${seg[0]}`;
   const wd = host.match(/^([a-z0-9-]+)\.(wd\d+)\.myworkdayjobs\.com$/);
   if (wd) {
     const site = (/^[a-z]{2}-[A-Z]{2}$/.test(seg[0] ?? "") ? seg[1] : seg[0]);

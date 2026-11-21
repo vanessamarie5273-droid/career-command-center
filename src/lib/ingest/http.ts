@@ -5,7 +5,7 @@ export const UA = "CareerCommandCenter/1.0 (personal job search; first-party ATS
 
 /** Hosts that rate-limit by caller: calls to them are spaced out instead of fired back to back.
  *  Workable answers 429 when a refresh reads several of its boards, or probes it for many companies, in a row. */
-export const HOST_SPACING_MS: Record<string, number> = { "apply.workable.com": 8000, "myworkdayjobs.com": 1500 };
+export const HOST_SPACING_MS: Record<string, number> = { "apply.workable.com": 8000, "myworkdayjobs.com": 3000 };
 /** Hosts that share one rate limit. Every company's Workday site (dell.wd1.myworkdayjobs.com, nvidia.wd5...) counts against
  *  the same limit for the app's server: on Nov 18 all 18 Workday boards answered 429 in the same three minutes. */
 export function rateGroup(url: string) {
@@ -13,10 +13,20 @@ export function rateGroup(url: string) {
   return /\.myworkdayjobs\.com$/.test(host) ? "myworkdayjobs.com" : host;
 }
 /** After a host keeps answering 429 through every retry, it gets a rest: later calls in the same run fail fast instead of
- *  adding to the pile (Nov 13: Workable kept limiting the app's server even with calls 2.5 s apart). */
+ *  adding to the pile (Nov 13: Workable kept limiting the app's server even with calls 2.5 s apart). A limit that outlasts
+ *  the run is paused for longer between runs: see rateLimits.ts, which saves the pause and loads it with setPause(). */
 export const COOLDOWN_MS = 15 * 60_000;
-const coolUntil = new Map<string, number>();
-export const resetRateLimits = () => { coolUntil.clear(); nextSlot.clear(); };
+/** A rate group that is resting: no calls until `until`. `since` is when the limiting began, `strikes` how many refreshes in a row it lasted. */
+export type Pause = { until: number; since: number; strikes: number };
+const pauses = new Map<string, Pause>();
+const limitedThisRun = new Set<string>();
+const servedThisRun = new Set<string>();
+export const resetRateLimits = () => { pauses.clear(); nextSlot.clear(); limitedThisRun.clear(); servedThisRun.clear(); };
+export const setPause = (group: string, p: Pause) => { pauses.set(group, p); };
+export const pauseOf = (group: string) => pauses.get(group);
+export const isPaused = (group: string, now = Date.now()) => (pauses.get(group)?.until ?? 0) > now;
+/** Which rate groups answered 429 through every retry, and which answered at all, since the last reset. */
+export const rateReport = () => ({ limited: [...limitedThisRun], served: [...servedThisRun] });
 const hostOf = (url: string) => { try { return new URL(url).host; } catch { return ""; } };
 const nextSlot = new Map<string, number>();
 async function waitTurn(url: string) {
@@ -39,15 +49,16 @@ export function retryDelay(res: Response | null, attempt: number) {
 export async function getJson<T>(f: FetchLike, url: string, init: RequestInit = {}, attempts = 3, timeoutMs = 25000): Promise<T> {
   let lastErr: unknown;
   const host = rateGroup(url);
-  if ((coolUntil.get(host) ?? 0) > Date.now()) throw new RateLimited(`HTTP 429 ${url} (${host} is limiting requests; skipped until it allows them again)`);
+  if (isPaused(host)) throw new RateLimited(`HTTP 429 ${url} (${host} is limiting requests; skipped until it allows them again)`, host);
   let limitedEvery = true;
   for (let i = 0; i < attempts; i++) {
     let limited: Response | null = null;
     try {
       await waitTurn(url);
       const res = await f(url, { ...init, headers: { "User-Agent": UA, Accept: "application/json", ...(init.headers || {}) }, signal: AbortSignal.timeout(timeoutMs) });
-      if (res.status === 404) throw new BoardNotFound(`404 ${url}`);
       if (res.status === 429) { limited = res; throw new Error(`HTTP 429 ${url}`); }
+      servedThisRun.add(host); // any answer but 429 means the host is taking the app's calls again
+      if (res.status === 404) throw new BoardNotFound(`404 ${url}`);
       if (res.status >= 500) throw new Error(`HTTP ${res.status} ${url}`);
       if (!res.ok) {
         // The server's own words (e.g. Workday's 422 reason) make the next failure diagnosable from the Settings table.
@@ -65,8 +76,10 @@ export async function getJson<T>(f: FetchLike, url: string, init: RequestInit = 
     }
   }
   if (limitedEvery) {
-    coolUntil.set(host, Date.now() + COOLDOWN_MS);
-    throw new RateLimited((lastErr as Error).message);
+    const prev = pauses.get(host);
+    pauses.set(host, { since: prev?.since ?? Date.now(), strikes: prev?.strikes ?? 0, until: Date.now() + COOLDOWN_MS });
+    limitedThisRun.add(host);
+    throw new RateLimited((lastErr as Error).message, host);
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }

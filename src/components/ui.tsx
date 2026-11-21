@@ -164,6 +164,6 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 export function StatusDot({ status }: { status: string | null | undefined }) {
-  const c = status === "ok" || status === "connected" ? "bg-emerald-500" : status === "error" || status === "failed" ? "bg-red-500" : status === "degraded" || status === "partial" ? "bg-amber-500" : "bg-slate-300";
+  const c = status === "ok" || status === "connected" ? "bg-emerald-500" : status === "error" || status === "failed" ? "bg-red-500" : status === "degraded" || status === "partial" || status === "paused" ? "bg-amber-500" : "bg-slate-300";
   return <span className={`inline-block h-2 w-2 rounded-full ${c}`} />;
 }

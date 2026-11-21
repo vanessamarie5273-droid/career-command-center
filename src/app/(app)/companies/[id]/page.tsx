@@ -160,7 +160,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           </Card>
           <Card title="Job feed configuration">
             <div className="space-y-2">
-              <AutoField endpoint={ep} field="atsProvider" type="select" label="Provider" value={c.atsProvider} options={[["NONE", "Auto-discover / none"], ["GREENHOUSE", "Greenhouse"], ["LEVER", "Lever"], ["ASHBY", "Ashby"], ["SMARTRECRUITERS", "SmartRecruiters"], ["WORKDAY", "Workday"], ["WORKABLE", "Workable"], ["AMAZON", "amazon.jobs"], ["ORACLE", "Oracle Recruiting"]]} />
+              <AutoField endpoint={ep} field="atsProvider" type="select" label="Provider" value={c.atsProvider} options={[["NONE", "Auto-discover / none"], ["GREENHOUSE", "Greenhouse"], ["LEVER", "Lever"], ["ASHBY", "Ashby"], ["SMARTRECRUITERS", "SmartRecruiters"], ["WORKDAY", "Workday"], ["WORKABLE", "Workable"], ["AMAZON", "amazon.jobs"], ["ORACLE", "Oracle Recruiting"], ["RIPPLING", "Rippling"]]} />
               <AutoField endpoint={ep} field="atsToken" label="Board token (Workday: tenant|wdN|Site)" value={c.atsToken} />
               <AutoField endpoint={ep} field="careersUrl" type="url" label="Careers URL" value={c.careersUrl} />
             </div>

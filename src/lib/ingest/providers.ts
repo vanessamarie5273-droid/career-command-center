@@ -7,6 +7,7 @@ import { fetchWorkday, type KnownWorkdayJob } from "./workday";
 import { fetchWorkable } from "./workable";
 import { fetchAmazon } from "./amazon";
 import { fetchOracle } from "./oracle";
+import { fetchRippling } from "./rippling";
 import { BoardNotFound, type BoardResult, type FetchLike } from "./types";
 import { boardHintFromUrl } from "../companies";
 
@@ -20,11 +21,12 @@ export function fetchBoard(provider: AtsProvider, token: string, f: FetchLike = 
     case "WORKABLE": return fetchWorkable(token, f);
     case "AMAZON": return fetchAmazon(token, f);
     case "ORACLE": return fetchOracle(token, f);
+    case "RIPPLING": return fetchRippling(token, f);
     default: throw new Error("No supported job feed configured");
   }
 }
 
-const PREFIX: Record<string, AtsProvider> = { greenhouse: "GREENHOUSE", lever: "LEVER", ashby: "ASHBY", smartrecruiters: "SMARTRECRUITERS", workday: "WORKDAY", workable: "WORKABLE", amazon: "AMAZON", oracle: "ORACLE" };
+const PREFIX: Record<string, AtsProvider> = { greenhouse: "GREENHOUSE", lever: "LEVER", ashby: "ASHBY", smartrecruiters: "SMARTRECRUITERS", workday: "WORKDAY", workable: "WORKABLE", amazon: "AMAZON", oracle: "ORACLE", rippling: "RIPPLING" };
 /** Boards guessed from the company's name alone. Workable is not guessed: it answers 429 to the app's server when it is
  *  asked about many accounts, and those 429s were hiding real boards and marking ~56 companies "no public board" (Nov 13).
  *  A Workable board is still read when a hint or the company's careers link points to it. */
@@ -43,6 +45,8 @@ export function candidates(slug: string, name: string, hints: string[], links: (
   if (hints.includes("none")) return out;
   const variants = [...new Set([slug, slug.replace(/-/g, ""), name.toLowerCase().replace(/[^a-z0-9]/g, "")])];
   for (const v of variants) for (const p of PROBED) if (!out.some((o) => o.provider === p && o.token === v)) out.push({ provider: p, token: v });
+  // Ashby board names are case-sensitive and can be the company's name as written ("Cedar", "Flock Safety").
+  for (const v of new Set([name.trim(), name.replace(/[^A-Za-z0-9]/g, "")])) if (v && !variants.includes(v) && !out.some((o) => o.provider === "ASHBY" && o.token === v)) out.push({ provider: "ASHBY", token: v });
   return out;
 }
 

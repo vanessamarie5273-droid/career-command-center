@@ -1,4 +1,4 @@
-export type Provider = "GREENHOUSE" | "LEVER" | "ASHBY" | "SMARTRECRUITERS" | "WORKDAY" | "WORKABLE" | "AMAZON" | "ORACLE" | "GOOGLE_JOBS";
+export type Provider = "GREENHOUSE" | "LEVER" | "ASHBY" | "SMARTRECRUITERS" | "WORKDAY" | "WORKABLE" | "AMAZON" | "ORACLE" | "RIPPLING" | "GOOGLE_JOBS";
 
 export type RawPosting = {
   provider: Provider;
@@ -21,6 +21,9 @@ export type BoardResult = { postings: RawPosting[]; total: number };
 export class BoardNotFound extends Error {}
 
 /** The job board's server answered 429 (too many requests) through every retry. Says nothing about whether the board exists. */
-export class RateLimited extends Error {}
+export class RateLimited extends Error {
+  /** The host or rate group that is limiting (e.g. "myworkdayjobs.com" for every company's Workday site). */
+  constructor(message: string, readonly group?: string) { super(message); }
+}
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;

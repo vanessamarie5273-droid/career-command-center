@@ -68,9 +68,10 @@ describe("board lookups and reads that a rate limit cuts short", () => {
     const c = await makeCompany(db, { name: "Nuvei", atsProvider: "WORKABLE", atsToken: "nuvei", lastIngestedAt: new Date("2026-11-12T15:00:00Z") });
     await db.job.create({ data: { companyId: c.id, fingerprint: `nv-${c.id}`, title: "Enterprise Account Executive", applyUrl: "https://apply.workable.com/nuvei/j/1", sources: { create: { provider: "WORKABLE", externalId: "nuvei:1", url: "https://apply.workable.com/nuvei/j/1" } } } });
     const o = await ingestCompany(db, c, async () => limited(), new Date());
-    expect(o.status).toBe("error");
+    expect(o.status).toBe("paused");
     const after = await db.company.findUniqueOrThrow({ where: { id: c.id } });
-    expect(after.atsError).toBe("Workable asked the app to slow down (HTTP 429). Keeping the 1 saved opening from 2026-11-12; trying again next refresh.");
+    expect(after.atsStatus).toBe("paused");
+    expect(after.atsError).toMatch(/^Paused: Workable is limiting requests from the app \(since .+\)\. Keeping the 1 saved opening from Nov 12, 2026; the app tries again on its own\.$/);
     expect(await db.job.count({ where: { companyId: c.id, status: "OPEN" } })).toBe(1);
   });
 });

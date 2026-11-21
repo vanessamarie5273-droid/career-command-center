@@ -5,11 +5,13 @@ import { jobFingerprint, contentHash } from "../dedupe";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
 import { workdayPath, type KnownWorkdayJob } from "./workday";
-import { RateLimited, type FetchLike, type RawPosting } from "./types";
-import { range } from "../format";
+import { BoardNotFound, RateLimited, type FetchLike, type RawPosting } from "./types";
+import { isPaused, pauseOf, resetRateLimits } from "./http";
+import { groupName, loadPauses, savePauses } from "./rateLimits";
+import { date, dateTime, range } from "../format";
 import { runGoogleJobs } from "./googleJobs";
 
-export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported" | "pending" | "limited" | "skipped"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
+export type CompanyOutcome = { company: string; status: "ok" | "error" | "not_found" | "unsupported" | "pending" | "paused" | "skipped"; fetched: number; relevant: number; created: number; updated: number; closed: number; error?: string };
 
 export function buildJobData(company: Pick<Company, "id">, p: RawPosting) {
   const text = p.descriptionText || htmlToText(p.descriptionHtml);
@@ -151,7 +153,11 @@ async function knownWorkdayJobs(db: PrismaClient, companyId: string) {
   return known;
 }
 
-export async function ingestCompany(db: PrismaClient, listed: Company, f: FetchLike = fetch, runStart = new Date(), opts: { scheduled?: boolean } = {}): Promise<CompanyOutcome> {
+/** Providers whose boards all share one rate limit (rateGroup in http.ts). */
+export const PROVIDER_GROUP: Partial<Record<string, string>> = { WORKDAY: "myworkdayjobs.com" };
+const providerName = (p: string) => `${p[0]}${p.slice(1).toLowerCase()}`;
+
+export async function ingestCompany(db: PrismaClient, listed: Company, f: FetchLike = fetch, runStart = new Date(), opts: { scheduled?: boolean; workdayBudget?: { left: number } } = {}): Promise<CompanyOutcome> {
   const out: CompanyOutcome = { company: listed.name, status: "ok", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0 };
   // A refresh lists its companies when it starts. One can be merged into another or removed before its turn comes
   // (the deploy that merges duplicates ran while the 11 AM refresh was going, Nov 18): skip it, never fail the run.
@@ -188,6 +194,14 @@ export async function ingestCompany(db: PrismaClient, listed: Company, f: FetchL
     if (opts.scheduled && provider === "WORKDAY" && company.atsStatus === "ok" && company.lastIngestedAt && runStart.getTime() - company.lastIngestedAt.getTime() < WORKDAY_EVERY_HOURS * 3600_000) {
       return { ...out, status: "skipped" };
     }
+    // A job site that is limiting the app is not called at all until its pause ends; its boards keep their saved openings.
+    const group = PROVIDER_GROUP[provider];
+    if (group && isPaused(group)) throw new RateLimited(`${group} is paused`, group);
+    // A scheduled refresh reads only a few Workday boards, the ones read longest ago, so its calls are spread over the day.
+    if (provider === "WORKDAY" && opts.workdayBudget) {
+      if (opts.workdayBudget.left <= 0) return { ...out, status: "skipped" };
+      opts.workdayBudget.left--;
+    }
     const board = await fetchBoard(provider, token!, f, provider === "WORKDAY" ? { workdayKnown: await knownWorkdayJobs(db, company.id) } : {});
     out.fetched = board.postings.length;
     const now = new Date();
@@ -206,14 +220,20 @@ export async function ingestCompany(db: PrismaClient, listed: Company, f: FetchL
   } catch (e) {
     let msg = (e as Error).message?.slice(0, 500) || String(e);
     if (e instanceof RateLimited) {
-      // The board exists and its openings stay as last read: nothing is closed after a failed read. A board that was
-      // working stays live (it is the job site asking the app to slow down, not a broken feed) with a note saying so.
-      const kept = await db.job.count({ where: { companyId: company.id, status: "OPEN", sources: { some: { provider } } } });
-      msg = `${provider[0]}${provider.slice(1).toLowerCase()} asked the app to slow down (HTTP 429). Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${company.lastIngestedAt.toISOString().slice(0, 10)}` : ""}; trying again next refresh.`;
-      if (company.atsStatus === "ok") {
-        await db.company.update({ where: { id: company.id }, data: { atsError: msg, atsCheckedAt: new Date() } }).catch(() => null);
-        return { ...out, status: "limited", error: msg };
-      }
+      // The board exists and its openings stay as last read: nothing is closed after a failed read. It shows as paused,
+      // not failed: it is the job site asking the app to slow down, and the app tries again on its own.
+      const kept = await db.job.count({ where: { companyId: company.id, status: "OPEN", sources: { some: { provider } } } }).catch(() => 0);
+      const since = e.group ? pauseOf(e.group)?.since : undefined;
+      msg = `Paused: ${providerName(provider)} is limiting requests from the app${since ? ` (since ${date(new Date(since))})` : ""}. Keeping the ${kept} saved opening${kept === 1 ? "" : "s"}${company.lastIngestedAt ? ` from ${date(company.lastIngestedAt)}` : ""}; the app tries again on its own.`;
+      const saved = await db.company.update({ where: { id: company.id }, data: { atsStatus: "paused", atsError: msg, atsCheckedAt: new Date() } }).catch(() => null);
+      return saved ? { ...out, status: "paused", error: msg } : { ...out, status: "skipped", error: "Company was merged or removed during the refresh" };
+    }
+    if (e instanceof BoardNotFound && company.atsProvider !== "NONE" && company.atsToken) {
+      // The company's board is gone (Cedar's Ashby board, Nov 20): it moved or was renamed. Look for its current board
+      // on the next refresh instead of failing the same way every hour.
+      msg = `The ${providerName(company.atsProvider)} board "${company.atsToken}" no longer exists (404). Looking for the company's current job board on the next refresh.`;
+      const saved = await db.company.update({ where: { id: company.id }, data: { atsProvider: "NONE", atsToken: null, atsStatus: "pending", atsError: msg, atsCheckedAt: null } }).catch(() => null);
+      return saved ? { ...out, status: "pending", error: msg } : { ...out, status: "skipped", error: "Company was merged or removed during the refresh" };
     }
     const saved = await db.company.update({ where: { id: company.id }, data: { atsStatus: "error", atsError: msg, atsCheckedAt: new Date() } }).catch(() => null);
     if (!saved && !(await db.company.findUnique({ where: { id: company.id }, select: { id: true } }))) return { ...out, status: "skipped", error: "Company was merged or removed during the refresh" };
@@ -235,7 +255,9 @@ export const REPROBE_DAYS = 3;
 /** A lookup that a rate limit or outage cut short is tried again after this many hours. */
 export const RETRY_LOOKUP_HOURS = 6;
 /** A scheduled refresh reads a working Workday board at most this often. */
-export const WORKDAY_EVERY_HOURS = 3;
+export const WORKDAY_EVERY_HOURS = 6;
+/** A scheduled refresh reads at most this many Workday boards (18 boards over a 15-run day: each about every 5 hours). */
+export const WORKDAY_PER_RUN = 4;
 /** When the next scheduled refresh starts: ccc-daily at 6 AM and ccc-hourly 7 AM to 9 PM, Arizona time (UTC-7, no daylight saving). */
 export function nextScheduledRefresh(now = new Date()) {
   const az = new Date(now.getTime() - 7 * 3600_000);
@@ -274,6 +296,10 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
     if (busy) return { runId: busy.id, status: "skipped" as const, fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, errors: 0, companies: 0, outcomes: [] as CompanyOutcome[], googleJobs: null };
   }
   const run = await db.ingestionRun.create({ data: { trigger: opts.trigger } });
+  // Rate limits that outlast a refresh are saved between refreshes (each hourly refresh is a new process).
+  resetRateLimits();
+  const pausedBefore = await loadPauses(db).catch(() => ({}));
+  const workdayBudget = opts.companyIds ? undefined : { left: WORKDAY_PER_RUN };
   // Boards that were read longest ago go first, so a refresh that gets cut off still moves every board forward over time.
   // Companies with no known board (lookups only) go last.
   const companies = (await db.company.findMany({ where: opts.companyIds ? { id: { in: opts.companyIds } } : {}, orderBy: { lastIngestedAt: { sort: "asc", nulls: "first" } } }))
@@ -285,7 +311,7 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   await beat();
   const outcomes = await pool(companies, 2, async (c) => {
     // One company's failure is that company's error, never the whole refresh's.
-    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt, { scheduled: !opts.companyIds })
+    const o = await ingestCompany(db, c, opts.fetchImpl ?? fetch, run.startedAt, { scheduled: !opts.companyIds, workdayBudget })
       .catch((e: Error): CompanyOutcome => ({ company: c.name, status: "error", fetched: 0, relevant: 0, created: 0, updated: 0, closed: 0, error: (e?.message || String(e)).slice(0, 500) }));
     done++;
     await beat(); // progress for the banner, and proof of life so a crashed run can be told apart from a slow one
@@ -304,14 +330,28 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   const fresh = await db.job.findMany({ where: { firstSeenAt: { gte: run.startedAt }, status: "OPEN", category: { in: ["MAIN", "STRETCH", "RELOCATION"] }, score: { gte: minScore } }, include: { company: true } });
   for (const j of fresh) if (!before.has(j.id)) await db.alert.create({ data: { kind: "new_high_score_job", title: `New ${j.score}-point match: ${j.title} at ${j.company.name}`, body: j.location ?? undefined, link: `/jobs/${j.id}` } });
   const errored = outcomes.filter((o) => o.status === "error");
-  if (errored.length) await db.alert.create({ data: { kind: "integration_error", title: `${errored.length} job feed${errored.length > 1 ? "s" : ""} failed to refresh`, body: errored.slice(0, 8).map((o) => `${o.company}: ${o.error}`).join("\n"), link: "/settings" } });
-  for (const p of ["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "WORKABLE", "AMAZON", "ORACLE"]) {
+  const rl = await savePauses(db, pausedBefore).catch(() => ({ started: [], recovered: [] as string[], paused: pausedBefore as Record<string, { until: number; since: number; strikes: number }> }));
+  await alertOnce(db, outcomes, errored);
+  // One notice when a job site starts limiting the app, and one when it lets the app back in; nothing in between.
+  for (const { group, pause } of rl.started) {
+    const n = companies.filter((c) => PROVIDER_GROUP[c.atsProvider] === group).length;
+    await db.alert.create({ data: { kind: "integration_error", title: `${groupName(group)} is limiting the app, so ${n} ${groupName(group)} job board${n === 1 ? " is" : "s are"} paused`, body: `Their saved openings stay in Discover Jobs. The app tries again after ${dateTime(new Date(pause.until))} and waits longer each time it is still limited (up to a day). Nothing for you to do.`, link: "/settings" } });
+  }
+  for (const group of rl.recovered) await db.alert.create({ data: { kind: "integration_error", title: `${groupName(group)} job boards are refreshing again`, body: `${groupName(group)} is answering the app again; its boards are read a few at a time over the next hours.`, link: "/settings" } });
+  for (const p of ["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "WORKABLE", "AMAZON", "ORACLE", "RIPPLING"]) {
     const cs = companies.filter((c) => c.atsProvider === p).map((c) => c.name);
     const errs = errored.filter((o) => cs.includes(o.company)).length;
+    const group = PROVIDER_GROUP[p];
+    const pause = group ? rl.paused[group] : undefined;
+    const paused = pause ? outcomes.filter((o) => o.status === "paused" && cs.includes(o.company)).length || cs.length : 0;
+    const status = !cs.length ? "not_configured" : pause ? "paused" : errs === 0 ? "connected" : errs === cs.length ? "error" : "degraded";
+    const detail = pause
+      ? `${cs.length} companies, ${paused} paused: ${providerName(p)} has been limiting the app's requests since ${date(new Date(pause.since))}. Saved openings are kept; next try after ${dateTime(new Date(pause.until))}.${errs ? ` ${errs} other errors.` : ""}`
+      : `${cs.length} companies, ${errs} errors in last run`;
     await db.integrationStatus.upsert({
       where: { id: p.toLowerCase() },
-      create: { id: p.toLowerCase(), name: p[0] + p.slice(1).toLowerCase(), status: !cs.length ? "not_configured" : errs === 0 ? "connected" : errs === cs.length ? "error" : "degraded", detail: `${cs.length} companies, ${errs} errors in last run` },
-      update: { status: !cs.length ? "not_configured" : errs === 0 ? "connected" : errs === cs.length ? "error" : "degraded", detail: `${cs.length} companies, ${errs} errors in last run`, checkedAt: new Date() },
+      create: { id: p.toLowerCase(), name: providerName(p), status, detail },
+      update: { status, detail, checkedAt: new Date() },
     });
   }
   // Failures before a board is known (network, probing) belong to discovery, not to a provider.
@@ -326,6 +366,23 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   });
   if (googleJobs?.status === "error") await db.alert.create({ data: { kind: "integration_error", title: "Google Jobs search failed", body: googleJobs.error, link: "/settings" } });
   return { runId: run.id, status, ...tot, companies: companies.length, outcomes, googleJobs };
+}
+
+const ALERTED = "feed_alerts";
+/** Posts "job feeds stopped refreshing" only for feeds that were not already failing when the last alert went out, so an
+ *  ongoing problem is one alert, not one every hour (Nov 19 to 21: the same 19 feeds, every hour). A feed that recovers
+ *  leaves the list and gets a new alert if it fails again later. */
+async function alertOnce(db: PrismaClient, outcomes: CompanyOutcome[], errored: CompanyOutcome[]) {
+  const row = await db.integrationStatus.findUnique({ where: { id: ALERTED } });
+  let before: string[] = [];
+  try { before = JSON.parse(row?.detail ?? "[]"); } catch { before = []; }
+  // A company this refresh did not read (skipped, waiting for its turn) keeps its place on the list.
+  const read = new Set(outcomes.filter((o) => o.status !== "skipped").map((o) => o.company));
+  const failing = [...new Set([...before.filter((c) => !read.has(c)), ...errored.map((o) => o.company)])].sort();
+  const fresh = errored.filter((o) => !before.includes(o.company));
+  if (fresh.length) await db.alert.create({ data: { kind: "integration_error", title: `${fresh.length} job feed${fresh.length > 1 ? "s" : ""} stopped refreshing`, body: fresh.slice(0, 8).map((o) => `${o.company}: ${o.error}`).join("\n"), link: "/settings" } });
+  const detail = JSON.stringify(failing);
+  await db.integrationStatus.upsert({ where: { id: ALERTED }, create: { id: ALERTED, name: "Feed failure alerts", status: "connected", detail }, update: { detail, checkedAt: new Date() } });
 }
 
 /** Recompute scores after company assessments or the profile change. */
