@@ -7,6 +7,8 @@ import { classifyTitle, isRelevantFamily } from "../roles";
 type Search = { total: number; jobPostings: { title?: string; externalPath: string; locationsText?: string; postedOn?: string; remoteType?: string }[] };
 type Detail = { jobPostingInfo?: { jobDescription?: string; location?: string; startDate?: string; externalUrl?: string; jobReqId?: string; remoteType?: string; additionalLocations?: string[] } };
 
+/** Results read per search: 5 pages of 20. */
+export const MAX_RESULTS = 100;
 const QUERIES = ["account executive", "sales director", "business development", "sales development", "account director", "head of sales", "vice president sales"];
 
 /** A Workday role already saved from an earlier read, keyed by its path on the careers site ("/job/Phoenix-AZ/Account-Executive_R123"). */
@@ -37,8 +39,10 @@ export async function fetchWorkday(token: string, f: FetchLike = fetch, known: M
   // 20 is the page size every Workday site accepts (some reject other limits).
   const totalRes = await post({ appliedFacets: {}, limit: 20, offset: 0, searchText: "" });
   const seen = new Map<string, Search["jobPostings"][number]>();
+  // Results come best match first, so the first pages hold the sales titles. Reading up to 10 pages per search on every
+  // board (about 1,000 calls a refresh) is what got the app's server limited by Workday from Nov 16.
   for (const q of QUERIES) {
-    for (let offset = 0; offset < 200; offset += 20) {
+    for (let offset = 0; offset < MAX_RESULTS; offset += 20) {
       const r = await post({ appliedFacets: {}, limit: 20, offset, searchText: q });
       // Some Workday sites mix untitled entries into search results; they are not readable postings.
       for (const p of r.jobPostings || []) if (p.title?.trim() && p.externalPath) seen.set(p.externalPath, p);

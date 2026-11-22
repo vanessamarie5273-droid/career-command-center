@@ -64,7 +64,7 @@ describe("Workday boards on the hourly refresh", () => {
     expect(jobs.every((j) => j.location === "Phoenix, AZ" && j.descriptionText)).toBe(true);
   });
 
-  it("reads a working Workday board at most every 3 hours on the schedule, and any time from its page", async () => {
+  it("reads a working Workday board at most every 6 hours on the schedule, and any time from its page", async () => {
     const c = await makeCompany(db, { name: "Recent Workday", atsProvider: "WORKDAY", atsToken: "acme|wd5|External", atsStatus: "ok", lastIngestedAt: new Date(Date.now() - 3600_000) });
     let called = false;
     const f = async () => { called = true; return json({ total: 0, jobPostings: [] }); };
@@ -74,13 +74,13 @@ describe("Workday boards on the hourly refresh", () => {
     expect(called).toBe(true);
   });
 
-  it("a working board that Workday slows down stays live with a note, not an error", async () => {
-    const c = await makeCompany(db, { name: "Slowed Workday", atsProvider: "WORKDAY", atsToken: "acme|wd5|External", atsStatus: "ok", lastIngestedAt: new Date("2026-11-18T12:00:00Z") });
+  it("a board that Workday slows down shows as paused with a note, not an error", async () => {
+    const c = await makeCompany(db, { name: "Slowed Workday", atsProvider: "WORKDAY", atsToken: "acme|wd5|External", atsStatus: "ok", lastIngestedAt: new Date("2026-11-18T19:00:00Z") });
     const o = await ingestCompany(db, c, async () => limited(), new Date());
-    expect(o.status).toBe("limited");
+    expect(o.status).toBe("paused");
     const after = await db.company.findUniqueOrThrow({ where: { id: c.id } });
-    expect(after.atsStatus).toBe("ok");
-    expect(after.atsError).toMatch(/^Workday asked the app to slow down \(HTTP 429\)\. Keeping the 0 saved openings from 2026-11-18/);
+    expect(after.atsStatus).toBe("paused");
+    expect(after.atsError).toMatch(/^Paused: Workday is limiting requests from the app \(since .*\)\. Keeping the 0 saved openings from Nov 18, 2026; the app tries again on its own\.$/);
   });
 });
 

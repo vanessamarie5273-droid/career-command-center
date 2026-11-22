@@ -14,7 +14,7 @@ const Patch = z.object({
   valuation: s.optional(), investors: s.optional(), liquidityNotes: s.optional(), financialSourceUrl: s.optional(),
   marketPositionScore: score.optional(), equityUpsideScore: score.optional(), compCompetitiveness: score.optional(), growthScore: score.optional(), growthThesis: s.optional(), assessmentRationale: s.optional(), risks: s.optional(),
   cultureNotes: s.optional(), engagementStrategy: s.optional(), myContribution: s.optional(), favorite: z.boolean().optional(), userPriority: z.union([z.number(), z.string(), z.null()]).transform((v) => (v === null || v === "" ? null : Number(v))).optional(), notes: s.optional(),
-  atsProvider: z.enum(["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "WORKABLE", "AMAZON", "ORACLE", "NONE"]).optional(), atsToken: s.optional(),
+  atsProvider: z.enum(["GREENHOUSE", "LEVER", "ASHBY", "SMARTRECRUITERS", "WORKDAY", "WORKABLE", "AMAZON", "ORACLE", "RIPPLING", "NONE"]).optional(), atsToken: s.optional(),
   profileFactType: z.enum(["CONFIRMED", "ESTIMATE", "AI_ASSESSMENT"]).optional(), profileSource: s.optional(), profileVerifiedAt: z.string().optional(),
 });
 

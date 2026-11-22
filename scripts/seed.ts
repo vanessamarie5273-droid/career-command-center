@@ -14,7 +14,7 @@ function careersFor(c: (typeof SEED_COMPANIES)[number]) {
   const gh = c.hints?.find((h) => h.startsWith("greenhouse:"));
   if (gh) return `https://job-boards.greenhouse.io/${gh.slice(11)}`;
   const ash = c.hints?.find((h) => h.startsWith("ashby:"));
-  if (ash) return `https://jobs.ashbyhq.com/${ash.slice(6)}`;
+  if (ash) return `https://jobs.ashbyhq.com/${encodeURIComponent(ash.slice(6))}`;
   const lv = c.hints?.find((h) => h.startsWith("lever:"));
   if (lv) return `https://jobs.lever.co/${lv.slice(6)}`;
   return `${c.website.replace(/\/$/, "")}/careers`;
@@ -47,9 +47,11 @@ export async function seed(client = db) {
       const hintsChanged = hints.length > 0 && JSON.stringify(existing.atsHints) !== JSON.stringify(hints);
       // A board that came from an earlier seed hint follows the hint when it changes (Mistral AI moved from Lever to Ashby).
       const fromOldHint = existing.atsProvider !== "NONE" && existing.atsHints.some((h) => h.toLowerCase() === `${existing.atsProvider.toLowerCase()}:${(existing.atsToken ?? "").toLowerCase()}`);
-      if (hintsChanged && (existing.atsProvider === "NONE" || fromOldHint)) {
+      // So does a board that no longer exists (Cedar's Ashby board answered 404 from Nov 20; its board is now "Cedar").
+      const deadBoard = existing.atsProvider !== "NONE" && existing.atsStatus === "error" && /^404 /.test(existing.atsError ?? "");
+      if (hintsChanged && (existing.atsProvider === "NONE" || fromOldHint || deadBoard)) {
         Object.assign(fill, { atsHints: hints, atsStatus: "pending", atsError: null, atsCheckedAt: null });
-        if (fromOldHint) {
+        if (fromOldHint || deadBoard) {
           Object.assign(fill, { atsProvider: "NONE", atsToken: null });
           if (existing.careersUrl === careersFor({ ...c, hints: existing.atsHints, careers: undefined })) fill.careersUrl = careersFor(c);
         }
@@ -66,6 +68,10 @@ export async function seed(client = db) {
   // Job boards that Google Jobs listed as employers (Jobgether, Ladders, ClearanceJobs) are not companies (Nov 18).
   const boards = await removeAggregatorCompanies(client);
   if (boards.removed.length) console.log(`Removed job boards stored as companies: ${boards.removed.join(", ")}`);
+  // Nov 19 to 21 the refresh posted "N job feeds failed to refresh" every hour for the same Workday pause. Alerts now
+  // come once per problem; the hourly repeats are marked read so they stop filling the alert count (nothing is deleted).
+  const repeats = await client.alert.updateMany({ where: { kind: "integration_error", read: false, title: { endsWith: "failed to refresh" } }, data: { read: true } });
+  if (repeats.count) console.log(`Marked ${repeats.count} repeated feed-failure alerts as read`);
   await client.profile.upsert({
     where: { id: "me" },
     create: { id: "me", summary: PROFILE.summary, targetRoles: PROFILE.targetRoles, keywords: Object.values(PROFILE.strengths).flat(), homeBase: PROFILE.homeBase, preferences: { remoteUS: true, southwest: true, hybridPhoenix: true, relocationSeparate: true, excludeClearance: true } },

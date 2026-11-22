@@ -29,7 +29,7 @@ type Row = Company & { _count: { applications: number; jobs: number } };
 
 /** Which record survives: one from her seed list, then one she added, then one with a working board, then the oldest. */
 function rank(c: Row) {
-  return [c.addedBy.startsWith("seed") ? 0 : 1, c.addedBy === "user" ? 0 : 1, c.atsStatus === "ok" ? 0 : 1, -c._count.applications, c.createdAt.getTime()];
+  return [c.addedBy.startsWith("seed") ? 0 : 1, c.addedBy === "user" ? 0 : 1, c.atsStatus === "ok" || c.atsStatus === "paused" ? 0 : 1, -c._count.applications, c.createdAt.getTime()];
 }
 const byRank = (a: Row, b: Row) => {
   const x = rank(a), y = rank(b);
@@ -56,7 +56,7 @@ export async function mergeDuplicateCompanies(db: PrismaClient) {
   for (const [keep, ...dupes] of await findDuplicateCompanies(db)) {
     // The job board that reads the employer's real openings: a working one over none, the bigger one over a smaller
     // look-alike (SmartRecruiters "gong" listed 7 roles of another company; Greenhouse "gongio" is Gong's 88).
-    const boards = [keep, ...dupes].filter((c) => c.atsProvider !== "NONE" && c.atsStatus === "ok");
+    const boards = [keep, ...dupes].filter((c) => c.atsProvider !== "NONE" && (c.atsStatus === "ok" || c.atsStatus === "paused"));
     const board = boards.sort((a, b) => (b.totalOpenings ?? 0) - (a.totalOpenings ?? 0))[0];
     const data: Record<string, unknown> = {};
     if (board && board.id !== keep.id && !(board.atsProvider === keep.atsProvider && board.atsToken === keep.atsToken)) {
