@@ -13,6 +13,8 @@
 
 The app works without Resend and Anthropic. Without them, briefings are still generated and shown in the app, and the assistant page says it is not configured.
 
+**AI model and credit.** Settings → AI model picks Credit saver (Claude Haiku, about a tenth of the cost) or Full quality (Claude Opus). No Render change is needed to switch. If Anthropic refuses because the credit balance ran out or the key stopped working, the app shows "AI is paused" at the top of every page and on Settings, the AI buttons explain what to do instead of failing, and automatic AI work (briefing fit notes, research of newly added companies) waits, trying again every 6 hours. Job feeds, Outlook sync, alerts and the board keep working. After adding credit, use any AI button (or wait for the next automatic try) and the pause clears by itself.
+
 ## Deploy on Render
 
 1. Push this folder to a **private** GitHub repository.

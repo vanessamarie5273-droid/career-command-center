@@ -1,7 +1,7 @@
 // Application Kit: per-job tailored resume, Why Me letter, point of view, buying-committee notes and form answers.
 // Generated text may only use facts from her resume and stated profile; checkKit() flags anything that slips through.
 import Anthropic from "@anthropic-ai/sdk";
-import { MODEL } from "./assistant";
+import { aiModel, fallbackParams, withAi } from "./ai";
 import { positioning } from "./positioning";
 import { COMMERCIAL_LETTER, herLetter, LETTER_MAX_WORDS, PUBLIC_SECTOR_LETTER, letterBody } from "./letterStyle";
 import { KIT_LABEL, KIT_PARTS, type KitChecks, type KitIssue, type KitPart, type KitParts } from "./kitParts";
@@ -118,13 +118,14 @@ export function kitContext(i: KitInput) {
 
 /** One Claude call: a fixed instruction block, then the shared context (cached), then the conversation. */
 export async function writeOver(client: Anthropic, instructions: string, context: string, messages: Anthropic.Beta.BetaMessageParam[], effort: "low" | "medium" | "high", what: string) {
-  const res = await client.beta.messages.create({
-    model: MODEL, max_tokens: 16000, output_config: { effort },
+  const model = await aiModel();
+  const res = await withAi(() => client.beta.messages.create({
+    model, max_tokens: 16000, output_config: { effort },
     system: [{ type: "text", text: instructions }, { type: "text", text: context, cache_control: { type: "ephemeral" } }],
     messages,
-    // Server-side refusal fallback ("default" routing), as in the assistant.
-    betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
-  });
+    // Server-side refusal fallback ("default" routing) on Opus, as in the assistant.
+    ...fallbackParams(model),
+  }));
   if (res.stop_reason === "refusal") throw new Error(`The model declined to write the ${what}.`);
   return res.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
 }

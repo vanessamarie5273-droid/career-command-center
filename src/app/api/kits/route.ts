@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { aiError, aiNotConfigured, route } from "@/lib/api";
 import { prisma } from "@/lib/db";
-import { assistantConfigured, MODEL } from "@/lib/assistant";
+import { assistantConfigured } from "@/lib/assistant";
+import { aiModel } from "@/lib/ai";
 import { atsReport } from "@/lib/resume";
 import { checkKit, generateKit, kitContext } from "@/lib/kit";
 import { kitInput } from "@/lib/kitEdit";
@@ -53,7 +54,7 @@ export const POST = route("EDITOR", async (req, _c, u) => {
   };
   const resumeDoc = await save("resume", `Resume – ${label}`, parts.resume);
   const letterDoc = await save("cover_letter", `Cover letter – ${label}`, parts.letter);
-  const kit = await prisma.kit.create({ data: { jobId: job.id, baseResumeId: base.id, resumeDocId: resumeDoc.id, letterDocId: letterDoc.id, parts, checks, model: MODEL } });
+  const kit = await prisma.kit.create({ data: { jobId: job.id, baseResumeId: base.id, resumeDocId: resumeDoc.id, letterDocId: letterDoc.id, parts, checks, model: await aiModel() } });
   await prisma.auditLog.create({ data: { userId: u.sub, entity: "Kit", entityId: kit.id, action: "create", changes: { jobId: job.id, baseResumeId: base.id } } });
   return kit;
 });

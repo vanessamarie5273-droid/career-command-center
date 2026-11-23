@@ -7,7 +7,8 @@ import { RestoreForm, PasswordForm, RescoreButton } from "@/components/SettingsW
 import { PROFILE } from "@/lib/profile";
 import { WEIGHTS, CRITERION_LABEL, type Criterion } from "@/lib/scoring";
 import { emailConfigured } from "@/lib/email";
-import { assistantConfigured, MODEL } from "@/lib/assistant";
+import { assistantConfigured } from "@/lib/assistant";
+import { AI_MODELS, AI_MODE_LABEL, aiMode, aiPause } from "@/lib/ai";
 import { dateTime } from "@/lib/format";
 import { outlookConfigured } from "@/lib/mail/outlook";
 import { googleJobsConfigured } from "@/lib/ingest/googleJobs";
@@ -27,6 +28,8 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     prisma.emailEvent.count(),
     prisma.ingestionRun.findFirst({ where: { trigger: "hourly" }, orderBy: { startedAt: "desc" } }),
   ]);
+  const [mode, pause] = await Promise.all([aiMode(), aiPause()]);
+  const aiKey = assistantConfigured();
   const outlookOk = !!mail && outlookConfigured();
   const st = (id: string) => statuses.find((x) => x.id === id);
   const byStatus = (k: string) => feeds.filter((f) => (f.atsStatus ?? "pending") === k).length;
@@ -40,7 +43,11 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     { name: "Outlook (job inbox)", status: !outlookConfigured() ? "not_configured" : !mail ? "not_configured" : mail.status === "error" ? "error" : "connected", detail: !outlookConfigured() ? "Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET" : mail ? `${mail.email} · ${mail.lastSyncNote ?? "connected"}` : "Not connected", action: !outlookConfigured() ? "Register the app with Microsoft (SETUP.md, Connect Outlook)" : !mail || mail.status === "error" ? "Connect Outlook below" : null },
     { name: "Instant job alerts", status: !user?.instantAlerts ? "not_configured" : lastHourly && lastHourly.startedAt > new Date(Date.now() - 18 * 3600_000) ? "connected" : "degraded", detail: user?.instantAlerts ? `Hourly 7 AM–9 PM Arizona for new roles scoring ${user.alertMinScore}+ · ${lastHourly ? `last hourly run ${dateTime(lastHourly.startedAt)} (${lastHourly.status})` : "no hourly run yet"}` : "Off: new roles wait for the morning briefing", action: user?.instantAlerts && !lastHourly ? "Runs from the ccc-hourly cron job (see SETUP.md)" : null },
     { name: "Email alerts (Resend)", status: emailConfigured() ? st("email")?.status === "error" ? "error" : "connected" : outlookOk ? "connected" : "not_configured", detail: emailConfigured() ? st("email")?.detail ?? "Configured" : outlookOk ? `Not needed: alerts and the briefing are sent from your Outlook (${mail!.email})` : "Set RESEND_API_KEY and ALERT_FROM_EMAIL, or connect Outlook", action: emailConfigured() || outlookOk ? null : "Connect Outlook below" },
-    { name: "AI assistant (Anthropic)", status: assistantConfigured() ? (st("anthropic")?.status === "error" ? "error" : "connected") : "not_configured", detail: assistantConfigured() ? `${MODEL} · ${st("anthropic")?.status === "not_configured" ? "key set, ready" : st("anthropic")?.detail ?? "ready"}` : "Set ANTHROPIC_API_KEY", action: assistantConfigured() ? null : "Create an API key at console.anthropic.com" },
+    { name: "AI (Anthropic)", status: !aiKey ? "not_configured" : pause ? "paused" : st("anthropic")?.status === "error" ? "error" : "connected",
+      detail: !aiKey ? "Set ANTHROPIC_API_KEY"
+        : pause ? `${pause.message} Paused since ${dateTime(pause.since)}. Automatic AI work (briefing notes, research of newly added companies) waits and tries again every 6 hours.`
+        : `${AI_MODE_LABEL[mode]} · ${AI_MODELS[mode]} · ${st("anthropic")?.detail ?? "key set, ready"}`,
+      action: !aiKey ? "Create an API key at console.anthropic.com" : pause?.reason === "credit" ? "Add credit at console.anthropic.com, then use any AI button" : pause?.reason === "key" ? "Make a new key at console.anthropic.com and paste it into Render" : null },
     { name: "LinkedIn", status: st("linkedin")?.status === "connected" ? "connected" : "degraded", detail: st("linkedin")?.status === "connected" ? st("linkedin")!.detail : "Limited by LinkedIn's API policy: connections via official CSV export; profile and company links open in your browser", action: "Import Connections.csv in Network & Contacts" },
     { name: "Mobile notifications", status: "not_configured", detail: "Install the site to your phone's home screen; email alerts reach your phone today", action: null },
   ];
@@ -53,6 +60,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
             <tbody>{integrations.map((i) => <tr key={i.name}><td className="font-medium">{i.name}</td><td className="whitespace-nowrap"><StatusDot status={i.status} /> {i.status.replace("_", " ")}</td><td className="text-[13px] text-slate-600">{i.detail}</td><td className="text-[13px]">{i.action ?? "—"}</td></tr>)}</tbody>
           </table></div>
         </Card>
+        <div className="space-y-3">
         <Card title="Alerts">
           <div className="space-y-3">
             {mail?.email
@@ -63,6 +71,13 @@ export default async function Settings({ searchParams }: { searchParams: Promise
             <p className="text-[13px] text-slate-500">Feeds refresh every hour from 7 AM to 9 PM Arizona. Roles found overnight are in the 6 AM briefing.</p>
           </div>
         </Card>
+        <Card title="AI model">
+          <div className="space-y-2">
+            <AutoField endpoint="/api/settings" field="aiMode" type="select" label="Kits, research and the assistant use" value={mode} options={[["saver", AI_MODE_LABEL.saver], ["full", AI_MODE_LABEL.full]]} refresh />
+            <p className="text-[13px] text-slate-500">Credit saver costs about a tenth of Full quality per kit or research. Switch to Full quality once your Anthropic credit is topped up.</p>
+          </div>
+        </Card>
+        </div>
       </div>
       <div id="outlook" className="scroll-mt-20" />
       <Card title="Outlook (your job inbox)" icon="mail" tone="sky" className="mb-4" action={mail ? <span className="text-[13px] text-slate-500">{mail.email}</span> : null}>
