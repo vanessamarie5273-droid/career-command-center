@@ -9,7 +9,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Company, Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { MODEL } from "./assistant";
+import { aiModel, backgroundAiAllowed, fallbackParams, pauseMessage, webSearchTool, withAi } from "./ai";
 import { boardHintFromUrl } from "./companies";
 import { ingestCompany } from "./ingest/run";
 import { scoreJob } from "./scoring";
@@ -137,14 +137,15 @@ export async function runResearch(c: Company, deps: ResearchDeps = {}): Promise<
   const ask = `Research ${c.name} as a target account.\n\n${knownProfile(c)}\n\nHer focus: ${PROFILE.targetRoles.slice(0, 6).join(", ")}. Find their sales leaders (CRO, VP Sales, RVPs, sales development leaders, Head of Public Sector, sales recruiters) and anything that shows where their go-to-market is under pressure or growing: a new market, a missed number, a reorganisation, new funding, a big launch.`;
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: ask }];
   const all: unknown[] = [];
+  const model = await aiModel();
   for (let turn = 0; turn < MAX_TURNS; turn++) {
-    const res = await create({
-      model: MODEL, max_tokens: 16000, output_config: { effort: "medium" },
+    const res = await withAi(() => create({
+      model, max_tokens: 16000, output_config: { effort: "medium" },
       system: SYSTEM, messages,
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 10 }, SAVE_TOOL],
+      tools: [webSearchTool(model, 10), SAVE_TOOL],
       tool_choice: { type: "auto" },
-      betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
-    });
+      ...fallbackParams(model),
+    }));
     all.push(...res.content);
     if (res.stop_reason === "refusal") throw new Error("The model declined to research this company.");
     const save = res.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use" && b.name === SAVE_TOOL.name);
@@ -290,10 +291,10 @@ export async function researchCompany(db: PrismaClient, companyId: string, deps:
     await db.auditLog.create({ data: { userId: null, entity: "Company", entityId: companyId, action: "research", changes: { written: plan.written, kept: plan.kept, leaders: plan.leaders.length, news: plan.news.length } } });
     return { summary, plan };
   } catch (e) {
-    const msg = e instanceof Anthropic.AuthenticationError ? "Anthropic rejected the API key. Check ANTHROPIC_API_KEY on the web service."
-      : e instanceof Anthropic.RateLimitError ? "Anthropic is rate-limiting requests. Try again in a minute."
+    const msg = pauseMessage(e)
+      ?? (e instanceof Anthropic.RateLimitError ? "Anthropic is rate-limiting requests. Try again in a minute."
       : e instanceof z.ZodError ? "The research came back incomplete. Try again."
-      : (e as Error).message || "Research failed";
+      : (e as Error).message || "Research failed");
     await db.company.update({ where: { id: companyId }, data: { researchStatus: "error", researchError: msg.slice(0, 500) } }).catch(() => null);
     throw e;
   }
@@ -323,9 +324,9 @@ export async function startResearch(db: PrismaClient, companyId: string, deps: R
   return { started: true, status: "running" as const, done: job };
 }
 
-/** When she adds a company, research it in the background (if the API key is set). Never fails the add. */
+/** When she adds a company, research it in the background (if the key is set and AI isn't paused). Never fails the add. */
 export async function researchNewCompany(db: PrismaClient, companyId: string) {
-  if (!researchConfigured()) return false;
+  if (!(await backgroundAiAllowed(db))) return false;
   await startResearch(db, companyId).catch((e) => console.error("research start:", (e as Error).message));
   return true;
 }

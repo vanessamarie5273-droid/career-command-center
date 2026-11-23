@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthError, requireUser } from "./auth";
+import { pauseMessage } from "./ai";
 
 type Level = "VIEWER" | "EDITOR" | "ADMIN";
 
@@ -15,6 +16,8 @@ export function route<C = unknown>(level: Level, fn: (req: Request, ctx: C, user
     } catch (e) {
       if (e instanceof AuthError) return NextResponse.json({ error: e.message }, { status: e.status });
       if (e instanceof ZodError) return NextResponse.json({ error: "Invalid input", issues: e.issues }, { status: 400 });
+      const paused = pauseMessage(e);
+      if (paused) return NextResponse.json({ error: paused, aiPaused: true }, { status: 503 });
       console.error(e);
       return NextResponse.json({ error: (e as Error).message || "Server error" }, { status: 500 });
     }
@@ -23,7 +26,8 @@ export function route<C = unknown>(level: Level, fn: (req: Request, ctx: C, user
 
 /** Plain-language responses for the Anthropic errors she can fix herself; anything else goes to route()'s handler. */
 export function aiError(e: unknown) {
-  if (e instanceof Anthropic.AuthenticationError) return NextResponse.json({ error: "Anthropic rejected the API key. Check ANTHROPIC_API_KEY on the web service." }, { status: 503 });
+  const paused = pauseMessage(e);
+  if (paused) return NextResponse.json({ error: paused, aiPaused: true }, { status: 503 });
   if (e instanceof Anthropic.RateLimitError) return NextResponse.json({ error: "Anthropic is rate-limiting requests. Try again in a minute." }, { status: 503 });
   throw e;
 }

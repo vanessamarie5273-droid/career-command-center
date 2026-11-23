@@ -4,7 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Company, Job, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { MODEL, assistantConfigured } from "./assistant";
+import { aiModel, backgroundAiAllowed, backgroundPaused, withAi } from "./ai";
 import { appBase } from "./appUrl";
 import { effectiveScore } from "./scoring";
 import { keywordGap } from "./resume";
@@ -97,11 +97,12 @@ export async function aiFit(jobs: JobC[], checks: Map<string, FitChecks>, resume
       `CHECKS: blockers=${JSON.stringify(c.blockers)} required_not_on_resume=${JSON.stringify(c.required)} preferred_not_on_resume=${JSON.stringify(c.preferred)}`,
       `connections at company: ${connections.get(j.companyId) ?? 0}`].filter(Boolean).join("\n");
   }).join("\n\n");
-  const res = await client.messages.create({
-    model: MODEL, max_tokens: 4000, output_config: { effort: "low" },
+  const model = await aiModel();
+  const res = await withAi(() => client.messages.create({
+    model, max_tokens: 4000, output_config: { effort: "low" },
     system: SYSTEM,
     messages: [{ role: "user", content: `RESUME:\n${resumeText.slice(0, 20000)}\n\n${body}` }],
-  });
+  }));
   const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
   const parsed = Out.parse(JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1)));
   const out = new Map<string, FitBrief>();
@@ -130,16 +131,18 @@ export async function ensureFitBriefs(db: PrismaClient, jobs: JobC[], ctx: { con
   const resumeText = await latestResumeText(db);
   const checks = new Map(jobs.map((j) => [j.id, fitChecks(j, resumeText)]));
   const changedSince = async (j: JobC) => !j.fitBriefAt || !!(await db.jobEvent.findFirst({ where: { jobId: j.id, kind: { in: ["updated", "reopened"] }, at: { gt: j.fitBriefAt } }, select: { id: true } }));
-  const ai = assistantConfigured();
+  // Automatic work: skipped while AI is paused (credit or key), so the briefing uses the rules instead.
+  const ai = await backgroundAiAllowed(db);
+  const delegateOk = !!ctx.allowDelegate && !(await backgroundPaused(db));
   const need: JobC[] = [];
   for (const j of jobs) {
     const cached = j.fitBrief as FitBrief | null;
-    if (!cached || (await changedSince(j)) || (cached.source === "rules" && (ai || ctx.allowDelegate))) need.push(j);
+    if (!cached || (await changedSince(j)) || (cached.source === "rules" && (ai || delegateOk))) need.push(j);
   }
   if (need.length && ai) {
     const got = await aiFit(need, checks, resumeText, ctx.connections, now).catch((e) => { console.error("Briefing fit", e); return new Map<string, FitBrief>(); });
     for (const [id, brief] of got) await db.job.update({ where: { id }, data: { fitBrief: brief, fitBriefAt: now } });
-  } else if (need.length && ctx.allowDelegate && (await delegate(db, need.map((j) => j.id)))) {
+  } else if (need.length && delegateOk && (await delegate(db, need.map((j) => j.id)))) {
     // The web app stored them; fall through to read them back.
   }
   const fresh = new Map((await db.job.findMany({ where: { id: { in: jobs.map((j) => j.id) } }, select: { id: true, fitBrief: true, fitBriefAt: true } })).map((j) => [j.id, j]));

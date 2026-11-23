@@ -6,8 +6,8 @@ import { MATCHING, tierWhere, followUpWhere } from "./queries";
 import { companyAttractiveness, effectiveScore, effectiveTier } from "./scoring";
 import { keywordGap } from "./resume";
 import { PROFILE } from "./profile";
+import { aiModel, fallbackParams, withAi } from "./ai";
 
-export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 export const assistantConfigured = () => !!process.env.ANTHROPIC_API_KEY;
 
 const pay = (j: { oteMin: number | null; oteMax: number | null; salaryMin: number | null; salaryMax: number | null }) =>
@@ -118,12 +118,13 @@ export async function ask(history: Anthropic.MessageParam[]) {
   const client = new Anthropic();
   const messages: Anthropic.MessageParam[] = [...history];
   const used: { tool: string; input: unknown }[] = [];
+  const model = await aiModel();
   for (let i = 0; i < 8; i++) {
-    // Server-side refusal fallback ("default" routing) keeps answers flowing if a request is declined.
-    const res = await client.beta.messages.create({
-      model: MODEL, max_tokens: 16000, system: SYSTEM, tools: TOOLS, tool_choice: { type: "auto" }, messages: messages as Anthropic.Beta.BetaMessageParam[],
-      output_config: { effort: "medium" }, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
-    });
+    // On Opus, the server-side refusal fallback ("default" routing) keeps answers flowing if a request is declined.
+    const res = await withAi(() => client.beta.messages.create({
+      model, max_tokens: 16000, system: SYSTEM, tools: TOOLS, tool_choice: { type: "auto" }, messages: messages as Anthropic.Beta.BetaMessageParam[],
+      output_config: { effort: "medium" }, ...fallbackParams(model),
+    }));
     if (res.stop_reason === "refusal") return { text: "The assistant declined this request.", used };
     messages.push({ role: "assistant", content: res.content as Anthropic.ContentBlockParam[] });
     if (res.stop_reason !== "tool_use") {
@@ -144,10 +145,11 @@ export async function ask(history: Anthropic.MessageParam[]) {
 
 export async function tailoringSuggestions(jobText: string, resumeText: string) {
   const client = new Anthropic();
-  const res = await client.messages.create({
-    model: MODEL, max_tokens: 8000, output_config: { effort: "medium" },
+  const model = await aiModel();
+  const res = await withAi(() => client.messages.create({
+    model, max_tokens: 8000, output_config: { effort: "medium" },
     system: "You help an executive tailor her resume to a job. Use ONLY facts present in her resume text. Never add titles, employers, dates, metrics, credentials or achievements that are not in the resume. Suggest re-ordering, re-wording and emphasis. For each job requirement not evidenced in the resume, say it is a gap to address in conversation, not something to add.",
     messages: [{ role: "user", content: `JOB DESCRIPTION:\n${jobText.slice(0, 30000)}\n\nRESUME:\n${resumeText.slice(0, 30000)}\n\nGive: 1) top 5 resume edits (quote the original line and the suggested rewrite), 2) a two-sentence summary line tailored to this role, 3) genuine gaps.` }],
-  });
+  }));
   return res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("\n");
 }

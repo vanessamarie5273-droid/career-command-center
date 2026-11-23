@@ -4,9 +4,17 @@ import { route } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { rescoreAll } from "@/lib/ingest/run";
+import { setAiMode } from "@/lib/ai";
 
 export const PATCH = route("EDITOR", async (req, _c, u) => {
-  const b = z.object({ alertEmail: z.string().email().nullable().optional(), alertMinScore: z.union([z.number(), z.string()]).transform(Number).refine((n) => n >= 0 && n <= 100).optional(), name: z.string().max(100).nullable().optional(), instantAlerts: z.boolean().optional() }).parse(await req.json());
+  const raw = await req.json();
+  const ai = z.object({ aiMode: z.enum(["saver", "full"]).optional() }).parse(raw);
+  if (ai.aiMode) {
+    await setAiMode(ai.aiMode);
+    await prisma.auditLog.create({ data: { userId: u.sub, entity: "Settings", entityId: "ai-model", action: "update", changes: { aiMode: ai.aiMode } } });
+    return { ok: true };
+  }
+  const b = z.object({ alertEmail: z.string().email().nullable().optional(), alertMinScore: z.union([z.number(), z.string()]).transform(Number).refine((n) => n >= 0 && n <= 100).optional(), name: z.string().max(100).nullable().optional(), instantAlerts: z.boolean().optional() }).parse(raw);
   await prisma.user.update({ where: { id: u.sub }, data: b });
   return { ok: true };
 });
