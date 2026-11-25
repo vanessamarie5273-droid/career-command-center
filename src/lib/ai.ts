@@ -7,10 +7,12 @@ import { prisma } from "./db";
 export const AI_MODELS = { saver: "claude-haiku-5-5", full: "claude-opus-5-5" } as const;
 export type AiMode = keyof typeof AI_MODELS;
 export const AI_MODE_LABEL: Record<AiMode, string> = { saver: "Credit saver (Haiku)", full: "Full quality (Opus)" };
-/** Saver until she picks otherwise (credit was nearly gone on Nov 23, 2026). */
-export const DEFAULT_AI_MODE: AiMode = "saver";
+/** Opus unless she picks the saver on Settings. */
+export const DEFAULT_AI_MODE: AiMode = "full";
 
-const MODE_ID = "ai-model";
+// Her Nov 23, 2026 "saver" choice was saved under "ai-model"; she asked for Opus again once she reloaded credit
+// (Nov 25), so the choice now lives under a new id and the old row is ignored.
+const MODE_ID = "ai-model-choice";
 export const AI_STATUS_ID = "anthropic";
 /** While paused, automatic AI work tries again at most this often, so it resumes on its own once credit is added. */
 export const BACKGROUND_RETRY_MS = 6 * 3600_000;
@@ -117,6 +119,31 @@ export async function withAi<T>(fn: () => Promise<T>, db: PrismaClient = prisma)
     if (r && !(e instanceof AiPausedError)) await markPaused(r, db);
     throw e;
   }
+}
+
+/** While paused, a page load checks Anthropic again at most this often. */
+export const RECHECK_MS = 2 * 60_000;
+let recheckInFlight: Promise<AiPause | null> | null = null;
+
+/**
+ * The pause as it stands now. When AI is paused and the last check is more than a couple of minutes old, this asks
+ * Anthropic for one token on Haiku (a fraction of a cent): a success clears the pause, so adding credit un-pauses
+ * the app on her next page load without her clicking anything. Any other failure leaves the pause as it was.
+ */
+export async function aiPauseNow(db: PrismaClient = prisma, client?: Pick<Anthropic["messages"], "create">, now = Date.now()): Promise<AiPause | null> {
+  const p = await aiPause(db);
+  if (!p || !process.env.ANTHROPIC_API_KEY || now - p.since.getTime() < RECHECK_MS) return p;
+  recheckInFlight ??= (async () => {
+    try {
+      const c = client ?? new Anthropic({ timeout: 8_000, maxRetries: 0 }).messages;
+      await withAi(() => c.create({ model: AI_MODELS.saver, max_tokens: 1, messages: [{ role: "user", content: "ok" }] }), db);
+    } catch (e) {
+      // Still refused: withAi saved the fresh refusal (and its time). A hiccup: try again on a later load.
+      if (!pauseReason(e)) await db.integrationStatus.update({ where: { id: AI_STATUS_ID }, data: { checkedAt: new Date() } }).catch(() => null);
+    }
+    return aiPause(db);
+  })().finally(() => { recheckInFlight = null; });
+  return recheckInFlight;
 }
 
 /**

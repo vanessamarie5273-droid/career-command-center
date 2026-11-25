@@ -16,14 +16,14 @@ const badKey = () => new Anthropic.AuthenticationError(401, { type: "error", err
 const overloaded = () => new Anthropic.InternalServerError(529, { type: "error", error: { type: "overloaded_error", message: "Overloaded" } }, "529 Overloaded", new Headers());
 
 beforeEach(async () => {
-  await prisma.integrationStatus.deleteMany({ where: { id: { in: [ai.AI_STATUS_ID, "ai-model"] } } });
+  await prisma.integrationStatus.deleteMany({ where: { id: { in: [ai.AI_STATUS_ID, "ai-model", "ai-model-choice"] } } });
   await ai.setAiMode("saver");
   process.env.ANTHROPIC_API_KEY = "test-key";
 });
 
 describe("which model the app uses", () => {
-  it("starts on the credit saver and switches back to Opus from Settings", async () => {
-    await prisma.integrationStatus.deleteMany({ where: { id: "ai-model" } });
+  it("defaults to Opus and switches between the saver and Opus from Settings", async () => {
+    expect(ai.DEFAULT_AI_MODE).toBe("full");
     await ai.setAiMode("saver");
     expect(await ai.aiModel()).toBe("claude-haiku-5-5");
     await ai.setAiMode("full");
@@ -86,5 +86,28 @@ describe("AI paused", () => {
     const body = await res.json();
     expect(body.aiPaused).toBe(true);
     expect(body.error).toMatch(/^AI is paused: your Anthropic credit balance ran out/);
+  });
+
+  it("a page load re-checks a stale pause: credit added clears it, still empty keeps it", async () => {
+    await ai.withAi(async () => { throw lowCredit(); }).catch(() => null);
+    const later = Date.now() + ai.RECHECK_MS + 1000;
+    // Checked moments ago: no new call.
+    const idle = { create: vi.fn() };
+    expect((await ai.aiPauseNow(prisma, idle as never))?.reason).toBe("credit");
+    expect(idle.create).not.toHaveBeenCalled();
+    // Still out of credit: stays paused, one tiny Haiku call.
+    const empty = { create: vi.fn(async () => { throw lowCredit(); }) };
+    expect((await ai.aiPauseNow(prisma, empty as never, later))?.reason).toBe("credit");
+    expect(empty.create).toHaveBeenCalledWith(expect.objectContaining({ model: "claude-haiku-5-5", max_tokens: 1 }));
+    // Credit reloaded: the pause clears on the next load.
+    const ok = { create: vi.fn(async () => ({ content: [] })) };
+    expect(await ai.aiPauseNow(prisma, ok as never, Date.now() + ai.RECHECK_MS + 1000)).toBeNull();
+    expect(await ai.aiPause()).toBeNull();
+  });
+
+  it("a passing outage during the re-check leaves the pause in place", async () => {
+    await ai.withAi(async () => { throw lowCredit(); }).catch(() => null);
+    const down = { create: vi.fn(async () => { throw overloaded(); }) };
+    expect((await ai.aiPauseNow(prisma, down as never, Date.now() + ai.RECHECK_MS + 1000))?.reason).toBe("credit");
   });
 });

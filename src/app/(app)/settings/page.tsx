@@ -8,7 +8,7 @@ import { PROFILE } from "@/lib/profile";
 import { WEIGHTS, CRITERION_LABEL, type Criterion } from "@/lib/scoring";
 import { emailConfigured } from "@/lib/email";
 import { assistantConfigured } from "@/lib/assistant";
-import { AI_MODELS, AI_MODE_LABEL, aiMode, aiPause } from "@/lib/ai";
+import { AI_MODELS, AI_MODE_LABEL, aiMode, aiPauseNow } from "@/lib/ai";
 import { dateTime } from "@/lib/format";
 import { outlookConfigured } from "@/lib/mail/outlook";
 import { googleJobsConfigured } from "@/lib/ingest/googleJobs";
@@ -28,7 +28,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     prisma.emailEvent.count(),
     prisma.ingestionRun.findFirst({ where: { trigger: "hourly" }, orderBy: { startedAt: "desc" } }),
   ]);
-  const [mode, pause] = await Promise.all([aiMode(), aiPause()]);
+  const [mode, pause] = await Promise.all([aiMode(), aiPauseNow()]);
   const aiKey = assistantConfigured();
   const outlookOk = !!mail && outlookConfigured();
   const st = (id: string) => statuses.find((x) => x.id === id);
