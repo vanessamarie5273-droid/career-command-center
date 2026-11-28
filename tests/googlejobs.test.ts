@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import type { PrismaClient } from "@prisma/client";
-import { bestApplyLink, postedDate, runGoogleJobs, JOB_SITE_CATEGORY } from "@/lib/ingest/googleJobs";
+import { bestApplyLink, onsiteElsewhere, postedDate, runGoogleJobs, JOB_SITE_CATEGORY, SEARCHES } from "@/lib/ingest/googleJobs";
 import { ingestCompany } from "@/lib/ingest/run";
 import { greenhouseBoard, mockFetch } from "./fixtures/boards";
 import { testDb, makeCompany } from "./setup-db";
@@ -38,7 +38,7 @@ describe("Google Jobs search", () => {
       result({ company_name: "Brandnew Analytics", title: "Software Engineer" }),
     ] } });
     const r = await runGoogleJobs(db, { fetchImpl: fx, now: NOW, apiKey: "test-key" });
-    expect(r).toMatchObject({ status: "ok", searches: 6, relevant: 2, companiesAdded: 1 });
+    expect(r).toMatchObject({ status: "ok", searches: SEARCHES.length, relevant: 2, companiesAdded: 1 });
     expect(r.skippedStaffing).toBeGreaterThan(0);
     expect(await db.job.count({ where: { companyId: known.id } })).toBe(1);
     const added = await db.company.findFirstOrThrow({ where: { name: "Brandnew Analytics" }, include: { jobs: true } });
@@ -67,5 +67,28 @@ describe("Google Jobs search", () => {
     const r = await runGoogleJobs(db, { fetchImpl: async () => new Response("denied", { status: 401 }), apiKey: "secret-123", now: NOW, force: true });
     expect(r.status).toBe("error");
     expect(r.error).not.toContain("secret-123");
+  });
+});
+
+describe("Google Jobs searches and locations (Nov 28)", () => {
+  it("runs the Phoenix searches plus remote searches for AE, public sector, ERP, BD and SDR leadership", () => {
+    const qs = SEARCHES.map((s) => s.q);
+    for (const q of ["strategic account executive remote", "public sector account executive remote", "ERP account executive remote", "business development director remote", "sales development director remote", "sales development manager remote", "inside sales manager remote"]) expect(qs).toContain(q);
+    expect(new Set(qs).size).toBe(qs.length);
+  });
+  it("skips roles on-site or hybrid in another state, keeps remote and Arizona roles", () => {
+    expect(onsiteElsewhere("Dallas, TX", false)).toBe(true);
+    expect(onsiteElsewhere("San Francisco, CA (Hybrid)", false)).toBe(true);
+    expect(onsiteElsewhere("Remote, Denver, CO", true)).toBe(false);
+    expect(onsiteElsewhere("Phoenix, AZ", false)).toBe(false);
+    expect(onsiteElsewhere("Tucson, Arizona", false)).toBe(false);
+    expect(onsiteElsewhere("United States", false)).toBe(false);
+  });
+  it("does not pull an on-site role in another state", async () => {
+    const db = testDb();
+    const r = await runGoogleJobs(db, { fetchImpl: mockFetch({ "serpapi.com": { jobs_results: [result({ company_name: "Texasonly Systems", title: "Enterprise Account Executive", location: "Austin, TX" })] } }), now: NOW, apiKey: "test-key", force: true });
+    expect(r.skippedOnsite).toBeGreaterThan(0);
+    expect(await db.company.count({ where: { name: "Texasonly Systems" } })).toBe(0);
+    await db.$disconnect();
   });
 });
