@@ -40,12 +40,13 @@ export const SEARCHES: { q: string; location: string }[] = [
 ];
 
 /**
- * She lives in the Phoenix area: a Google result that is on-site or hybrid in another state is not pulled (Nov 28).
- * Remote roles and roles in Arizona are kept; a location that names no state ("United States") is kept too.
+ * She lives in the Phoenix area: a Google result that is fully on-site in another state is not pulled (Nov 28).
+ * Remote, hybrid (office days are often optional) and Arizona roles are kept; so is a location that names no state.
  */
-export function onsiteElsewhere(location: string | null, remote: boolean) {
+export function onsiteElsewhere(location: string | null, remote: boolean, description = "") {
   const loc = parseLocation(location, { remoteFlag: remote });
-  if (loc.isRemote || loc.azMetro || loc.states.includes("AZ")) return false;
+  // Google often lists a hybrid role by its city alone and says "hybrid" only in the description.
+  if (loc.isRemote || loc.arrangement === "Hybrid" || /\bhybrid\b/i.test(description) || loc.azMetro || loc.states.includes("AZ")) return false;
   return loc.states.length > 0;
 }
 
@@ -123,7 +124,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
         const remote = !!j.detected_extensions?.work_from_home || /remote|anywhere/i.test(j.location ?? "");
         const location = remote && !/remote/i.test(j.location ?? "") ? `Remote, ${j.location || "United States"}` : j.location || null;
         if (!parseLocation(location, { remoteFlag: remote }).isUS) continue;
-        if (onsiteElsewhere(location, remote)) { out.skippedOnsite++; continue; }
+        if (onsiteElsewhere(location, remote, j.description)) { out.skippedOnsite++; continue; }
         // A job board named as the employer (Jobgether, Ladders, "Lead @ Sierra") is a repost, not a company (Nov 18).
         if (aggregatorReason(j.company_name)) { out.skippedStaffing++; continue; }
         const applyUrl = bestApplyLink(j.apply_options, j.share_link);

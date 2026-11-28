@@ -76,9 +76,11 @@ describe("Google Jobs searches and locations (Nov 28)", () => {
     for (const q of ["strategic account executive remote", "public sector account executive remote", "ERP account executive remote", "business development director remote", "sales development director remote", "sales development manager remote", "inside sales manager remote"]) expect(qs).toContain(q);
     expect(new Set(qs).size).toBe(qs.length);
   });
-  it("skips roles on-site or hybrid in another state, keeps remote and Arizona roles", () => {
+  it("skips roles fully on-site in another state, keeps remote, hybrid and Arizona roles", () => {
     expect(onsiteElsewhere("Dallas, TX", false)).toBe(true);
-    expect(onsiteElsewhere("San Francisco, CA (Hybrid)", false)).toBe(true);
+    expect(onsiteElsewhere("San Francisco, CA (Hybrid)", false)).toBe(false);
+    expect(onsiteElsewhere("Hybrid - Denver, CO", false)).toBe(false);
+    expect(onsiteElsewhere("Denver, CO", false, "This is a hybrid role, two days a week in office.")).toBe(false);
     expect(onsiteElsewhere("Remote, Denver, CO", true)).toBe(false);
     expect(onsiteElsewhere("Phoenix, AZ", false)).toBe(false);
     expect(onsiteElsewhere("Tucson, Arizona", false)).toBe(false);
