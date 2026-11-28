@@ -13,9 +13,9 @@ export const GET = route("VIEWER", async (req, _c, u) => {
       : what === "companies" ? await prisma.company.findMany({ omit: { atsHints: true } })
       : what === "contacts" ? await prisma.contact.findMany()
       : (await prisma.job.findMany({ include: { company: { select: { name: true } } }, omit: { description: true, descriptionText: true, scoreReasons: true } })).map(({ company, ...j }) => ({ company: company.name, ...j }));
-    return new Response(toCsv(rows), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="ccc-${what}-${stamp}.csv"` } });
+    return new Response(toCsv(rows), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="job-hunt-hub-${what}-${stamp}.csv"` } });
   }
   const data = await exportAll(prisma);
   await prisma.auditLog.create({ data: { userId: u.sub, entity: "Backup", entityId: stamp, action: "export", changes: data.counts } });
-  return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="career-command-center-backup-${stamp}.json"`, "Cache-Control": "no-store" } });
+  return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="job-hunt-hub-backup-${stamp}.json"`, "Cache-Control": "no-store" } });
 });

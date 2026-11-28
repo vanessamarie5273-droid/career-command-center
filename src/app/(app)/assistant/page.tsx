@@ -6,7 +6,7 @@ export const metadata = { title: "Assistant" };
 export default function AssistantPage() {
   return (
     <>
-      <PageHeader title="Ask the Command Center" sub={assistantConfigured() ? undefined : "Not connected yet: add ANTHROPIC_API_KEY in your hosting environment to enable the assistant."} />
+      <PageHeader title="Ask Your Job Hunt Hub" sub={assistantConfigured() ? undefined : "Not connected yet: add ANTHROPIC_API_KEY in your hosting environment to enable the assistant."} />
       <Assistant enabled={assistantConfigured()} />
     </>
   );

@@ -1,8 +1,10 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { APP_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: { default: "Career Command Center", template: "%s · Career Command Center" },
+  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
+  applicationName: APP_NAME,
   description: "Private executive career intelligence and opportunity management",
   robots: { index: false, follow: false },
 };
