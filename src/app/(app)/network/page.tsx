@@ -6,7 +6,7 @@ import { ReachOut } from "@/components/NetworkWidgets";
 import { appLabel, askFirst, isHiring, loadNetwork, PERSON_LABEL, type NetCompany, type NetPerson, type PersonType } from "@/lib/network";
 import { date } from "@/lib/format";
 
-export const metadata = { title: "My Network" };
+export const metadata = { title: "Network" };
 export const dynamic = "force-dynamic";
 
 type P = { view?: string; q?: string; who?: string; scope?: string; status?: string; company?: string; sort?: string; page?: string };
@@ -43,7 +43,7 @@ export default async function NetworkPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="My Network" icon="people" sub={`${people.length.toLocaleString()} connections`} actions={<Link href="/contacts" className="btn-ghost">Import LinkedIn Export</Link>}>
+      <PageHeader title="Network" icon="people" sub={`${people.length.toLocaleString()} connections`} actions={<Link href="/contacts" className="btn-ghost">Import LinkedIn Export</Link>}>
         <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
           <HeroStat label="Connections" value={people.length.toLocaleString()} href="/network?view=all" icon="people" />
           <HeroStat label="At Target Accounts" value={people.filter((x) => x.companyId).length} href="/network?view=all&scope=targets" icon="building" />

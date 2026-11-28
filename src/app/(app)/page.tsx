@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/db";
 import { agenda, applicationSearch, feed, pipelineDashboard, QUIET_DAYS, SEARCH_BY, type AgendaItem, type FeedItem, type SearchBy } from "@/lib/pipeline";
-import { Card, Empty, Logo, Icon, type IconName } from "@/components/ui";
+import { Card, Empty, Logo, Icon, StagePill, type IconName } from "@/components/ui";
 import { WeeklyLine } from "@/components/Charts";
 import ApplicationSearch from "@/components/ApplicationSearch";
 import Gem from "@/components/Gem";
@@ -11,6 +11,7 @@ import { STAGE_LABEL, ago, date } from "@/lib/format";
 import { UndoEmail } from "@/components/MailWidgets";
 import DoneCheck from "@/components/DoneCheck";
 import { KIND_LABEL } from "@/lib/mail/sync";
+import { METRICS, METRIC_FILTER, type MetricKey } from "@/lib/metrics";
 
 export const metadata = { title: "Command Center" };
 const table = (q: string) => `/applications?view=table${q ? `&${q}` : ""}`;
@@ -41,13 +42,13 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
     <>
       <Welcome>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
-          <Stat label="Active Processes" value={t.active} href={table("active=1")} icon="flame" />
-          <Stat label="Applied" value={t.applied} href={table("applied=1")} icon="send" />
-          <Stat label="Moved Past Applied" value={t.responseRate == null ? "—" : `${t.responseRate}%`} href={table("applied=1")} icon="trend" />
-          <Stat label="Interviews" value={t.interviews} href={table("interviews=1")} icon="calendar" />
-          <Stat label="Offers" value={t.offers} href={table("stage=OFFER")} icon="trophy" />
-          <Stat label="Follow-Ups Due" value={t.followUps} href={table("followup=1")} icon="clock" />
-          <Stat label="Ready to Apply" value={t.readyToApply} href="/apply" icon="check" />
+          <Stat m="submitted" value={t.submitted} icon="send" />
+          <Stat m="active" value={t.active} icon="board" />
+          <Stat m="interviewProcesses" value={t.interviewProcesses} icon="flame" />
+          <Stat m="interviewsSoon" value={t.interviewsSoon} icon="calendar" />
+          <Stat m="responseRate" value={t.responseRate == null ? "—" : `${t.responseRate}%`} icon="trend" />
+          <Stat m="followUps" value={t.followUps} icon="clock" />
+          <Stat m="readyToApply" value={t.readyToApply} href="/apply" icon="check" />
         </div>
         <div className="welcome-search mt-3"><ApplicationSearch by={by} q={q} /></div>
       </Welcome>
@@ -166,15 +167,6 @@ function Due({ x }: { x: AgendaItem }) {
   return <Chip>{x.due.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: TZ })}</Chip>;
 }
 
-const STAGE_TONE: Record<string, string> = {
-  APPLIED: "bg-navy-500/10 text-navy-700", RECRUITER_CONTACT: "bg-sky-50 text-sky-700", HIRING_MANAGER: "bg-sky-50 text-sky-700",
-  INTERVIEWING: "bg-violet-50 text-violet-700", FINAL_INTERVIEW: "bg-violet-50 text-violet-700", OFFER: "bg-emerald-50 text-emerald-700",
-  ACCEPTED: "bg-emerald-50 text-emerald-700", REJECTED: "bg-rose-50 text-rose-700", WITHDRAWN: "bg-slate-100 text-slate-600",
-};
-function StagePill({ stage }: { stage: string }) {
-  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[12px] font-semibold ${STAGE_TONE[stage] ?? "bg-slate-100 text-slate-600"}`}>{STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage}</span>;
-}
-
 const ORDER = ["READY_TO_APPLY", "APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"];
 const label = (stage: string | null) => STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage;
 const backward = (x: FeedItem) => Boolean(x.from && x.to && ORDER.indexOf(x.from) > ORDER.indexOf(x.to) && ORDER.includes(x.to));
@@ -257,11 +249,13 @@ function Welcome({ children }: { children: ReactNode }) {
   );
 }
 
-function Stat({ label, value, href, icon }: { label: string; value: ReactNode; href: string; icon: IconName }) {
+/** One headline number, labelled from the shared metric definitions; the rule shows on hover. */
+function Stat({ m, value, href, icon }: { m: MetricKey; value: ReactNode; href?: string; icon: IconName }) {
+  const def = METRICS[m];
   return (
-    <Link href={href} className="block rounded-xl bg-white/[0.12] px-3.5 py-2.5 ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
-      <span className="flex items-center gap-1.5 text-[13.5px] font-medium text-white/80"><Icon name={icon} size={14} className="text-violet-200" />{label}</span>
-      <span className="mt-0.5 block text-[26px] font-semibold leading-tight tabular-nums">{value}</span>
+    <Link href={href ?? table(METRIC_FILTER[m])} title={def.rule} aria-label={`${def.label}: ${value}`} className="flex h-full flex-col justify-between gap-1 rounded-xl bg-white/[0.12] px-3.5 py-2.5 ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
+      <span className="text-[13px] font-medium leading-snug text-white/90">{def.label}</span>
+      <span className="flex items-center justify-between gap-2"><span className="text-[26px] font-semibold leading-tight tabular-nums">{value}</span><Icon name={icon} size={16} className="shrink-0 text-violet-200" /></span>
     </Link>
   );
 }

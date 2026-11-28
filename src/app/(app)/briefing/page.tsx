@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/db";
+import { METRICS, ofTotal } from "@/lib/metrics";
 import { PageHeader, HeroStat, Card, Section, Logo, ScoreBadge, Icon, Empty, type IconName } from "@/components/ui";
 import { BriefingButton } from "@/components/AlertWidgets";
 import { PipelineDonut, ReplyBars } from "@/components/BriefingCharts";
@@ -32,12 +33,12 @@ export default async function Briefing() {
     <>
       <PageHeader title={`Briefing · ${az(b.generatedAt, { weekday: "long", month: "short", day: "numeric" })}`} actions={<BriefingButton />}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <HeroStat label="Active" value={s.active} icon="board" href="/applications" />
-          <HeroStat label="Waiting" value={s.waiting} icon="clock" />
-          <HeroStat label="Interviews · 7d" value={s.interviews} icon="calendar" highlight={s.interviews > 0} />
-          <HeroStat label="Reply rate" value={s.responseRate == null ? "—" : `${s.responseRate}%`} icon="trend" />
-          <HeroStat label={`New ${v.minScore}+`} value={s.strongNew} icon="spark" highlight={s.strongNew > 0} href="/jobs?sort=new" />
-          <HeroStat label="Verified" value={<span className="text-xl">{b.lastRun?.at ? ago(b.lastRun.at) : "—"}</span>} icon="refresh" />
+          <HeroStat label={METRICS.active.label} value={s.active} icon="board" href="/applications?view=table&open=1" />
+          <HeroStat label={METRICS.awaiting.label} value={s.waiting} icon="clock" href="/applications?view=table&stage=APPLIED" />
+          <HeroStat label={METRICS.interviewsSoon.label} value={s.interviews} icon="calendar" highlight={s.interviews > 0} />
+          <HeroStat label={METRICS.responseRate.label} value={s.responseRate == null ? "—" : `${s.responseRate}%`} icon="trend" />
+          <HeroStat label={`New High-Fit Roles (${v.minScore}+)`} value={s.strongNew} icon="spark" highlight={s.strongNew > 0} href="/jobs?sort=new" />
+          <HeroStat label="Feeds Checked" value={<span className="text-xl">{b.lastRun?.at ? ago(b.lastRun.at) : "—"}</span>} icon="refresh" />
         </div>
       </PageHeader>
 
@@ -81,7 +82,7 @@ export default async function Briefing() {
           {v.progress.waiting.map((p, i) => <ProgressRow key={i} p={p} />)}
           {!v.progress.waiting.length && <None />}
         </More>
-        <More icon="send" title="Follow-ups due" count={v.followUps.length}>
+        <More icon="send" title="Next steps due by tomorrow" count={ofTotal(v.followUps.length, b.followUps?.length ?? v.followUps.length)}>
           {v.followUps.map((f) => (
             <div key={f.href} className="border-b border-slate-100 py-2.5 last:border-0">
               <Link href={local(f.href)} className="text-[15px] font-semibold text-navy-950 hover:underline">{f.company} · {f.title}</Link>
@@ -189,13 +190,13 @@ function Line({ label, tone, children }: { label: string; tone: string; children
 function Chip({ tone, children }: { tone: string; children: ReactNode }) {
   return <span className={`rounded-md px-1.5 py-0.5 text-[12.5px] font-medium ring-1 ${tone}`}>{children}</span>;
 }
-function More({ icon, title, count, children }: { icon: IconName; title: string; count?: number; children: ReactNode }) {
+function More({ icon, title, count, children }: { icon: IconName; title: string; count?: number | string; children: ReactNode }) {
   return (
     <details className="card group overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-      <summary className="banner flex cursor-pointer list-none items-center gap-2.5 px-4 py-3 text-[15px] font-semibold text-white shadow-none">
-        <span className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/25"><Icon name={icon} size={14} /></span>{titleCase(title)}
-        {count != null && <span className="rounded-full bg-white px-2 py-0.5 text-[13px] font-semibold tabular-nums text-[#5D36FF]">{count}</span>}
-        <span className="ml-auto text-lg leading-none text-white/80 transition group-open:rotate-90">›</span>
+      <summary className="flex min-h-[52px] cursor-pointer list-none items-center gap-2.5 px-4 py-3 text-[15px] font-semibold text-ink hover:bg-brand-50">
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700"><Icon name={icon} size={15} /></span>{titleCase(title)}
+        {count != null && <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[13px] font-semibold tabular-nums text-brand-800">{count}</span>}
+        <span className="ml-auto text-lg leading-none text-ink-3 transition group-open:rotate-90">›</span>
       </summary>
       <div className="max-h-[28rem] overflow-y-auto px-4 py-2">{children}</div>
     </details>

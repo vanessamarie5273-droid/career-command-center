@@ -17,7 +17,7 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
   ]);
   return (
     <>
-      <PageHeader title="Network & Contacts" sub={`${total} contacts · ${atTargets} at target companies.`} />
+      <PageHeader title="Contacts & Import" sub={`${total} contacts · ${atTargets} at target companies.`} />
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <Card title="Import LinkedIn connections"><ContactImport /></Card>
         <Card title="Add a contact"><NewContact companies={companies} /></Card>
