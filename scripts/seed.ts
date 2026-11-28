@@ -66,6 +66,7 @@ export async function seed(client = db) {
   const relook = await client.company.updateMany({ where: { atsStatus: "not_found", atsProvider: "NONE", atsError: { contains: "HTTP " } }, data: { atsStatus: "pending", atsCheckedAt: null } });
   for (const m of merged) console.log(`Merged duplicate companies into ${m.kept}: ${m.removed.join(", ")}`);
   // Copies of one opening (Google Jobs and the employer's board, two spellings of one employer) become one job.
+  console.log("Merging duplicate job copies...");
   const jobMerge = await mergeDuplicateJobs(client);
   if (jobMerge.removed) console.log(`Merged ${jobMerge.removed} duplicate job copies into ${jobMerge.groups} jobs`);
   if (jobMerge.refingerprinted) console.log(`Updated the match key of ${jobMerge.refingerprinted} jobs`);

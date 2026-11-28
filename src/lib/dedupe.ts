@@ -82,23 +82,33 @@ export function urlKey(u: string | null | undefined) {
  *  (one city of several, or the city searched for a remote role). */
 export type ReqView = { title: string; location: string | null; providers: string[]; urls: string[] };
 
-const statesOf = (l: string | null) => parseLocation(l).states;
-const googleOnly = (v: ReqView) => v.providers.length > 0 && v.providers.every((p) => p === "GOOGLE_JOBS");
+/** Everything sameReq compares, worked out once per job: a big employer has thousands of saved roles, and redoing
+ *  the text work for every pair kept the first deploy of the dedupe busy for over 12 minutes (Nov 28). */
+export type ReqKey = { title: string; places: string[]; placesKey: string; providers: string[]; urls: Set<string>; googleOnly: boolean; location: string | null; states?: string[] };
+
+export function reqKey(v: ReqView): ReqKey {
+  const places = placeSet(v.location);
+  return {
+    title: titleKey(v.title, v.location), places, placesKey: places.join(";"), providers: v.providers, location: v.location,
+    urls: new Set(v.urls.map(urlKey).filter(Boolean)),
+    googleOnly: v.providers.length > 0 && v.providers.every((p) => p === "GOOGLE_JOBS"),
+  };
+}
+const statesOf = (k: ReqKey) => (k.states ??= parseLocation(k.location).states);
 
 /** Is b the same opening as a, at the same company? Different cities on the employer's own board stay apart:
  *  those are separate reqs. */
-export function sameReq(a: ReqView, b: ReqView): boolean {
-  const ua = new Set(a.urls.map(urlKey).filter(Boolean));
-  if (b.urls.some((u) => ua.has(urlKey(u)))) return true;
-  if (titleKey(a.title, a.location) !== titleKey(b.title, b.location)) return false;
-  const pa = placeSet(a.location), pb = placeSet(b.location);
-  if (pa.join(";") === pb.join(";")) return true;
+export function sameReqKey(a: ReqKey, b: ReqKey): boolean {
+  for (const u of b.urls) if (a.urls.has(u)) return true;
+  if (a.title !== b.title) return false;
+  const pa = a.places, pb = b.places;
+  if (a.placesKey === b.placesKey) return true;
   // No place named on one side ("United States", "2 Locations", a Workday role read without its details).
   if (!pa.length || !pb.length) return true;
-  if (googleOnly(a) || googleOnly(b)) {
+  if (a.googleOnly || b.googleOnly) {
     if (pa.some((p) => pb.includes(p)) || pa.includes("remote") || pb.includes("remote")) return true;
-    const sa = statesOf(a.location);
-    return statesOf(b.location).some((s) => sa.includes(s));
+    const sa = statesOf(a);
+    return statesOf(b).some((s) => sa.includes(s));
   }
   // The employer lists one role in several places and another board (or an older read) lists one of them.
   // Copies from one board must match exactly, or a refresh would swap the two locations back and forth.
@@ -107,6 +117,8 @@ export function sameReq(a: ReqView, b: ReqView): boolean {
   const [small, big] = pa.length <= pb.length ? [pa, pb] : [pb, pa];
   return small.every((p) => big.includes(p));
 }
+
+export const sameReq = (a: ReqView, b: ReqView) => sameReqKey(reqKey(a), reqKey(b));
 
 export function contentHash(s: string) {
   return createHash("sha1").update(s).digest("hex").slice(0, 16);

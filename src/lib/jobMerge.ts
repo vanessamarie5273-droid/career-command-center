@@ -2,7 +2,7 @@
 // copy of an opening it already has; mergeDuplicateJobs() folds copies saved before that into one job, keeping every
 // source link, application, kit, note and her own marks. It runs on deploy and after every refresh.
 import type { Job, Prisma, PrismaClient } from "@prisma/client";
-import { jobFingerprint, sameReq, titleKey, type ReqView } from "./dedupe";
+import { jobFingerprint, reqKey, sameReqKey, type ReqKey, type ReqView } from "./dedupe";
 
 /** Closed copies this recent still count: a role that comes back is the same role reposted, not a new one. */
 const REOPEN_DAYS = 30;
@@ -17,7 +17,8 @@ export async function findSameReq(db: PrismaClient, companyId: string, p: { prov
   const since = new Date(now.getTime() - REOPEN_DAYS * 86400_000);
   const rows = await db.job.findMany({ where: { companyId, OR: [{ status: "OPEN" }, { closedAt: { gte: since } }] }, select: LOOKUP, orderBy: { firstSeenAt: "asc" } });
   const me: ReqView = { title: p.title, location: p.location ?? null, providers: [p.provider], urls: p.applyUrl ? [p.applyUrl] : [] };
-  const hits = rows.filter((r) => sameReq(view(r), me));
+  const mine = reqKey(me);
+  const hits = rows.filter((r) => sameReqKey(reqKey(view(r)), mine));
   // A Google Jobs result only adds a sighting, so any match will do. An employer posting that fits two saved jobs
   // (no city given, say) is not guessed at: it is saved as its own job.
   const hit = p.provider === "GOOGLE_JOBS" || hits.length === 1 ? hits.sort((a, b) => Number(googleOnly(a)) - Number(googleOnly(b)))[0] : undefined;
@@ -41,25 +42,27 @@ const byRank = (a: Row, b: Row) => { const x = rank(a), y = rank(b); for (let i 
 
 /** Groups of stored jobs that are the same opening, best copy first. Pure, exported for tests. */
 export function duplicateGroups<T extends Row>(rows: T[]): T[][] {
-  const byKey = new Map<string, T[]>();
+  const byKey = new Map<string, { r: T; k: ReqKey }[]>();
   for (const r of rows) {
-    const k = `${r.companyId}|${titleKey(r.title, r.location)}`;
-    byKey.set(k, [...(byKey.get(k) ?? []), r]);
+    const k = reqKey(view(r));
+    const g = `${r.companyId}|${k.title}`;
+    const list = byKey.get(g);
+    if (list) list.push({ r, k }); else byKey.set(g, [{ r, k }]);
   }
   const out: T[][] = [];
   for (const g of byKey.values()) {
     if (g.length < 2) continue;
     // A copy joins a group only when it matches every job already in it, so "United States" can't chain a Phoenix
     // role and an Austin role together. Best copies go first, so the employer's postings form the groups.
-    const sets: T[][] = [];
-    for (const r of [...g].sort(byRank)) {
-      const fits = sets.filter((s) => s.every((m) => sameReq(view(m), view(r))));
+    const sets: { r: T; k: ReqKey }[][] = [];
+    for (const x of [...g].sort((a, b) => byRank(a.r, b.r))) {
+      const fits = sets.filter((s) => s.every((m) => sameReqKey(m.k, x.k)));
       // A Google Jobs result that fits more than one of the employer's postings is a copy of one of them: fold it
       // into the best. Anything else that fits more than one stays apart.
-      if (fits.length === 1 || (fits.length > 1 && googleOnly(r))) fits[0].push(r);
-      else sets.push([r]);
+      if (fits.length === 1 || (fits.length > 1 && x.k.googleOnly)) fits[0].push(x);
+      else sets.push([x]);
     }
-    for (const s of sets) if (s.length > 1) out.push(s);
+    for (const s of sets) if (s.length > 1) out.push(s.map((x) => x.r));
   }
   return out;
 }
@@ -114,12 +117,21 @@ export async function mergeDuplicateJobs(db: PrismaClient, now = new Date()): Pr
 async function refreshFingerprints(db: PrismaClient) {
   const jobs = await db.job.findMany({ select: { id: true, companyId: true, title: true, location: true, fingerprint: true } });
   const taken = new Set(jobs.map((j) => j.fingerprint));
-  let n = 0;
+  const changes: [string, string][] = [];
   for (const j of jobs) {
     const fp = jobFingerprint(j.companyId, j.title, j.location);
     if (fp === j.fingerprint || taken.has(fp)) continue; // another job holds it: a distinct req, or one kept apart
-    const ok = await db.job.update({ where: { id: j.id }, data: { fingerprint: fp } }).then(() => true, () => false);
-    if (ok) { taken.delete(j.fingerprint); taken.add(fp); n++; }
+    taken.add(fp);
+    changes.push([j.id, fp]);
+  }
+  // One statement per 500 jobs: the first deploy re-keys nearly every saved job, and one update per job took the
+  // deploy over 12 minutes (Nov 28). A batch that fails (a refresh changed a job meanwhile) is skipped; the next
+  // refresh tries it again.
+  let n = 0;
+  for (let i = 0; i < changes.length; i += 500) {
+    const batch = changes.slice(i, i + 500);
+    const ids = batch.map(([id]) => id), fps = batch.map(([, fp]) => fp);
+    n += await db.$executeRaw`UPDATE "Job" AS j SET "fingerprint" = v.fp FROM unnest(${ids}::text[], ${fps}::text[]) AS v(id, fp) WHERE j."id" = v.id`.catch(() => 0);
   }
   return n;
 }
