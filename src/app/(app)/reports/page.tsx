@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, Card, Empty, Logo, ScoreBadge } from "@/components/ui";
-import { CompBars, Donut, IndustryBars } from "@/components/Charts";
+import { CompBars, Donut, IndustryBars, WeeklyLine } from "@/components/Charts";
 import Tabs from "@/components/Tabs";
 import { RankRow } from "@/components/RankRows";
 import { chartData, MATCHING } from "@/lib/queries";
@@ -41,7 +41,9 @@ export default async function Reports() {
         <Funnel steps={funnel} />
       </PageHeader>
 
-      <div className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-12">
+      <Card title="Weekly Activity" sub="Applications submitted and stage changes per week, last 12 weeks" icon="trend" tone="emerald" className="mb-6"><WeeklyLine data={charts.weeks} /></Card>
+
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Card title="Top open roles" icon="flame" tone="gold" className="xl:col-span-7">
           <Tabs tabs={lists.map(([k, label, jobs]) => ({
             key: k, label, count: jobs.length,
@@ -63,7 +65,7 @@ export default async function Reports() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-12">
         <Card title="Open roles by tier" icon="layers" tone="gold" className="xl:col-span-3"><Donut data={tiers} unit="open roles, incl. saved" /></Card>
         <Card title="Published pay" icon="dollar" tone="emerald" className="xl:col-span-4"><CompBars data={charts.comp} /></Card>
         <Card title="Industries" icon="pie" tone="sky" className="lg:col-span-2 xl:col-span-5"><IndustryBars data={charts.industries.slice(0, 9)} /></Card>

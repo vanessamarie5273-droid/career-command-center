@@ -2,12 +2,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/db";
 import { agenda, applicationSearch, feed, pipelineDashboard, QUIET_DAYS, SEARCH_BY, type AgendaItem, type FeedItem, type SearchBy } from "@/lib/pipeline";
-import { Card, Empty, Logo, Icon, StagePill, type IconName } from "@/components/ui";
-import { WeeklyLine } from "@/components/Charts";
+import { Card, Empty, Logo, Icon, Section, StagePill, type IconName } from "@/components/ui";
 import ApplicationSearch from "@/components/ApplicationSearch";
 import Gem from "@/components/Gem";
 import ApplicationsTable from "@/components/ApplicationsTable";
-import { STAGE_LABEL, ago, date } from "@/lib/format";
+import { STAGE_LABEL, ago, date, dateTime } from "@/lib/format";
+import type { BriefingContent } from "@/lib/briefing";
+import { BriefingButton } from "@/components/AlertWidgets";
+import { ChangeList, FollowUpList, local, More as BMore, NewsList, None, OppRow, PeopleList, ProgressRow, WorkingPanel } from "@/components/BriefingParts";
 import { UndoEmail } from "@/components/MailWidgets";
 import DoneCheck from "@/components/DoneCheck";
 import { KIND_LABEL } from "@/lib/mail/sync";
@@ -23,16 +25,22 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
   const by: SearchBy = p.by && p.by in SEARCH_BY ? (p.by as SearchBy) : "company";
   const q = p.q?.trim() ?? "";
   const search = applicationSearch(by, q);
-  const [d, found, inbox, mail] = await Promise.all([
+  const [d, found, inbox, mail, briefing] = await Promise.all([
     pipelineDashboard(prisma),
     search ? prisma.application.findMany({ where: search, include: { company: true, job: true, resume: { select: { name: true } } }, orderBy: [{ appliedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 50 }) : null,
     prisma.emailEvent.findMany({ where: { receivedAt: { gte: new Date(Date.now() - 14 * 86400_000) } }, orderBy: { receivedAt: "desc" }, take: 30 }),
     prisma.mailAccount.findUnique({ where: { id: "outlook" }, select: { lastSyncAt: true } }),
+    prisma.briefing.findFirst({ orderBy: { createdAt: "desc" } }),
   ]);
   const inboxApps = inbox.length ? await prisma.application.findMany({ where: { id: { in: inbox.map((e) => e.applicationId!).filter(Boolean) } }, select: { id: true, title: true, company: { select: { name: true, logoUrl: true } } } }) : [];
   const t = d.tiles;
+  const b = briefing?.content as BriefingContent | undefined;
+  const v = b?.v2;
   const todo = agenda(d);
-  // A req shows in one place: Going Quiet leaves out anything already in Your Next Moves.
+  // One req, one entry: each application shows once, either as an interview (right) or as its current to-do (left).
+  const interviews = todo.items.filter((x) => x.kind === "interview");
+  const ranked = rankPriorities(todo.items.filter((x) => x.kind !== "interview"), v?.priorities ?? []);
+  const prep = new Map((v?.interviews ?? []).map((iv) => [appIdOf(iv.href), iv]));
   const inMoves = new Set([...todo.items.map((x) => x.appId), ...todo.nudges.map((n) => n.id)]);
   const quiet = d.quiet.filter((a) => !inMoves.has(a.id));
   const changes = feed(inbox, d.moves, inboxApps, KIND_LABEL);
@@ -40,7 +48,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <Welcome>
+      <Welcome briefing={briefing ? { id: briefing.id, at: briefing.createdAt } : null}>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
           <Stat m="submitted" value={t.submitted} icon="send" />
           <Stat m="active" value={t.active} icon="board" />
@@ -54,32 +62,112 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
       </Welcome>
 
       {found && (
-        <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} icon="search" className="mb-3" action={<Link href="/" className="text-[13px] link">Clear search</Link>}>
+        <Card title={`${found.length === 50 ? "First 50" : found.length} application${found.length === 1 ? "" : "s"} for ${SEARCH_BY[by].toLowerCase()} ${looked}`} icon="search" className="mb-6" action={<Link href="/" className="text-[13px] link">Clear search</Link>}>
           {found.length ? <ApplicationsTable apps={found} /> : <Empty>No application matches. {by === "date" ? "Only applications marked applied have a date applied." : "Try part of the name."}</Empty>}
         </Card>
       )}
 
-      <Pipeline f={d.funnel} />
-
-      <div className="mb-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-5">
-        <Card title={<Count n={todo.items.length + todo.nudges.length}>Your Next Moves</Count>} icon="clock" tone="amber" className="lg:col-span-3">
-          <NextMoves items={todo.items} nudges={todo.nudges} />
+      <div className="mb-6 grid grid-cols-1 items-start gap-6 xl:grid-cols-12">
+        <Card title={<Count n={ranked.length + todo.nudges.length}>Priorities</Count>} sub="Ranked by urgency. Check one off when it's done." icon="flame" className="xl:col-span-7">
+          <Priorities items={ranked} nudges={todo.nudges} />
         </Card>
-        <div className="flex flex-col gap-3 lg:col-span-2">
-          <Card title={<Count n={changes.items.length}>What Changed</Count>} icon="arrows" tone="violet">
-            <Changes items={changes.items} logged={changes.logged} outlook={!!mail} checked={mail?.lastSyncAt ?? null} />
+        <div className="flex flex-col gap-6 xl:col-span-5">
+          <Card title={<Count n={interviews.length}>Upcoming Interviews</Count>} icon="calendar">
+            {interviews.length ? <ul className="space-y-1">{interviews.map((x) => <InterviewRow key={x.id} x={x} prep={x.appId ? prep.get(x.appId) : undefined} />)}</ul> : <AllClear>No interviews on the calendar.</AllClear>}
           </Card>
-          <Card title={<Count n={quiet.length}>Going Quiet</Count>} icon="pause" tone="rose">
-            {quiet.length === 0 ? <AllClear>{d.quiet.length ? "Everything that has gone quiet already has a next move on the left." : `Every open application has moved in the last ${QUIET_DAYS} days.`}</AllClear> : (
+          {quiet.length > 0 && (
+            <Card title={<Count n={quiet.length}>Going Quiet</Count>} sub={`No movement in ${QUIET_DAYS}+ days`} icon="pause" tone="rose">
               <ul className="space-y-0.5">{quiet.map((a) => <Row key={a.id} href={`/applications/${a.id}`} company={a.company} title={a.company.name} sub={`${a.title} · ${STAGE_LABEL[a.stage]}`} right={<Chip tone="rose">{ago(a.updatedAt).replace(" ago", "")} quiet</Chip>} />)}</ul>
-            )}
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
 
-      <Card title="Weekly Activity" icon="trend" tone="emerald"><WeeklyLine data={d.weeks} /></Card>
+      <Pipeline f={d.funnel} />
+
+      <div className="mb-6 grid grid-cols-1 items-start gap-6 xl:grid-cols-12">
+        <Card title={<Count n={v?.opportunities.length ?? 0}>{v?.noStrongMatches ? "Best Open Roles" : "New High-Fit Opportunities"}</Count>} sub={v ? (v.noStrongMatches ? `No new ${v.minScore}+ matches today; the best still open` : `Scored ${v.minScore}+ against your resume. Open one to see the fit.`) : undefined} icon="spark" className="xl:col-span-7" action={<Link href="/jobs?sort=score" className="link text-[13px]">All in Discover →</Link>}>
+          {v?.opportunities.length ? <div>{v.opportunities.map((o) => <OppRow key={o.id} o={o} />)}</div> : <Empty>{v ? `No open role scores ${v.minScore}+ right now.` : "Today's briefing hasn't run yet."}</Empty>}
+        </Card>
+        <div className="flex flex-col gap-6 xl:col-span-5">
+          <Card title={<Count n={changes.items.length}>What Changed</Count>} sub="Applications, last 14 days" icon="arrows" tone="violet">
+            <Changes items={changes.items} logged={changes.logged} outlook={!!mail} checked={mail?.lastSyncAt ?? null} />
+          </Card>
+          {v && (v.changes.length > 0 || v.news.length > 0) && (
+            <Card title={<Count n={v.changes.length + v.news.length}>Job and Company Updates</Count>} icon="news" tone="sky">
+              <div className="max-h-[26rem] overflow-y-auto"><ChangeList items={v.changes} />{v.news.length > 0 && <div className={v.changes.length ? "mt-2 border-t border-ink-line pt-1" : ""}><NewsList items={v.news} /></div>}</div>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {v && (
+        <Section title="More from Today's Briefing" sub={b ? `Generated ${dateTime(b.generatedAt)}` : undefined} action={briefing && <Link href={`/briefing?id=${briefing.id}`} className="link text-[13px]">Full briefing and past days →</Link>}>
+          <div className="grid items-start gap-4 lg:grid-cols-2 2xl:grid-cols-4">
+            <BMore icon="clock" title="Waiting on a Reply" count={v.progress.waiting.length}>{v.progress.waiting.length ? v.progress.waiting.map((x, i) => <ProgressRow key={i} p={x} />) : <None />}</BMore>
+            <BMore icon="send" title="Suggested Follow-Up Messages" count={v.followUps.length}><FollowUpList items={v.followUps} /></BMore>
+            <BMore icon="people" title="People to Contact" count={v.people.length}><PeopleList items={v.people} /></BMore>
+            <BMore icon="trend" title="What's Working" count={v.working.patterns.length || undefined}><WorkingPanel w={v.working} /></BMore>
+          </div>
+        </Section>
+      )}
     </>
   );
+}
+
+const appIdOf = (href: string) => href.match(/\/applications\/([^/?#]+)/)?.[1] ?? null;
+
+type Ranked = AgendaItem & { reason?: string; pinned?: PriorityKind };
+type PriorityKind = NonNullable<BriefingContent["v2"]>["priorities"][number];
+
+/**
+ * One ranked list: the briefing's top priorities first (merged into the matching application's row, so a req shows
+ * once), then every other to-do by urgency.
+ */
+function rankPriorities(items: AgendaItem[], top: PriorityKind[]): Ranked[] {
+  const used = new Set<string>();
+  const head: Ranked[] = [];
+  for (const p of top) {
+    if (p.kind === "interview") continue; // interviews have their own card
+    const id = appIdOf(p.href);
+    const match = id ? items.find((x) => x.appId === id) : undefined;
+    if (match) { used.add(match.id); head.push({ ...match, reason: p.reason, pinned: p }); }
+    else if (!id) head.push({ id: `p-${p.href}`, kind: "task", bucket: "today", appId: null, company: null, role: null, text: p.title, due: null, href: local(p.href), done: null, reason: p.reason, pinned: p });
+  }
+  return [...head, ...items.filter((x) => !used.has(x.id))];
+}
+
+const SHOW = 8;
+function Priorities({ items, nudges }: { items: Ranked[]; nudges: { id: string; company: Co; role: string; appliedAt: Date | null }[] }) {
+  if (!items.length && !nudges.length) return <AllClear>Nothing due. Follow-ups show here when a next-action date arrives or an application sits 7 days without a reply.</AllClear>;
+  const row = (x: Ranked, i: number) => {
+    const sub = [x.kind !== "interview" && x.company?.name, x.role, x.more ? `+${x.more} more to-do${x.more === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
+    const r = <Row key={x.id} rank={i + 1} href={x.href ?? undefined} company={x.company ?? undefined} title={x.text} sub={sub} note={x.reason} right={x.pinned && !x.due ? <Chip tone="violet">Top pick</Chip> : <Due x={x} />} bare />;
+    // Rows without a check button keep a matching spacer so every rank lines up.
+    return x.done ? <DoneCheck key={x.id} kind={x.done.kind} id={x.done.id} label={x.text}>{r}</DoneCheck> : <li key={x.id} className="flex items-center gap-1"><span aria-hidden className="-ml-1 h-8 w-8 shrink-0" /><div className="min-w-0 flex-1">{r}</div></li>;
+  };
+  return (
+    <div>
+      <ul className="divide-y divide-ink-line">{items.slice(0, SHOW).map(row)}</ul>
+      {items.length > SHOW && <More label={`Show ${items.length - SHOW} more`}><ul className="divide-y divide-ink-line">{items.slice(SHOW).map((x, i) => row(x, i + SHOW))}</ul></More>}
+      {nudges.length > 0 && (
+        <details className="group mt-3 rounded-card bg-brand-50 ring-1 ring-brand-200 open:bg-white">
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
+            <span className="flex">{nudges.slice(0, 4).map((n, j) => <span key={n.id} className={`rounded-md ring-2 ring-white ${j ? "-ml-2" : ""}`}><Logo src={n.company.logoUrl} name={n.company.name} size={26} /></span>)}</span>
+            <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium text-ink">{nudges.length} application{nudges.length === 1 ? "" : "s"} awaiting a response after 7+ days</span><span className="block truncate text-[13px] text-ink-3">{nudges.map((n) => n.company.name).join(", ")}</span></span>
+            <span className="text-[13px] font-semibold text-brand-700 group-open:hidden">Follow up</span><span className="hidden text-[13px] font-semibold text-brand-700 group-open:inline">Hide</span>
+          </summary>
+          <ul className="space-y-0.5 px-3.5 pb-2">{nudges.map((n) => <Row key={n.id} href={`/applications/${n.id}`} company={n.company} title={n.company.name} sub={n.role} right={n.appliedAt ? <Chip>Applied {short(n.appliedAt)}</Chip> : undefined} />)}</ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** An upcoming interview, with the briefing's outstanding preparation when it has some. */
+function InterviewRow({ x, prep }: { x: AgendaItem; prep?: NonNullable<BriefingContent["v2"]>["interviews"][number] }) {
+  const todo = prep?.prep.length ? `Prepare: ${prep.prep.slice(0, 2).join(", ").toLowerCase()}` : x.more ? `+${x.more} more to-do${x.more === 1 ? "" : "s"}` : undefined;
+  return <Row href={x.href ?? undefined} company={x.company ?? undefined} title={x.company?.name ?? "Interview"} sub={x.role ?? undefined} note={todo} right={<Due x={x} />} />;
 }
 
 /** The funnel as one row of clickable stage tiles, left to right, with a few company logos in each. */
@@ -87,19 +175,19 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
   const max = Math.max(1, ...f.stages.map((s) => s.count));
   const closed = f.closed.filter((c) => c.count);
   return (
-    <Card title="Pipeline" icon="board" className="mb-3">
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <ol className="grid min-w-[860px] grid-cols-8 gap-1.5">
+    <Card title="Pipeline" sub="Open applications by stage" icon="board" className="mb-6" action={<Link href="/applications" className="link text-[13px]">Open board →</Link>}>
+      <div>
+        <ol className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-8">
           {f.stages.map((s) => {
             const box = "bg-violet-50";
             return (
               <li key={s.key} className="relative">
                 <Link href={s.key === "READY_TO_APPLY" ? "/apply" : table(`stage=${s.key}`)} className={`group flex h-full flex-col rounded-lg px-3 pb-3 pt-2.5 transition hover:bg-violet-100 ${box}`}>
                   <span className="truncate text-[14px] font-semibold text-slate-600">{s.label}</span>
-                  <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${s.count ? "text-navy-950" : "text-violet-300"}`}>{s.count}</span>
+                  <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${s.count ? "text-ink" : "text-violet-300"}`}>{s.count}</span>
                   <span className="mt-2 flex min-h-[22px] items-center">
                     {s.logos.map((c, j) => <span key={c.name} className={`rounded-md ring-2 ring-white ${j ? "-ml-1" : ""}`} title={c.name}><Logo src={c.logoUrl} name={c.name} size={22} /></span>)}
-                    {s.count > s.logos.length && <span className="ml-1.5 text-[12px] font-medium text-slate-500">+{s.count - s.logos.length}</span>}
+                    {s.count > s.logos.length && <span className="ml-1.5 text-[12px] font-medium text-ink-3">+{s.count - s.logos.length}</span>}
                   </span>
                   <span className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-violet-200/60"><span className="block h-full rounded-full bg-gradient-to-r from-[#5D36FF] to-[#A100C2]" style={{ width: `${s.count ? Math.max(6, (s.count / max) * 100) : 0}%` }} /></span>
                 </Link>
@@ -108,54 +196,14 @@ function Pipeline({ f }: { f: Awaited<ReturnType<typeof pipelineDashboard>>["fun
           })}
           <li>
             <Link href={table("stage=REJECTED")} className="flex h-full flex-col rounded-lg bg-violet-50 px-3 pb-3 pt-2.5 transition hover:bg-violet-100">
-              <span className="text-[14px] font-semibold text-slate-500">Closed</span>
-              <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${closed.length ? "text-slate-500" : "text-slate-300"}`}>{closed.reduce((n, c) => n + c.count, 0)}</span>
-              <span className="mt-auto pt-2 text-[13px] leading-snug text-slate-500">{closed.length ? closed.map((c) => `${c.count} ${STAGE_LABEL[c.key].toLowerCase()}`).join(" · ") : "None yet"}</span>
+              <span className="text-[14px] font-semibold text-ink-3">Closed</span>
+              <span className={`mt-0.5 text-[30px] font-semibold leading-tight tabular-nums ${closed.length ? "text-ink-3" : "text-slate-300"}`}>{closed.reduce((n, c) => n + c.count, 0)}</span>
+              <span className="mt-auto pt-2 text-[13px] leading-snug text-ink-3">{closed.length ? closed.map((c) => `${c.count} ${STAGE_LABEL[c.key].toLowerCase()}`).join(" · ") : "None yet"}</span>
             </Link>
           </li>
         </ol>
       </div>
     </Card>
-  );
-}
-
-const BUCKET: Record<AgendaItem["bucket"] | "interview", { label: string; head: string; ring: string; dot: string }> = {
-  interview: { label: "Interviews", head: "bg-violet-50 text-violet-800", ring: "ring-violet-200", dot: "bg-violet-500" },
-  overdue: { label: "Overdue", head: "bg-rose-50 text-rose-800", ring: "ring-rose-200", dot: "bg-rose-500" },
-  today: { label: "Due Today", head: "bg-amber-50 text-amber-800", ring: "ring-amber-200", dot: "bg-amber-500" },
-  soon: { label: "This Week", head: "bg-slate-50 text-slate-700", ring: "ring-slate-200", dot: "bg-slate-400" },
-};
-const SHOW = 4;
-
-function NextMoves({ items, nudges }: { items: AgendaItem[]; nudges: { id: string; company: Co; role: string; appliedAt: Date | null }[] }) {
-  if (!items.length && !nudges.length) return <AllClear>Nothing due. Follow-ups show here when a next-action date arrives or an application sits 7 days without a reply.</AllClear>;
-  const groups = (["interview", "overdue", "today", "soon"] as const)
-    .map((b) => [b, items.filter((x) => (b === "interview" ? x.kind === "interview" : x.kind !== "interview" && x.bucket === b))] as const)
-    .filter(([, l]) => l.length);
-  const row = (x: AgendaItem) => {
-    const r = <Row key={x.id} href={x.href ?? undefined} company={x.company ?? undefined} title={x.kind === "interview" ? `Interview with ${x.company?.name ?? "company"}` : x.text} sub={[x.kind !== "interview" && x.company?.name, x.role, x.more ? `+${x.more} more to-do${x.more === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")} right={<Due x={x} />} bare={!!x.done} />;
-    return x.done ? <DoneCheck key={x.id} kind={x.done.kind} id={x.done.id} label={x.text}>{r}</DoneCheck> : r;
-  };
-  return (
-    <div className="space-y-3">
-      {groups.map(([b, l]) => (
-        <section key={b} className={`overflow-hidden rounded-xl ring-1 ${BUCKET[b].ring}`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2 text-[15px] font-semibold ${BUCKET[b].head}`}><span className={`h-2.5 w-2.5 rounded-full ${BUCKET[b].dot}`} />{BUCKET[b].label}<span className="ml-auto rounded-full bg-white/80 px-2 py-0.5 text-[13px] tabular-nums">{l.length}</span></div>
-          <ul className="space-y-0.5 px-3.5 py-1">{l.slice(0, SHOW).map(row)}</ul>
-          {l.length > SHOW && <div className="px-3.5 pb-2"><More label={`Show ${l.length - SHOW} more`}><ul className="space-y-0.5">{l.slice(SHOW).map(row)}</ul></More></div>}
-        </section>
-      ))}
-      {nudges.length > 0 && (
-        <details className="group rounded-xl bg-slate-50 ring-1 ring-slate-200/70 open:bg-white">
-          <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
-            <span className="flex">{nudges.slice(0, 4).map((n, j) => <span key={n.id} className={`rounded-md ring-2 ring-white ${j ? "-ml-2" : ""}`}><Logo src={n.company.logoUrl} name={n.company.name} size={26} /></span>)}</span>
-            <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium text-navy-950">{nudges.length} application{nudges.length === 1 ? "" : "s"} awaiting a response after 7+ days</span><span className="block truncate text-[13px] text-slate-500">{nudges.map((n) => n.company.name).join(", ")}</span></span>
-            <span className="text-[13px] font-medium text-navy-600 group-open:hidden">Follow up</span><span className="hidden text-[13px] font-medium text-navy-600 group-open:inline">Hide</span>
-          </summary>
-          <ul className="space-y-0.5 px-3.5 pb-2">{nudges.map((n) => <Row key={n.id} href={`/applications/${n.id}`} company={n.company} title={n.company.name} sub={n.role} right={n.appliedAt ? <Chip>Applied {short(n.appliedAt)}</Chip> : undefined} />)}</ul>
-        </details>
-      )}
-    </div>
   );
 }
 
@@ -178,8 +226,8 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
       <Link href={`/applications/${x.appId}`} className="row-link min-w-0 flex-1">
         {x.company ? <Logo src={x.company.logoUrl} name={x.company.name} size={34} /> : <span className="h-[34px] w-[34px] shrink-0 rounded-md bg-slate-100" />}
         <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[15px] font-medium text-navy-950">{x.company?.name ?? "Application"}</span>{x.to && <StagePill stage={x.to} />}</span>
-          <span className="block truncate text-[13px] text-slate-500">{[x.role, backward(x) ? `Moved back from ${label(x.from)}` : x.start && x.start !== x.to ? `From ${label(x.start)}` : null, x.via, ago(x.at), x.updates > 1 ? `${x.updates} updates` : null].filter(Boolean).join(" · ")}</span>
+          <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[15px] font-medium text-ink">{x.company?.name ?? "Application"}</span>{x.to && <StagePill stage={x.to} />}</span>
+          <span className="block truncate text-[13px] text-ink-3">{[x.role, backward(x) ? `Moved back from ${label(x.from)}` : x.start && x.start !== x.to ? `From ${label(x.start)}` : null, x.via, ago(x.at), x.updates > 1 ? `${x.updates} updates` : null].filter(Boolean).join(" · ")}</span>
         </span>
       </Link>
       {x.undoable && x.emailId && <UndoEmail id={x.emailId} />}
@@ -187,7 +235,7 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
   );
   return (
     <div>
-      {items.length ? <ul className="space-y-0.5">{items.slice(0, 6).map(row)}</ul> : <p className="text-sm text-slate-500">No status changes in the last two weeks.</p>}
+      {items.length ? <ul className="space-y-0.5">{items.slice(0, 6).map(row)}</ul> : <p className="text-sm text-ink-3">No status changes in the last two weeks.</p>}
       {items.length > 6 && <More label={`Show ${items.length - 6} more`}><ul className="space-y-0.5">{items.slice(6).map(row)}</ul></More>}
       {logged.length > 0 && (
         <More label={`Emails on ${logged.length} more application${logged.length === 1 ? "" : "s"} with no status change${checked ? ` · Outlook synced ${ago(checked)}` : ""}`} icon>
@@ -200,20 +248,20 @@ function Changes({ items, logged, outlook, checked }: { items: FeedItem[]; logge
 
 /** Card title with its count in a pill, in place of a caption on the right. */
 function Count({ n, children }: { n: number; children: ReactNode }) {
-  return <span className="flex items-center gap-2">{children}{n > 0 && <span className="rounded-full bg-navy-900 px-2 py-0.5 text-[12.5px] font-semibold tabular-nums text-gold-300">{n}</span>}</span>;
+  return <span className="flex items-center gap-2">{children}{n > 0 && <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[13px] font-semibold tabular-nums text-brand-800">{n}</span>}</span>;
 }
 
 function short(d: Date) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: TZ }); }
 
 function Chip({ children, tone = "slate" }: { children: ReactNode; tone?: "slate" | "rose" | "amber" | "violet" }) {
-  const c = { violet: "bg-violet-50 text-violet-700 ring-1 ring-violet-600/15", slate: "bg-slate-100 text-slate-600", rose: "bg-rose-50 text-rose-700 ring-1 ring-rose-600/15", amber: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20" }[tone];
-  return <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-medium tabular-nums ${c}`}>{children}</span>;
+  const c = { violet: "tone-progress", slate: "tone-closed", rose: "tone-bad", amber: "tone-due" }[tone];
+  return <span className={`chip shrink-0 tabular-nums ${c}`}>{children}</span>;
 }
 
 function More({ label, children, icon }: { label: string; children: ReactNode; icon?: boolean }) {
   return (
     <details className="group mt-2">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1 text-[13px] font-medium text-navy-600 hover:text-navy-800 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1 text-[13px] font-semibold text-brand-700 hover:text-brand-900 [&::-webkit-details-marker]:hidden">
         {icon && <Icon name="mail" size={13} className="text-slate-400" />}{label}
         <svg className="transition group-open:rotate-180" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
       </summary>
@@ -223,26 +271,40 @@ function More({ label, children, icon }: { label: string; children: ReactNode; i
 }
 
 function AllClear({ children }: { children: ReactNode }) {
-  return <div className="flex items-start gap-2.5 rounded-xl bg-emerald-50/60 px-3 py-2.5 text-sm text-slate-600 ring-1 ring-emerald-600/10"><Icon name="check" size={16} className="mt-0.5 shrink-0 text-emerald-600" /><span>{children}</span></div>;
+  return <div className="flex items-start gap-2.5 rounded-ctl bg-emerald-50/70 px-3 py-2.5 text-[14px] text-ink-2 ring-1 ring-emerald-600/15"><Icon name="check" size={16} className="mt-0.5 shrink-0 text-emerald-700" /><span>{children}</span></div>;
 }
 
-/** One application in a dashboard list: logo, a main line, a quiet second line, and an optional chip on the right. */
-function Row({ href, company, title, sub, right, small, bare }: { href?: string; company?: Co; title: string; sub?: string; right?: ReactNode; small?: boolean; bare?: boolean }) {
+/** One row in a dashboard list: optional rank, logo, a main line, a quiet second line, an optional reason, and a chip on the right. */
+function Row({ href, company, title, sub, note, right, small, bare, rank }: { href?: string; company?: Co; title: string; sub?: string; note?: string; right?: ReactNode; small?: boolean; bare?: boolean; rank?: number }) {
   const size = small ? 26 : 34;
-  const inner = <>{company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="shrink-0 rounded-md bg-slate-100" />}<span className="min-w-0 flex-1"><span className={`todo-title block truncate font-medium text-navy-950 ${small ? "text-[13.5px]" : "text-[15px]"}`}>{title}</span>{sub && <span className="block truncate text-[13px] text-slate-500">{sub}</span>}</span>{right}</>;
+  const inner = <>
+    {rank != null && <span className={`w-5 shrink-0 text-center text-[14px] font-semibold tabular-nums ${rank <= 3 ? "text-brand-700" : "text-ink-3"}`}>{rank}</span>}
+    {company ? <Logo src={company.logoUrl} name={company.name} size={size} /> : <span style={{ width: size, height: size }} className="inline-flex shrink-0 items-center justify-center rounded-md bg-brand-100 text-brand-700"><Icon name="spark" size={14} /></span>}
+    <span className="min-w-0 flex-1">
+      <span className={`todo-title block font-medium text-ink ${small ? "truncate text-[14px]" : "text-[15px] leading-snug"}`}>{title}</span>
+      {sub && <span className="block truncate text-[13px] text-ink-3">{sub}</span>}
+      {note && <span className="mt-0.5 block text-[13px] leading-snug text-ink-2">{note}</span>}
+      {right && <span className="mt-1 flex sm:hidden">{right}</span>}
+    </span>
+    {right && <span className="hidden shrink-0 sm:contents">{right}</span>}
+  </>;
   const body = href ? <Link href={href} className="row-link">{inner}</Link> : <div className="row-link">{inner}</div>;
   // bare: the caller supplies the <li> (a to-do row wraps this in its check button).
   return bare ? body : <li>{body}</li>;
 }
 
-/** The Command Center banner: violet gradient, her greeting, a crystal on the right, and the headline numbers as glass tiles. */
-function Welcome({ children }: { children: ReactNode }) {
+/** The Command Center banner: brand gradient, her motto, today's briefing, and the headline numbers as glass tiles. Kept short. */
+function Welcome({ children, briefing }: { children: ReactNode; briefing: { id: string; at: Date } | null }) {
   return (
-    <section className="relative mb-3 overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#4a26ef_0%,#5D36FF_40%,#8a12d6_80%,#A100C2_100%)] px-4 py-4 text-white shadow-[0_18px_40px_-24px_rgba(93,54,255,0.8)] lg:px-6">
-      <Gem className="pointer-events-none absolute -right-4 -top-14 hidden h-[210px] w-[420px] [mask-image:linear-gradient(to_bottom,black_50%,transparent_95%)] md:block" />
-      <div className="relative flex flex-col items-center gap-2 md:block">
-        <h1 className="text-center text-[30px] font-semibold leading-tight tracking-tight md:px-48 md:text-[40px]">Fall seven times, <em className="italic">stand up eight</em></h1>
-        <Link href="/applications" className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-[#5D36FF] shadow-sm hover:bg-[#f1edff] md:absolute md:right-0 md:top-1/2 md:-translate-y-1/2">All applications →</Link>
+    <section className="banner relative mb-6 overflow-hidden rounded-2xl px-5 py-4 text-white">
+      <Gem className="pointer-events-none absolute -right-8 -top-20 hidden h-[180px] w-[360px] opacity-80 [mask-image:linear-gradient(to_bottom,black_45%,transparent_95%)] md:block" />
+      <div className="relative flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight md:text-[30px]">Fall seven times, <em className="italic">stand up eight</em></h1>
+        <div className="flex flex-wrap items-center gap-2">
+          {briefing && <Link href={`/briefing?id=${briefing.id}`} className="text-[13px] text-white/85 underline-offset-2 hover:text-white hover:underline">Briefing {dateTime(briefing.at)}</Link>}
+          <BriefingButton label="Refresh briefing" />
+          <Link href="/applications" className="btn-ghost">All applications →</Link>
+        </div>
       </div>
       <div className="relative mt-4">{children}</div>
     </section>

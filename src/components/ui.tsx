@@ -137,8 +137,9 @@ export function ApplyLink({ url, label = "Open posting" }: { url: string; label?
  */
 export function PageHeader({ title, sub, actions, icon, children }: { title: string; sub?: ReactNode; actions?: ReactNode; icon?: IconName; children?: ReactNode }) {
   return (
-    <section className={`banner relative mb-6 overflow-hidden rounded-2xl px-5 text-white ${children ? "py-4" : "py-3"}`}>
-      <Gem className="pointer-events-none absolute -right-8 -top-24 hidden h-[170px] w-[340px] opacity-70 [mask-image:linear-gradient(to_bottom,black_45%,transparent_95%)] md:block" />
+    <section className={`banner relative z-20 mb-6 rounded-2xl px-5 text-white ${children ? "py-4" : "py-3"}`}>
+      {/* The decoration is clipped on its own layer, so menus opened from the header can hang below it. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"><Gem className="absolute -right-8 -top-24 hidden h-[170px] w-[340px] opacity-70 [mask-image:linear-gradient(to_bottom,black_45%,transparent_95%)] md:block" /></div>
       <div className="relative flex min-h-[40px] flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white ring-1 ring-white/25"><Icon name={icon ?? iconForTitle(title)} size={18} /></span>

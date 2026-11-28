@@ -17,7 +17,7 @@ export const METRICS = {
   submitted: { label: "Total Applications Submitted", kind: "cumulative", rule: "Every application you marked applied, all-time, including closed ones." },
   active: { label: "Active Applications", kind: "current", rule: "Applications you sent that are still open: Applied through Offer." },
   interviewProcesses: { label: "Active Interview Processes", kind: "current", rule: "Open applications at Recruiter Contact, Hiring Manager, Interviewing or Final Interview." },
-  interviewsSoon: { label: "Interviews Scheduled, Next 7 Days", kind: "time-bound", rule: "Interviews on the calendar between now and 7 days from now." },
+  interviewsSoon: { label: "Interviews, Next 7 Days", kind: "time-bound", rule: "Interviews on the calendar between now and 7 days from now." },
   awaiting: { label: "Applications Awaiting Response", kind: "current", rule: "Applications still at Applied: no recruiter or hiring manager reply recorded yet." },
   followUps: { label: "Follow-Ups Due", kind: "current", rule: "Open applications whose next step is due now, or that have had no reply and no activity for 7 days after you applied." },
   responseRate: { label: "Response Rate", kind: "cumulative", rule: "Share of submitted applications that ever reached a recruiter, the hiring manager, an interview or an offer." },

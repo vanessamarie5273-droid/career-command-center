@@ -21,7 +21,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 
   /* Cards: white, one hairline border, 12px corners, almost no shadow. */
   .card { @apply rounded-card border border-ink-line bg-white shadow-[0_1px_2px_rgba(26,20,70,0.04)]; }
-  .card-h { @apply flex min-h-[56px] items-center justify-between gap-3 rounded-t-card border-b border-ink-line px-5 py-3; }
+  .card-h { @apply flex min-h-[56px] flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-card border-b border-ink-line px-5 py-3; }
   .card-dark .card-h { @apply border-white/15; }
   .card-t { @apply truncate text-[18px] font-semibold tracking-tight text-ink; }
   .card-dark { @apply border-0 bg-[linear-gradient(155deg,#2b17a6_0%,#4a26ef_60%,#7a14d0_100%)] text-white shadow-[0_14px_30px_-18px_rgba(93,54,255,0.9)]; }
