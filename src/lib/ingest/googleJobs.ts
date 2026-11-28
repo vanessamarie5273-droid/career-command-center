@@ -21,15 +21,34 @@ const MIN_HOURS_BETWEEN = 20;
 const STALE_DAYS = 14;
 
 const PHX = "Phoenix, Arizona, United States";
-/** One Google search each per day: about 180 a month. */
+const US = "United States";
+/** One Google search each per day: 13 searches, about 390 a month. Phoenix searches, then remote ones nationwide (Nov 28). */
 export const SEARCHES: { q: string; location: string }[] = [
   { q: "enterprise account executive", location: PHX },
   { q: "strategic account executive", location: PHX },
   { q: "business development director", location: PHX },
   { q: "sales development manager", location: PHX },
   { q: "regional sales director software", location: PHX },
-  { q: "enterprise account executive remote", location: "United States" },
+  { q: "enterprise account executive remote", location: US },
+  { q: "strategic account executive remote", location: US },
+  { q: "public sector account executive remote", location: US },
+  { q: "ERP account executive remote", location: US },
+  { q: "business development director remote", location: US },
+  { q: "sales development director remote", location: US },
+  { q: "sales development manager remote", location: US },
+  { q: "inside sales manager remote", location: US },
 ];
+
+/**
+ * She lives in the Phoenix area: a Google result that is fully on-site in another state is not pulled (Nov 28).
+ * Remote, hybrid (office days are often optional) and Arizona roles are kept; so is a location that names no state.
+ */
+export function onsiteElsewhere(location: string | null, remote: boolean, description = "") {
+  const loc = parseLocation(location, { remoteFlag: remote });
+  // Google often lists a hybrid role by its city alone and says "hybrid" only in the description.
+  if (loc.isRemote || loc.arrangement === "Hybrid" || /\bhybrid\b/i.test(description) || loc.azMetro || loc.states.includes("AZ")) return false;
+  return loc.states.length > 0;
+}
 
 type GJ = {
   error?: string;
@@ -66,10 +85,10 @@ export function googleJobsConfigured() {
   return !!process.env.SERPAPI_API_KEY;
 }
 
-export type JobSiteOutcome = { status: "ok" | "skipped" | "not_configured" | "error"; searches: number; found: number; relevant: number; created: number; companiesAdded: number; skippedStaffing: number; closed: number; error?: string };
+export type JobSiteOutcome = { status: "ok" | "skipped" | "not_configured" | "error"; searches: number; found: number; relevant: number; created: number; companiesAdded: number; skippedStaffing: number; skippedOnsite: number; closed: number; error?: string };
 
 export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchLike; now?: Date; force?: boolean; apiKey?: string } = {}): Promise<JobSiteOutcome> {
-  const out: JobSiteOutcome = { status: "ok", searches: 0, found: 0, relevant: 0, created: 0, companiesAdded: 0, skippedStaffing: 0, closed: 0 };
+  const out: JobSiteOutcome = { status: "ok", searches: 0, found: 0, relevant: 0, created: 0, companiesAdded: 0, skippedStaffing: 0, skippedOnsite: 0, closed: 0 };
   const key = opts.apiKey ?? process.env.SERPAPI_API_KEY;
   const now = opts.now ?? new Date();
   const prev = await db.integrationStatus.findUnique({ where: { id: STATUS_ID } });
@@ -105,6 +124,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
         const remote = !!j.detected_extensions?.work_from_home || /remote|anywhere/i.test(j.location ?? "");
         const location = remote && !/remote/i.test(j.location ?? "") ? `Remote, ${j.location || "United States"}` : j.location || null;
         if (!parseLocation(location, { remoteFlag: remote }).isUS) continue;
+        if (onsiteElsewhere(location, remote, j.description)) { out.skippedOnsite++; continue; }
         // A job board named as the employer (Jobgether, Ladders, "Lead @ Sierra") is a repost, not a company (Nov 18).
         if (aggregatorReason(j.company_name)) { out.skippedStaffing++; continue; }
         const applyUrl = bestApplyLink(j.apply_options, j.share_link);
@@ -134,7 +154,7 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
       await db.jobEvent.create({ data: { jobId: j.id, kind: "closed", detail: `Not seen in Google Jobs for ${STALE_DAYS} days`, at: now } });
     }
     out.closed = stale.length;
-    const detail = `${out.searches} searches, ${out.relevant} sales roles, ${out.created} new, ${out.companiesAdded} companies added, ${out.skippedStaffing} job-board and staffing-agency posts skipped`;
+    const detail = `${out.searches} searches, ${out.relevant} sales roles, ${out.created} new, ${out.companiesAdded} companies added, ${out.skippedStaffing} job-board and staffing-agency posts skipped, ${out.skippedOnsite} on-site roles in other states skipped`;
     await db.integrationStatus.upsert({ where: { id: STATUS_ID }, create: { id: STATUS_ID, name: "Google Jobs", status: "connected", detail, checkedAt: now }, update: { status: "connected", detail, checkedAt: now } });
     return out;
   } catch (e) {
