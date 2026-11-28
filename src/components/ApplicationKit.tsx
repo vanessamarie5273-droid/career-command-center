@@ -54,10 +54,10 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
     const j = await res.json().catch(() => ({ error: "The suggestion failed. Try again." }));
     setFixes((f) => ({ ...f, [fixKey(i)]: res.ok ? j : { err: j.error ?? "The suggestion failed. Try again." } }));
   }
-  const applyFix = (x: Fix) => kit && x.find != null && save(kit.parts[tab].replace(x.find, x.replace ?? ""));
+  const applyFix = (x: Fix) => kit && x.find != null && save((kit.parts[tab] ?? "").replace(x.find, x.replace ?? ""));
   async function copy() {
     if (!kit) return;
-    await navigator.clipboard.writeText(kit.parts[tab]);
+    await navigator.clipboard.writeText(kit.parts[tab] ?? "");
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   }
 
@@ -92,6 +92,9 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
           })}
         </ul>
       ) : <p className="text-[13px] text-emerald-700">✓ Passes the language and fact checks.</p>}
+      {tab === "note" && draft == null && (kit.parts.note
+        ? <p className="text-[13px] text-slate-500">Apply on the company site first, then send this to the hiring manager on LinkedIn. {kit.parts.note.length} characters{kit.parts.note.length > 300 ? ": too long for a connection request note, so send it as a message or InMail." : "."}</p>
+        : <p className="text-[13px] text-slate-500">This kit was built before the hiring manager note. Build a new kit to get one, or click Edit to write it here.</p>)}
       {draft == null ? (
         <pre className="max-h-[560px] overflow-auto rounded-lg bg-slate-50 p-4 text-[14px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">{kit.parts[tab]}</pre>
       ) : (
@@ -100,7 +103,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
       <div className="flex flex-wrap gap-2">
         {draft == null ? (
           <>
-            <button className="btn-primary" onClick={() => setDraft(kit.parts[tab])}>Edit</button>
+            <button className="btn-primary" onClick={() => setDraft(kit.parts[tab] ?? "")}>Edit</button>
             <button className="btn-ghost" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
             <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=docx`}>Word</a>
             <a className="btn-ghost" href={`/api/kits/${kit.id}/export?part=${tab}&format=pdf`}>PDF</a>
@@ -121,7 +124,7 @@ export default function ApplicationKit({ jobId, resumes, kits: initial, configur
     <section id="kit" className="card scroll-mt-4 border-gold-500/50">
       <div className="card-h"><h2 className="card-t">Application Kit</h2>{kit && <span className="text-[13px] text-slate-500">Built {dateTime(kit.createdAt)}</span>}</div>
       <div className="px-5 pb-5 space-y-3 text-sm">
-        <p className="text-slate-600">One click writes a tailored resume, a Why Me letter, a point of view with a 30-60-90 plan, notes for each person on the hiring team, and copy-ready form answers. It uses only facts from your resume; the checks flag anything that is not there and any language your brief rules out.</p>
+        <p className="text-slate-600">One click writes a tailored resume, a Why Me letter, a three-sentence note for the hiring manager, a point of view with a 30-60-90 plan, notes for each person on the hiring team, and copy-ready form answers. It uses only facts from your resume; the checks flag anything that is not there and any language your brief rules out.</p>
         {!configured ? <p className="text-amber-700">Add ANTHROPIC_API_KEY to the web service to turn this on.</p> : resumes.length === 0 ? <p className="muted">Upload your resume in the <Link className="link" href="/documents">Resume Library</Link> first.</p> : (
           <div className="flex flex-wrap items-center gap-2">
             <select className="input max-w-xs" value={docId} onChange={(e) => setDocId(e.target.value)}><option value="">Base resume: newest original</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.name}{r.version ? ` (${r.version})` : ""}</option>)}</select>

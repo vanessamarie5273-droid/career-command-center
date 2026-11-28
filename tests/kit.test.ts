@@ -4,7 +4,7 @@ import type { PrismaClient } from "@prisma/client";
 const create = vi.fn(async (req: { messages: { content: string }[] }) => ({ stop_reason: "end_turn", content: [{ type: "text", text: `OUT ${req.messages[0].content.slice(0, 20)}` }] }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { create } }; } }));
 
-import { checkKit, copiedFrom, generateKit, kitContext, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
+import { checkKit, copiedFrom, generateKit, kitContext, task, unsupportedFigures, KIT_PARTS, type KitInput } from "@/lib/kit";
 import { exportAll, restoreAll } from "@/lib/backup";
 import { herLetter, isPublicSectorRole } from "@/lib/letterStyle";
 import { testDb, makeCompany } from "./setup-db";
@@ -31,6 +31,8 @@ I would welcome a conversation about where your largest accounts stand today.
 Kindest regards,
 Vanessa Morales`;
 clean.letter = LETTER;
+const NOTE = "Hi [Name], I saw you’re looking for someone who can open new public sector accounts. Selling enterprise software to government has been my specialty for nine years. I led a sales development team to $15.6M in closed revenue at SAP, and I’d love to hear more about what you’re looking for in this hire. I’ve already applied, so your recruiter can pull up my résumé under Vanessa Morales.";
+clean.note = NOTE;
 
 describe("Application Kit checks", () => {
   it("passes text that uses only her figures and plain language", () => {
@@ -112,12 +114,39 @@ describe("Application Kit checks", () => {
   });
 });
 
+describe("Hiring manager note", () => {
+  it("passes her template filled in from the resume, with [Name] left for her", () => {
+    expect(checkKit({ note: NOTE }, src).note).toEqual([]);
+  });
+
+  it("flags a figure that is not in her resume, such as a quota", () => {
+    expect(checkKit({ note: NOTE.replace("$15.6M in closed revenue", "a $2M quota") }, src).note.map((i) => i.text)).toEqual(["$2M"]);
+  });
+
+  it("flags a left-over placeholder, a missing name or application, and a pile of figures", () => {
+    const bad = "Hi Dana, I saw you’re looking for someone who can [one need]. I led $8.5M, $1.58M and $15.6M at SAP. Let’s talk.";
+    expect(checkKit({ note: bad }, src).note.map((i) => i.text)).toEqual(["[one need]", "Your name is missing", "Doesn't say you applied", "3 figures"]);
+  });
+
+  it("flags a note that pastes the posting or runs long", () => {
+    const echo = NOTE.replace("open new public sector accounts", "build executive relationships and run complex multi-stakeholder cycles");
+    expect(checkKit({ note: echo }, src).note.map((i) => i.text)).toContain("Repeats the posting");
+    expect(checkKit({ note: `${NOTE} ${"More context here. ".repeat(20)}` }, src).note.map((i) => i.kind)).toContain("length");
+  });
+
+  it("greets the hiring manager by first name when one is on file", () => {
+    expect(task("note", "Dana Whitfield")).toContain('write "Dana".');
+    expect(task("note", null)).toContain('leave "[Name]" exactly as it is');
+    expect(task("note")).toContain("under Vanessa Morales");
+  });
+});
+
 describe("Application Kit generation", () => {
-  it("writes the other four parts from one cached context that holds her resume and the posting", async () => {
+  it("writes the other five parts from one cached context that holds her resume and the posting", async () => {
     create.mockClear();
     const parts = await generateKit(input);
     expect(Object.keys(parts).sort()).toEqual([...KIT_PARTS].sort());
-    expect(create).toHaveBeenCalledTimes(4);
+    expect(create).toHaveBeenCalledTimes(5);
     const systems = create.mock.calls.map((c) => JSON.stringify((c[0] as unknown as { system: unknown }).system));
     expect(new Set(systems).size).toBe(1);
     expect(systems[0]).toContain("Closed $8.5M in new and expansion revenue");
@@ -139,7 +168,7 @@ describe("Application Kit generation", () => {
     create.mockClear();
     const gov = { ...input, job: { ...input.job, title: "Enterprise Core Account Executive - Public Sector" }, company: { ...input.company, name: "Samsara" } };
     const parts = await generateKit(gov);
-    expect(create).toHaveBeenCalledTimes(4);
+    expect(create).toHaveBeenCalledTimes(5);
     expect(parts.letter).toMatch(/^Dear Samsara Hiring Team,/);
     expect(parts.letter).toContain("I’d like to bring that experience to Samsara as Enterprise Core Account Executive, Public Sector.");
     expect(parts.letter).toContain("support Samsara’s growth.");

@@ -32,6 +32,12 @@ I’d welcome the chance to discuss how I can help [Company] build pipeline, win
 
 ${LETTER_SIGNOFF}`;
 
+// The note she sends the hiring manager on LinkedIn once she has applied on the company site (Nov 12, 2026): one need from
+// the posting, one result that proves she can meet it, and her full name so the recruiter can pull up the application.
+export const NOTE_NAME = "[Name]";
+export const NOTE_MAX_WORDS = 110;
+export const HM_NOTE = `Hi ${NOTE_NAME}, I saw you’re looking for someone who can [one need]. [Industry or role] has been my specialty for [years]. I led [relevant work, with its number] at [company], and I’d love to hear more about what you’re looking for in this hire. I’ve already applied, so your recruiter can pull up my résumé under Vanessa Morales.`;
+
 const PUBLIC_SECTOR = /\b(public sector|public services|government|gov(tech)?|sled|state (and|&) local|state, local|federal|municipal|civic|k-12|higher education)\b/i;
 
 /** Public sector and government roles: a Government Technology company, or a public sector title, team or territory. */
