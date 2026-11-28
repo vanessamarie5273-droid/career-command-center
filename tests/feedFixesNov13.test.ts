@@ -114,7 +114,7 @@ describe("Mistral AI's board moved to Ashby", () => {
 
   it("roles left over from the old board close once the new board is read", async () => {
     const c = await makeCompany(db, { name: "Mistral AI", atsProvider: "ASHBY", atsToken: "mistral.ai" });
-    const old = await db.job.create({ data: { companyId: c.id, fingerprint: `ms-${c.id}`, title: "Account Executive, Enterprise (Old)", applyUrl: "https://jobs.lever.co/mistral/1", sources: { create: { provider: "LEVER", externalId: "mistral:1", url: "https://jobs.lever.co/mistral/1" } } } });
+    const old = await db.job.create({ data: { companyId: c.id, fingerprint: `ms-${c.id}`, title: "Mid-Market Account Executive", applyUrl: "https://jobs.lever.co/mistral/1", sources: { create: { provider: "LEVER", externalId: "mistral:1", url: "https://jobs.lever.co/mistral/1" } } } });
     const o = await ingestCompany(db, c, mockFetch({ "api.ashbyhq.com": ashbyBoard([{ id: "a1", title: "Enterprise Account Executive", location: "Remote - US", remote: true }]) }), new Date());
     expect(o.status).toBe("ok");
     expect((await db.job.findUniqueOrThrow({ where: { id: old.id } })).status).toBe("CLOSED");

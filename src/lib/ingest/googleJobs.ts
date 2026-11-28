@@ -11,6 +11,7 @@ import { parseLocation } from "../normalize";
 import { upsertPosting } from "./run";
 import { companyKey } from "../companyMerge";
 import { aggregatorReason } from "../aggregators";
+import { titleKey, urlKey } from "../dedupe";
 
 export const GOOGLE_JOBS = "GOOGLE_JOBS";
 export const JOB_SITE_CATEGORY = "Found on Google Jobs";
@@ -91,8 +92,12 @@ export async function runGoogleJobs(db: PrismaClient, opts: { fetchImpl?: FetchL
       if (r.error && !/hasn't returned any results/i.test(r.error)) throw new Error(`SerpApi: ${r.error}`);
       for (const j of r.jobs_results ?? []) {
         out.found++;
-        const id = j.job_id || `${j.company_name}|${j.title}|${j.location}`;
-        if (seen.has(id) || !j.company_name) continue;
+        if (!j.company_name) continue;
+        // Google gives the same posting a different job_id in each search (the Phoenix and the remote search both
+        // list many roles), so a result is known by employer, title and link instead.
+        const link = bestApplyLink(j.apply_options, j.share_link);
+        const id = `gj:${companyKey(j.company_name)}|${titleKey(j.title, j.location)}|${link && !/google\./.test(link) ? urlKey(link) : (j.location ?? "").toLowerCase()}`;
+        if (seen.has(id)) continue;
         seen.add(id);
         if (STAFFING.test(j.company_name)) { out.skippedStaffing++; continue; }
         if (offLimitsReason({ name: j.company_name })) continue;

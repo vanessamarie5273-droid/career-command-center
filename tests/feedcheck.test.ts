@@ -7,7 +7,7 @@ import { instantAlertJobs } from "@/lib/instantAlerts";
 import { greenhouseBoard, mockFetch } from "./fixtures/boards";
 import { testDb, makeCompany } from "./setup-db";
 
-const base: FeedHealth = { inFeed: 1, heldByCap: 2, aged: 40, location: 12, otherScreened: 0, saved: 5, applied: 9, notAFit: 3, duplicates: 0, postedThisWeek: 6, postedToday: 1, undated: 0, companies: 149, feedsOk: 60, feedsFailed: 2, noFeed: 87, cutOff: 0, lastRun: { status: "partial", finishedAt: new Date(), startedAt: new Date(), errors: 2, companies: 149 } };
+const base: FeedHealth = { inFeed: 1, heldByCap: 2, aged: 40, location: 12, otherScreened: 0, saved: 5, applied: 9, notAFit: 3, duplicates: 0, merged: 0, postedThisWeek: 6, postedToday: 1, undated: 0, companies: 149, feedsOk: 60, feedsFailed: 2, noFeed: 87, cutOff: 0, lastRun: { status: "partial", finishedAt: new Date(), startedAt: new Date(), errors: 2, companies: 149 } };
 
 describe("Feed Check", () => {
   let db: PrismaClient;

@@ -12,7 +12,7 @@ export const MAX_RESULTS = 100;
 const QUERIES = ["account executive", "sales director", "business development", "sales development", "account director", "head of sales", "vice president sales"];
 
 /** A Workday role already saved from an earlier read, keyed by its path on the careers site ("/job/Phoenix-AZ/Account-Executive_R123"). */
-export type KnownWorkdayJob = { externalId: string; location: string | null; applyUrl: string; postedAt: Date | null; isRemote: boolean };
+export type KnownWorkdayJob = { externalId: string; location: string | null; applyUrl: string; postedAt: Date | null; isRemote: boolean; described?: boolean };
 
 /** The posting's path on the careers site, from a saved apply link ("https://x.wd5.myworkdayjobs.com/Site/job/..." → "/job/..."). */
 export function workdayPath(url: string) {
@@ -56,18 +56,19 @@ export async function fetchWorkday(token: string, f: FetchLike = fetch, known: M
     // A role read on an earlier refresh keeps its saved description and location: only new roles cost a detail call.
     // Workday counts every call against one limit for the app's server, and most roles are the same from hour to hour.
     const saved = known.get(p.externalPath);
-    if (saved) {
+    if (saved && saved.described !== false) {
       postings.push({ provider: "WORKDAY", externalId: saved.externalId, title, location: saved.location, isRemote: saved.isRemote, workplaceType: p.remoteType || null, descriptionHtml: null, applyUrl: saved.applyUrl, postedAt: saved.postedAt });
       continue;
     }
     const d = await getJson<Detail>(f, `${api}${p.externalPath}`).catch(() => null);
     const info = d?.jobPostingInfo;
+    // A role saved earlier without its details keeps its saved id and location, whether or not the details arrive now.
     postings.push({
-      provider: "WORKDAY", externalId: `${tenant}:${info?.jobReqId || p.externalPath}`, title,
-      location: [info?.location || p.locationsText, ...(info?.additionalLocations || [])].filter(Boolean).join("; "),
+      provider: "WORKDAY", externalId: saved?.externalId ?? `${tenant}:${info?.jobReqId || p.externalPath}`, title,
+      location: (info ? [info.location || p.locationsText, ...(info.additionalLocations || [])].filter(Boolean).join("; ") : null) || saved?.location || p.locationsText || null,
       isRemote: /remote/i.test(info?.remoteType || p.remoteType || ""), workplaceType: info?.remoteType || p.remoteType || null,
       descriptionHtml: info?.jobDescription || null, applyUrl: info?.externalUrl || `${host}/${site}${p.externalPath}`,
-      postedAt: info?.startDate ? new Date(info.startDate) : null,
+      postedAt: info?.startDate ? new Date(info.startDate) : saved?.postedAt ?? null,
     });
   }
   return { postings, total: totalRes.total ?? postings.length };
