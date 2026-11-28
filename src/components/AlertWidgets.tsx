@@ -7,8 +7,8 @@ export function AlertActions() {
   return <button className="btn-ghost" onClick={async () => { await fetch("/api/alerts", { method: "POST" }); r.refresh(); }}>Mark all read</button>;
 }
 
-export function BriefingButton() {
+export function BriefingButton({ label = "Generate briefing now" }: { label?: string }) {
   const r = useRouter();
   const [busy, setBusy] = useState(false);
-  return <button className="btn-gold" disabled={busy} onClick={async () => { setBusy(true); await fetch("/api/briefing", { method: "POST" }); setBusy(false); r.refresh(); }}>{busy ? "Generating…" : "Generate briefing now"}</button>;
+  return <button className="btn-gold" disabled={busy} onClick={async () => { setBusy(true); await fetch("/api/briefing", { method: "POST" }); setBusy(false); r.refresh(); }}>{busy ? "Generating…" : label}</button>;
 }

@@ -46,7 +46,7 @@ type NavItem = { href: string; label: string; icon: IconName; match: string[]; t
  * as a switcher in the top bar until those pages are merged into one.
  */
 export const NAV: NavItem[] = [
-  { href: "/", label: "Command Center", icon: "home", match: ["/", "/briefing"], tabs: [{ href: "/", label: "Today" }, { href: "/briefing", label: "Briefing" }] },
+  { href: "/", label: "Command Center", icon: "home", match: ["/", "/briefing"] },
   { href: "/jobs", label: "Discover", icon: "briefcase", match: ["/jobs"] },
   { href: "/applications", label: "Applications", icon: "board", match: ["/applications", "/apply"], tabs: [{ href: "/applications", label: "Pipeline" }, { href: "/apply", label: "Ready to Apply" }] },
   { href: "/companies", label: "Companies", icon: "building", match: ["/companies"] },
