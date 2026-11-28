@@ -104,7 +104,7 @@ export default async function JobDrawer({ id, closeHref }: { id: string; closeHr
             {(c.growthThesis || c.description) && <p className="mt-3 line-clamp-3 text-[14px] text-ink-2">{c.growthThesis || c.description}</p>}
           </Block>
 
-          <Block title="People you know there" action={contactCount ? <Link href={`/network?company=${c.id}`} className="link text-[13px]">All {contactCount} →</Link> : undefined}>
+          <Block title="People you know there" action={contactCount ? <Link href={`/network?company=co-${c.id}`} className="link text-[13px]">All {contactCount} →</Link> : undefined}>
             {contacts.length ? (
               <ul className="divide-y divide-ink-line">
                 {contacts.map((p) => (
