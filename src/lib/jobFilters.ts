@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { tierWhere, NOT_A_FIT, DUPLICATE, FEED_CATEGORIES, IN_DISCOVER } from "./queries";
 
-export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; near?: string; posted?: string; status?: string; view?: string; all?: string };
+export type JobParams = { q?: string; tier?: string; category?: string; company?: string; remote?: string; minScore?: string; minComp?: string; family?: string; sort?: string; page?: string; industry?: string; fav?: string; near?: string; posted?: string; status?: string; view?: string; all?: string; job?: string; loc?: string };
 
 export const RANKINGS: Record<string, { label: string; short: string; where: Prisma.JobWhereInput; orderBy: Prisma.JobOrderByWithRelationInput[] }> = {
   best: { short: "Best now", label: "Best immediately available jobs", where: {}, orderBy: [{ score: "desc" }] },
@@ -53,9 +53,10 @@ export function jobWhere(p: JobParams): Prisma.JobWhereInput {
   if (p.tier && ["TIER1", "TIER2", "TIER3"].includes(p.tier)) and.push(tierWhere(p.tier as "TIER1"));
   if (p.company) and.push({ companyId: p.company });
   if (p.industry) and.push({ company: { category: p.industry } });
-  if (p.remote === "1") and.push({ isRemote: true });
+  // "Where" in the filter bar: one choice that stands for the older Remote and Phoenix-area checkboxes.
+  if (p.remote === "1" || p.loc === "remote") and.push({ isRemote: true });
   // Phoenix area: roles based in the metro, plus remote U.S. roles she can take from home.
-  if (p.near === "phx") and.push({ OR: [...PHX_TERMS.map((t) => ({ location: { contains: t, mode: "insensitive" as const } })), { isRemote: true }] });
+  if (p.near === "phx" || p.loc === "phx") and.push({ OR: [...PHX_TERMS.map((t) => ({ location: { contains: t, mode: "insensitive" as const } })), { isRemote: true }] });
   if (p.posted && POSTED_DAYS.includes(p.posted)) and.push(postedWithin(Number(p.posted)));
   else if (p.posted === "none") and.push({ postedAt: null });
   if (p.fav === "1") and.push({ favorite: true });
