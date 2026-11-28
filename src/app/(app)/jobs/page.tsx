@@ -98,7 +98,8 @@ function FeedCheck({ h, short, showAll }: { h: FeedHealth; short: boolean; showA
     ["Saved to Ready to Apply", h.saved, "/apply"],
     ["Applied", h.applied, "/applications?view=table&applied=1"],
     ["Not a Fit", h.notAFit, "/jobs?category=DISMISSED"],
-    ["Duplicates", h.duplicates, "/jobs?category=DUPLICATE"],
+    ["Marked Duplicate", h.duplicates, "/jobs?category=DUPLICATE"],
+    ["Copies merged this week", h.merged, "/alerts?kind=merged"],
   ];
   return (
     <details open={short || !v.ok} className={`card mb-3 px-4 py-3 ${v.ok ? "" : "ring-2 ring-rose-300"}`}>

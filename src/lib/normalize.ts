@@ -1,6 +1,6 @@
 // Normalisation of raw ATS postings: text, location, compensation, requirements.
 
-const STATE_NAMES: Record<string, string> = {
+export const STATE_NAMES: Record<string, string> = {
   alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT", delaware: "DE",
   florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS", kentucky: "KY",
   louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS", missouri: "MO",
@@ -9,7 +9,7 @@ const STATE_NAMES: Record<string, string> = {
   "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT", virginia: "VA",
   washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
 };
-const STATE_CODES = new Set(Object.values(STATE_NAMES));
+export const STATE_CODES = new Set(Object.values(STATE_NAMES));
 const US_CITIES = ["new york", "san francisco", "seattle", "austin", "boston", "chicago", "los angeles", "denver", "atlanta", "dallas", "phoenix", "scottsdale", "miami", "washington", "palo alto", "mountain view", "san jose", "salt lake", "las vegas", "nyc", "sf bay", "bay area", "san diego", "houston", "reston", "arlington", "raleigh", "nashville", "minneapolis", "philadelphia", "portland", "charlotte", "detroit", "pittsburgh", "tempe"];
 // The state each listed city sits in, so "Boston" or "NYC" alone still places a role.
 const CITY_STATE: Record<string, string> = {

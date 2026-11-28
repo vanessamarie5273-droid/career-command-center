@@ -2,6 +2,7 @@
 // only empty fields are filled from the seed.
 import { PrismaClient } from "@prisma/client";
 import { mergeDuplicateCompanies } from "../src/lib/companyMerge";
+import { mergeDuplicateJobs } from "../src/lib/jobMerge";
 import { removeAggregatorCompanies } from "../src/lib/aggregators";
 import { SEED_COMPANIES } from "../src/data/companies";
 import { PROFILE } from "../src/lib/profile";
@@ -64,6 +65,10 @@ export async function seed(client = db) {
   // Lookups that a rate limit or server error cut short were saved as "no public board" before Nov 13; look again.
   const relook = await client.company.updateMany({ where: { atsStatus: "not_found", atsProvider: "NONE", atsError: { contains: "HTTP " } }, data: { atsStatus: "pending", atsCheckedAt: null } });
   for (const m of merged) console.log(`Merged duplicate companies into ${m.kept}: ${m.removed.join(", ")}`);
+  // Copies of one opening (Google Jobs and the employer's board, two spellings of one employer) become one job.
+  const jobMerge = await mergeDuplicateJobs(client);
+  if (jobMerge.removed) console.log(`Merged ${jobMerge.removed} duplicate job copies into ${jobMerge.groups} jobs`);
+  if (jobMerge.refingerprinted) console.log(`Updated the match key of ${jobMerge.refingerprinted} jobs`);
   if (relook.count) console.log(`Looking again for the job boards of ${relook.count} companies whose last lookup was cut short`);
   // Job boards that Google Jobs listed as employers (Jobgether, Ladders, ClearanceJobs) are not companies (Nov 18).
   const boards = await removeAggregatorCompanies(client);

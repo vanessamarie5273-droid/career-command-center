@@ -143,7 +143,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
         <div className="px-4 pb-4">
           <form className="mb-3 flex flex-wrap gap-2" action="/alerts">
             <input name="q" defaultValue={p.q} placeholder="Job or company" className="input max-w-xs" />
-            <select name="kind" defaultValue={p.kind ?? ""} className="input w-40" aria-label="Event"><option value="">All events</option>{["discovered", "verified", "updated", "closed", "reopened", "rescored", "override"].map((k) => <option key={k}>{k}</option>)}</select>
+            <select name="kind" defaultValue={p.kind ?? ""} className="input w-40" aria-label="Event"><option value="">All events</option>{["discovered", "verified", "updated", "merged", "closed", "reopened", "rescored", "override"].map((k) => <option key={k}>{k}</option>)}</select>
             <button className="btn-primary">Filter</button>
           </form>
           <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>When</th><th>Event</th><th>Job</th><th>Detail</th></tr></thead>

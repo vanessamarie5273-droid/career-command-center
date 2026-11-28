@@ -21,6 +21,8 @@ export type FeedHealth = {
   applied: number;
   notAFit: number;
   duplicates: number;
+  /** Extra copies of one opening (Google Jobs and the employer's board, say) folded into one job in the last 7 days. */
+  merged: number;
   /** Roles in the feed the employer posted in the last 7 days / 24 hours: the same roles the tile's link lists. */
   postedThisWeek: number;
   postedToday: number;
@@ -52,9 +54,11 @@ export async function feedHealth(db: PrismaClient, inFeed: number, heldByCap: nu
     db.ingestionRun.count({ where: { status: "interrupted", startedAt: { gte: new Date(now.getTime() - 86400_000) } } }),
     db.job.count({ where: { AND: [feed, { postedAt: null }] } }),
   ]);
+  const mergeEvents = await db.jobEvent.findMany({ where: { kind: "merged", at: { gte: new Date(now.getTime() - 7 * 86400_000) } }, select: { detail: true } });
+  const merged = mergeEvents.reduce((a, e) => a + (Number(e.detail?.match(/Merged (\d+)/)?.[1]) || 1), 0);
   const n = (s: string) => byStatus.find((b) => b.atsStatus === s)?._count ?? 0;
   return {
-    inFeed, heldByCap, aged, location, otherScreened: screened - aged - location, saved, applied, notAFit, duplicates, postedThisWeek, postedToday, undated,
+    inFeed, heldByCap, aged, location, otherScreened: screened - aged - location, saved, applied, notAFit, duplicates, merged, postedThisWeek, postedToday, undated,
     companies: byStatus.reduce((a, b) => a + b._count, 0), feedsOk: n("ok"), feedsFailed: n("error"), noFeed: n("not_found") + n("unsupported"), lastRun, cutOff,
   };
 }

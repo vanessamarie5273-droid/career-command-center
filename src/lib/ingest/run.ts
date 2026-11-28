@@ -2,6 +2,7 @@ import type { Company, Job, PrismaClient } from "@prisma/client";
 import { classifyTitle, isRelevantFamily } from "../roles";
 import { htmlToText, parseCompensation, parseLocation, parseYearsRequired, requiresClearance, splitQualifications, extractTravel, extractRelocation, extractTerritory } from "../normalize";
 import { jobFingerprint, contentHash } from "../dedupe";
+import { findSameReq, mergeDuplicateJobs } from "../jobMerge";
 import { scoreJob } from "../scoring";
 import { fetchBoard, discoverBoard } from "./providers";
 import { workdayPath, type KnownWorkdayJob } from "./workday";
@@ -88,7 +89,8 @@ export function jobChanges(old: Comparable, next: Comparable): string[] {
 export async function upsertPosting(db: PrismaClient, company: Company, p: RawPosting, now: Date): Promise<"created" | "updated" | "verified"> {
   let data = buildJobData(company, p);
   const existingSource = await db.jobSource.findUnique({ where: { provider_externalId: { provider: p.provider, externalId: p.externalId } }, include: { job: true } });
-  const job = existingSource?.job ?? (await db.job.findUnique({ where: { fingerprint: data.fingerprint } }));
+  // Not seen from this source before: the same opening may already be saved from another source, under another spelling.
+  const job = existingSource?.job ?? (await db.job.findUnique({ where: { fingerprint: data.fingerprint } })) ?? (await findSameReq(db, company.id, p, now));
   // A description call that failed this time (timeout, rate limit) must not wipe the description saved last time.
   if (job && !p.descriptionHtml && !p.descriptionText && (job.description || job.descriptionText)) {
     data = buildJobData(company, { ...p, descriptionHtml: job.description, descriptionText: job.descriptionText });
@@ -144,11 +146,14 @@ export async function closeMissing(db: PrismaClient, companyId: string, provider
 
 /** Saved Workday roles for this company, so a refresh only fetches descriptions for roles it has not seen. */
 async function knownWorkdayJobs(db: PrismaClient, companyId: string) {
-  const sources = await db.jobSource.findMany({ where: { provider: "WORKDAY", job: { companyId, OR: [{ description: { not: null } }, { descriptionText: { not: null } }] } }, select: { externalId: true, url: true, job: { select: { location: true, postedAt: true, isRemote: true } } } });
+  // Roles saved without a description are listed too, so the next read keeps their id (a role first read while its
+  // details call was rate limited used to come back under its req id as a second, "new" copy).
+  const sources = await db.jobSource.findMany({ where: { provider: "WORKDAY", job: { companyId } }, select: { externalId: true, url: true, job: { select: { location: true, postedAt: true, isRemote: true, description: true, descriptionText: true } } } });
   const known = new Map<string, KnownWorkdayJob>();
   for (const s of sources) {
     const path = s.url ? workdayPath(s.url) : null;
-    if (path) known.set(path, { externalId: s.externalId, location: s.job.location, applyUrl: s.url!, postedAt: s.job.postedAt, isRemote: s.job.isRemote });
+    const described = !!(s.job.description || s.job.descriptionText);
+    if (path && (described || !known.has(path))) known.set(path, { externalId: s.externalId, location: s.job.location, applyUrl: s.url!, postedAt: s.job.postedAt, isRemote: s.job.isRemote, described });
   }
   return known;
 }
@@ -321,6 +326,9 @@ export async function runIngestion(db: PrismaClient, opts: { trigger: string; co
   // Google Jobs adds employers that are not on the list yet; only on a full refresh, at most once a day.
   const googleJobs = opts.companyIds ? null : await runGoogleJobs(db, { fetchImpl: opts.fetchImpl, now: run.startedAt });
   if (googleJobs) { tot.relevant += googleJobs.relevant; tot.created += googleJobs.created; tot.closed += googleJobs.closed; }
+  // Fold any copies of one opening into one job before anything counts or alerts on them.
+  const merged = await mergeDuplicateJobs(db, run.startedAt).catch(() => null);
+  if (merged?.removed) tot.created = Math.max(0, tot.created - merged.removed);
   const status = tot.errors === 0 ? "ok" : tot.errors < companies.length ? "partial" : "failed";
   await db.ingestionRun.update({ where: { id: run.id }, data: { ...tot, companies: companies.length, finishedAt: new Date(), status, log: outcomes } });
 
