@@ -19,6 +19,16 @@ export const STAGES = [
 ] as const;
 export type StageKey = (typeof STAGES)[number][0];
 export const STAGE_LABEL = { RESEARCHING: "Ready to Apply", PRIORITIZED: "Ready to Apply", RESUME_PREP: "Ready to Apply", ...Object.fromEntries(STAGES) } as Record<StageKey | "RESEARCHING" | "PRIORITIZED" | "RESUME_PREP", string>;
+/**
+ * One colour per kind of status, used for every status pill (redesign, Nov 28): purple = in progress, green = good news,
+ * amber = needs you soon, red = overdue or rejected, gray = closed or parked. Classes live in globals.css.
+ */
+export type Tone = "progress" | "good" | "due" | "bad" | "closed";
+export const STAGE_TONE: Record<string, Tone> = {
+  RESEARCHING: "due", PRIORITIZED: "due", RESUME_PREP: "due", READY_TO_APPLY: "due",
+  APPLIED: "progress", RECRUITER_CONTACT: "progress", HIRING_MANAGER: "progress", INTERVIEWING: "progress", FINAL_INTERVIEW: "progress",
+  OFFER: "good", ACCEPTED: "good", REJECTED: "bad", WITHDRAWN: "closed", ON_HOLD: "closed",
+};
 export const TIER_LABEL: Record<string, string> = { TIER1: "Tier 1 · Pursue Immediately", TIER2: "Tier 2 · Strategic Target", TIER3: "Tier 3 · Monitor" };
 
 // Headings and labels in Title Case (2026-11-02): every word capitalized except short joining words

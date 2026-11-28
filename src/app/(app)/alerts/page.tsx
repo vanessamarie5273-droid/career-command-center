@@ -5,6 +5,8 @@ import { PageHeader, Card, Empty, StatusDot, HeroStat, Icon, Logo, ScoreBadge, t
 import { AlertActions, BriefingButton } from "@/components/AlertWidgets";
 import { ago, dateTime } from "@/lib/format";
 import type { BriefingContent } from "@/lib/briefing";
+import { MATCHING, tierWhere } from "@/lib/queries";
+import { companyCap, withinCap } from "@/lib/companyCap";
 
 export const metadata = { title: "Alerts" };
 
@@ -44,6 +46,9 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
   ]);
   const b = briefing?.content as BriefingContent | undefined;
   const last = runs[0];
+  // The real number of Tier 1 roles in the Discover feed (the briefing keeps only its top 15).
+  const cap = await companyCap(prisma);
+  const tier1Open = await prisma.job.count({ where: { AND: [MATCHING, withinCap(cap.ids), tierWhere("TIER1")] } });
 
   // Company logos for each alert, from the job or application it links to.
   const idsFrom = (prefix: string) => alerts.map((a) => a.link?.match(new RegExp(`^/${prefix}/([^/?#]+)`))?.[1]).filter((x): x is string => !!x);
@@ -77,7 +82,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <HeroStat label="Unread" value={unread} icon="bell" highlight={unread > 0} />
           <HeroStat label="New Matches Today" value={b ? b.newJobs.length : "—"} icon="spark" href="/jobs?sort=new" />
-          <HeroStat label="Tier 1 open" value={b ? b.tier1.length : "—"} icon="flame" href="/jobs?tier=TIER1" />
+          <HeroStat label="Tier 1 Open Roles" value={tier1Open} icon="flame" href="/jobs?tier=TIER1" />
           <HeroStat label="Job feeds" value={last ? <span className="inline-flex items-center gap-2"><StatusDot status={last.status} />{ago(last.startedAt)}</span> : "—"} icon="refresh" />
         </div>
       </PageHeader>
@@ -103,7 +108,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
             </Card>
           )}
           {b && b.tier1.length > 0 && (
-            <Card title="Tier 1 Open" icon="trophy" tone="gold" action={<Link className="link text-[13px]" href="/jobs?tier=TIER1">All {b.tier1.length} →</Link>}>
+            <Card title="Top Tier 1 Roles" icon="trophy" tone="gold" action={<Link className="link text-[13px]" href="/jobs?tier=TIER1">All {tier1Open} →</Link>}>
               <ul className="space-y-0.5">{b.tier1.slice(0, 6).map((j) => {
                 const c = jobs.find((x) => x.id === j.id)?.company;
                 return (

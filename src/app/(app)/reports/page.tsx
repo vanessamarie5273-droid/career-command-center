@@ -9,13 +9,14 @@ import { companyCap, withinCap } from "@/lib/companyCap";
 import { RANKINGS } from "@/lib/jobFilters";
 import { companyAttractiveness, effectiveScore } from "@/lib/scoring";
 import { range } from "@/lib/format";
+import { METRICS } from "@/lib/metrics";
 
-export const metadata = { title: "Reports" };
+export const metadata = { title: "Analytics" };
 const table = (q: string) => `/applications?view=table&${q}`;
 
 export default async function Reports() {
-  const charts = await chartData();
   const cap = await companyCap(prisma);
+  const charts = await chartData(new Date(), cap.ids);
   const lists = await Promise.all(Object.entries(RANKINGS).map(async ([k, r]) => [k, r.short, await prisma.job.findMany({ where: { AND: [MATCHING, withinCap(cap.ids), r.where] }, orderBy: r.orderBy, take: 8, include: { company: true } })] as const));
   const companies = await prisma.company.findMany({ include: { jobs: { where: MATCHING, select: { id: true } } } });
   const bestCompanies = companies.map((c) => ({ ...c, a: companyAttractiveness(c) })).sort((a, b) => b.a - a.a).slice(0, 8);
@@ -23,10 +24,10 @@ export default async function Reports() {
   const reached = (s: string[]) => apps.filter((a) => s.includes(a.stage) || a.stageHistory.some((h) => s.includes(h.to))).length;
   const applied = apps.filter((a) => a.applied).length;
   const funnel = [
-    { label: "Applied", value: applied, href: table("applied=1") },
-    { label: "Recruiter or Manager", value: reached(["RECRUITER_CONTACT", "HIRING_MANAGER"]), href: table("active=1") },
-    { label: "Interviewing", value: reached(["INTERVIEWING", "FINAL_INTERVIEW"]), href: table("stage=INTERVIEWING") },
-    { label: "Offer", value: reached(["OFFER", "ACCEPTED"]), href: table("stage=OFFER") },
+    { label: METRICS.submitted.label, value: applied, href: table("applied=1") },
+    { label: "Ever Reached Recruiter or Manager", value: reached(["RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"]), href: table("applied=1") },
+    { label: "Ever Reached Interviews", value: reached(["INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"]), href: table("stage=INTERVIEWING") },
+    { label: "Ever Reached Offer", value: reached(["OFFER", "ACCEPTED"]), href: table("stage=OFFER") },
   ];
   const tiers = [
     { name: "Tier 1", value: charts.pipeline[0].value, color: "#A100C2", href: "/jobs?tier=TIER1" },
@@ -36,7 +37,7 @@ export default async function Reports() {
 
   return (
     <>
-      <PageHeader title="Reports" actions={<a className="btn-ghost" href="/api/export?format=csv&what=jobs">Export jobs</a>}>
+      <PageHeader title="Analytics" actions={<a className="btn-ghost" href="/api/export?format=csv&what=jobs">Export jobs</a>}>
         <Funnel steps={funnel} />
       </PageHeader>
 
@@ -63,7 +64,7 @@ export default async function Reports() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-12">
-        <Card title="Open roles by tier" icon="layers" tone="gold" className="xl:col-span-3"><Donut data={tiers} unit="open roles" /></Card>
+        <Card title="Open roles by tier" icon="layers" tone="gold" className="xl:col-span-3"><Donut data={tiers} unit="open roles, incl. saved" /></Card>
         <Card title="Published pay" icon="dollar" tone="emerald" className="xl:col-span-4"><CompBars data={charts.comp} /></Card>
         <Card title="Industries" icon="pie" tone="sky" className="lg:col-span-2 xl:col-span-5"><IndustryBars data={charts.industries.slice(0, 9)} /></Card>
       </div>

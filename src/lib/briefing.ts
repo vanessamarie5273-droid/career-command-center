@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { ACTIVE_APPLICATION_STAGES, RESPONDED_STAGES } from "./metrics";
 import { alertAddress, deliver } from "./notify";
 import { effectiveScore, effectiveTier } from "./scoring";
 import { companyCap } from "./companyCap";
@@ -14,8 +15,8 @@ import { APP_NAME } from "./brand";
 import { STAGE_LABEL, range, titleCase } from "./format";
 
 const DAY = 86400000;
-const ACTIVE_STAGES = ["APPLIED", "RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER"] as const;
-const RESPONDED = ["RECRUITER_CONTACT", "HIRING_MANAGER", "INTERVIEWING", "FINAL_INTERVIEW", "OFFER", "ACCEPTED"] as const;
+const ACTIVE_STAGES = ACTIVE_APPLICATION_STAGES;
+const RESPONDED = RESPONDED_STAGES;
 const CLOSED_STAGES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 
 export type Priority = { kind: "interview" | "reply" | "followup" | "apply" | "referral"; title: string; reason: string; href: string };
@@ -290,7 +291,7 @@ export function briefingHtml(b: BriefingContent, base = "") {
   const more: [string, number][] = [["Changes to tracked jobs", v.changes.length], ["Application progress", v.progress.moved.length + v.progress.needsAction.length], ["Waiting on a reply", v.progress.waiting.length], ["People to contact", v.people.length], ["Follow-ups due", v.followUps.length], ["Upcoming interviews", v.interviews.length], ["Company developments", v.news.length]];
   return `<div style="font-family:Inter,Segoe UI,Arial,sans-serif;max-width:680px;color:#0f172a">
   <div style="${GRAD(BRAND, MAGENTA)};padding:18px 20px;border-radius:12px 12px 0 0"><div style="color:#f1eaff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">${APP_NAME}</div><div style="color:#ffffff;font-size:20px;font-weight:700">Daily Briefing</div><div style="color:#f1eaff;font-size:13px;font-weight:600">${az(b.generatedAt, { weekday: "long", month: "long", day: "numeric" })}</div>
-  <table style="margin-top:12px;border-collapse:separate;border-spacing:6px 0"><tr>${stat(v.stats.active, "Active")}${stat(v.stats.waiting, "Waiting")}${stat(v.stats.interviews, "Interviews")}${stat(v.stats.responseRate == null ? "—" : `${v.stats.responseRate}%`, "Reply Rate")}${stat(v.stats.strongNew, "Strong New")}</tr></table></div>
+  <table style="margin-top:12px;border-collapse:separate;border-spacing:6px 0"><tr>${stat(v.stats.active, "Active Applications")}${stat(v.stats.waiting, "Awaiting Response")}${stat(v.stats.interviews, "Interviews, Next 7 Days")}${stat(v.stats.responseRate == null ? "—" : `${v.stats.responseRate}%`, "Response Rate")}${stat(v.stats.strongNew, "New High-Fit Roles")}</tr></table></div>
   <div style="padding:6px 20px 18px;border:1px solid ${LINE};border-top:0;border-radius:0 0 12px 12px">
   <div style="${GRAD(DEEP, "#7a14d0", 155)};border-radius:12px;padding:12px 16px;margin-top:14px"><div style="color:#ffffff;font-size:16px;font-weight:700;margin-bottom:4px">Today's Top Three</div><table style="border-collapse:collapse">${pri || `<tr><td style="color:#e6defe">Nothing pressing today.</td></tr>`}</table></div>
   ${sec(v.noStrongMatches ? "Opportunities · no strong new matches today" : "Best new opportunities")}

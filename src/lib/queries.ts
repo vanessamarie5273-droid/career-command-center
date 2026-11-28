@@ -65,9 +65,10 @@ export async function dashboardMetrics(now = new Date(), capIds?: string[]) {
   };
 }
 
-export async function chartData(now = new Date()) {
+/** capIds: count only the roles inside the 3-per-company limit, so chart totals match the Discover feed. */
+export async function chartData(now = new Date(), capIds?: string[]) {
   const apps = await prisma.application.groupBy({ by: ["stage"], _count: true });
-  const jobs = await prisma.job.findMany({ where: MATCHING, select: { companyId: true, oteMax: true, oteMin: true, salaryMax: true, salaryMin: true, tier: true, overrideTier: true, company: { select: { category: true } } } });
+  const jobs = await prisma.job.findMany({ where: capIds ? { AND: [MATCHING, { id: { in: capIds } }] } : MATCHING, select: { companyId: true, oteMax: true, oteMin: true, salaryMax: true, salaryMin: true, tier: true, overrideTier: true, company: { select: { category: true } } } });
   const companies = await prisma.company.groupBy({ by: ["category"], _count: true });
   const weeks: { week: string; applied: number; moves: number }[] = [];
   const start = new Date(now.getTime() - 11 * 7 * 86400_000);

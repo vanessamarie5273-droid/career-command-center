@@ -39,23 +39,34 @@ export function Icon({ name, size = 18, className = "", stroke = 1.8 }: { name: 
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true"><path d={ICONS[name]} /></svg>;
 }
 
-/** Sidebar tabs, in order. A tab can hold several pages; its `tabs` show as a switcher in the top bar. */
-export const NAV: { href: string; label: string; icon: IconName; match: string[]; tabs?: { href: string; label: string }[] }[] = [
-  { href: "/", label: "Command Center", icon: "home", match: ["/"] },
-  { href: "/briefing", label: "Briefing", icon: "news", match: ["/briefing"] },
-  { href: "/jobs", label: "Jobs", icon: "briefcase", match: ["/jobs", "/apply"], tabs: [{ href: "/jobs", label: "Discover" }, { href: "/apply", label: "Ready to Apply" }] },
-  { href: "/applications", label: "Applications", icon: "board", match: ["/applications"] },
-  { href: "/companies", label: "Accounts", icon: "building", match: ["/companies"] },
-  { href: "/network", label: "My Network", icon: "people", match: ["/network", "/contacts"], tabs: [{ href: "/network", label: "My Network" }, { href: "/contacts", label: "Contacts & Import" }] },
+type NavItem = { href: string; label: string; icon: IconName; match: string[]; tabs?: { href: string; label: string }[] };
+
+/**
+ * The six workspaces in the sidebar, in order (redesign, Nov 28). A workspace can hold several pages; its `tabs` show
+ * as a switcher in the top bar until those pages are merged into one.
+ */
+export const NAV: NavItem[] = [
+  { href: "/", label: "Command Center", icon: "home", match: ["/", "/briefing"], tabs: [{ href: "/", label: "Today" }, { href: "/briefing", label: "Briefing" }] },
+  { href: "/jobs", label: "Discover", icon: "briefcase", match: ["/jobs"] },
+  { href: "/applications", label: "Applications", icon: "board", match: ["/applications", "/apply"], tabs: [{ href: "/applications", label: "Pipeline" }, { href: "/apply", label: "Ready to Apply" }] },
+  { href: "/companies", label: "Companies", icon: "building", match: ["/companies"] },
+  { href: "/network", label: "Network", icon: "people", match: ["/network", "/contacts"], tabs: [{ href: "/network", label: "People" }, { href: "/contacts", label: "Contacts & Import" }] },
+  { href: "/reports", label: "Analytics", icon: "chart", match: ["/reports"] },
+];
+
+/** Utility pages: kept out of the main workspaces, listed at the foot of the sidebar. */
+export const UTILITY: NavItem[] = [
+  { href: "/alerts", label: "Alerts", icon: "bell", match: ["/alerts"] },
   { href: "/documents", label: "Resumes", icon: "doc", match: ["/documents"] },
-  { href: "/reports", label: "Insights", icon: "chart", match: ["/reports", "/alerts"], tabs: [{ href: "/reports", label: "Reports" }, { href: "/alerts", label: "Alerts" }] },
   { href: "/settings", label: "Settings", icon: "gear", match: ["/settings"] },
 ];
-export const navFor = (path: string) => NAV.find((n) => n.match.some((m) => (m === "/" ? path === "/" : path === m || path.startsWith(`${m}/`))));
+
+const hit = (path: string) => (n: NavItem) => n.match.some((m) => (m === "/" ? path === "/" : path === m || path.startsWith(`${m}/`)));
+export const navFor = (path: string) => NAV.find(hit(path)) ?? UTILITY.find(hit(path));
 
 const TITLE_ICON: Record<string, IconName> = {
-  "Command Center": "home", "Discover Jobs": "briefcase", "Ready to Apply": "check", "My Applications": "board", "Company Intelligence": "building", Accounts: "building",
-  "Network & Contacts": "people", "My Network": "people", "Resume Library": "doc", Alerts: "bell", Reports: "chart", "Settings & Integrations": "gear",
+  "Command Center": "home", Discover: "briefcase", "Discover Jobs": "briefcase", "Ready to Apply": "check", Applications: "board", "My Applications": "board", Companies: "building", Accounts: "building",
+  Network: "people", "Network & Contacts": "people", "My Network": "people", "Contacts & Import": "people", "Resume Library": "doc", Alerts: "bell", Analytics: "chart", Reports: "chart", "Settings & Integrations": "gear",
 };
 
 export function iconForTitle(title: string): IconName {
