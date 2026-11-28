@@ -33,7 +33,7 @@ function revive(t: Table, row: Record<string, unknown>) {
 
 /** mode "merge" adds records that are missing (existing ids are kept); "replace" wipes the database first. */
 export async function restoreAll(db: PrismaClient, backup: Backup, mode: "merge" | "replace" = "merge") {
-  if (backup?.app !== "career-command-center" || !backup.tables) throw new Error("Not a Career Command Center backup file");
+  if (backup?.app !== "career-command-center" || !backup.tables) throw new Error("Not a Job Hunt Hub backup file");
   if (backup.version > BACKUP_VERSION) throw new Error(`Backup version ${backup.version} is newer than this app supports`);
   const counts: Record<string, number> = {};
   await db.$transaction(async (tx) => {

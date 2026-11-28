@@ -90,7 +90,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
             {mail && <p className="text-[13px] text-slate-500">Last check: {mail.lastSyncAt ? dateTime(mail.lastSyncAt) : "never"}{mail.lastSyncNote ? ` · ${mail.lastSyncNote}` : ""} · {emailCount} company emails read so far. Checked every hour with the job feeds.</p>}
             {mail?.status === "error" && <p className="text-[13px] text-red-700">Microsoft sign-in needs renewing: click Reconnect.</p>}
           </div>
-          <div>{outlookConfigured() ? <OutlookControls connected={!!mail} /> : <p className="text-[13px] text-slate-600">One-time setup first: register the Command Center with Microsoft and add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to Render. Steps are in SETUP.md under “Connect Outlook”.</p>}</div>
+          <div>{outlookConfigured() ? <OutlookControls connected={!!mail} /> : <p className="text-[13px] text-slate-600">One-time setup first: register Job Hunt Hub with Microsoft and add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to Render. Steps are in SETUP.md under “Connect Outlook”.</p>}</div>
         </div>
       </Card>
       <Card title={`Job feeds by company · ${byStatus("ok")} live · ${byStatus("error")} errors · ${byStatus("paused")} paused by the job site · ${byStatus("not_found")} no public board · ${byStatus("unsupported")} careers-site only · ${byStatus("pending")} pending`} sub="Every board refreshes on its own each hour, 6 AM to 9 PM Arizona time (Workday boards a few at a time, each about every 6 hours). Paused boards keep their saved openings and are tried again on their own. Refresh one company now from its page." className="mb-4">

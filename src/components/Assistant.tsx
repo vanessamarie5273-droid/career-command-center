@@ -93,7 +93,7 @@ export default function Assistant({ enabled }: { enabled: boolean }) {
           {busy && <p className="text-sm text-slate-500 animate-pulse">Checking your records…</p>}
         </div>
         <form className="border-t border-slate-200 p-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); send(q); }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} disabled={!enabled || busy} className="input" placeholder={enabled ? "Ask the Command Center…" : "Assistant not configured"} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} disabled={!enabled || busy} className="input" placeholder={enabled ? "Ask your Job Hunt Hub…" : "Assistant not configured"} />
           <button className="btn-primary" disabled={!enabled || busy}>Send</button>
         </form>
       </div>

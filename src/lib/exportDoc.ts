@@ -1,5 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { APP_NAME } from "./brand";
 
 export async function toDocx(title: string, text: string) {
   const paras = text.split(/\n/).map((line) => {
@@ -8,7 +9,7 @@ export async function toDocx(title: string, text: string) {
     if (/^\s*[•\-*]\s+/.test(l)) return new Paragraph({ bullet: { level: 0 }, children: [new TextRun(l.replace(/^\s*[•\-*]\s+/, ""))] });
     return new Paragraph({ children: [new TextRun(l)] });
   });
-  const doc = new Document({ creator: "Career Command Center", title, sections: [{ children: paras }] });
+  const doc = new Document({ creator: APP_NAME, title, sections: [{ children: paras }] });
   return Buffer.from(await Packer.toBuffer(doc));
 }
 

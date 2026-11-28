@@ -17,7 +17,7 @@ export default function Sidebar({ alerts }: { alerts: number }) {
       <aside className={`fixed inset-y-0 left-0 z-40 w-56 bg-[linear-gradient(180deg,#3d1fd6_0%,#6a2be8_35%,#8f14cf_70%,#A100C2_100%)] text-white flex flex-col transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="px-5 py-5 flex items-center gap-3 border-b border-white/5">
           <svg width="30" height="30" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ffffff22" /><path d="M18 40 L30 24 L38 34 L46 20" stroke="#e9e3ff" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <div className="leading-tight"><div className="text-[15px] font-semibold">Career Command</div><div className="text-[12px] uppercase tracking-[0.18em] text-violet-200">Center</div></div>
+          <div className="leading-tight"><div className="text-[12px] uppercase tracking-[0.18em] text-violet-200">Vanessa&apos;s</div><div className="text-[15px] font-semibold">Job Hunt Hub</div></div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {NAV.map((n) => (

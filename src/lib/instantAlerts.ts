@@ -10,6 +10,7 @@ import { alertAddress, deliver } from "./notify";
 import type { Fetch } from "./mail/outlook";
 import { appBase } from "./appUrl";
 import { bestAccomplishment, ensureFitBriefs, type FitBrief } from "./briefingFit";
+import { APP_NAME, APP_SHORT } from "./brand";
 
 const HOUR = 3600_000;
 /** Only roles found recently: a role that waited longer than this is in the morning briefing instead. */
@@ -115,13 +116,14 @@ export function alertEmail(input: AlertJob[] | AlertRole[], base: string) {
   </tr></table>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin-top:12px"><tr><td bgcolor="${TINT}" style="background-color:${TINT};border-left:3px solid ${MAGENTA};border-radius:0 8px 8px 0;padding:9px 12px;${FONT};font-size:14px;line-height:20px;color:${BODY}"><b style="color:${MAGENTA}">Why you:</b> ${esc(why)}</td></tr></table>
   <div style="${FONT};font-size:12px;color:${MUTED};margin:10px 0 12px">${j.postedAt ? `Posted ${day(j.postedAt)}` : ""}${jobs.length > 1 ? ` &nbsp;·&nbsp; One role listed in ${jobs.length} locations` : ""}</div>
-  ${button(mine, home ? "Open in Command Center" : `View on ${esc(j.company.name)}`, true)}${home && j.applyUrl ? button(j.applyUrl, `Apply on ${esc(j.company.name)}`, false) : ""}
+  ${button(mine, home ? `Open in ${APP_SHORT}` : `View on ${esc(j.company.name)}`, true)}${home && j.applyUrl ? button(j.applyUrl, `Apply on ${esc(j.company.name)}`, false) : ""}
 </td></tr></table>`;
   }).join("\n");
 
   const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr><td align="left">
 <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;border-collapse:separate">
 <tr><td bgcolor="${BRAND}" style="${GRAD()};padding:20px 22px;border-radius:12px 12px 0 0">
+  <div style="${FONT};color:#f1eaff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px">${esc(APP_NAME)}</div>
   <div style="${FONT};color:#ffffff;font-size:22px;font-weight:700;line-height:28px">${roles.length === 1 ? "New High-Fit Role" : `${roles.length} New High-Fit Roles`}</div>
   <div style="${FONT};color:#f1eaff;font-size:14px;font-weight:600;margin-top:2px">Posted in the last ${NEW_POSTING_DAYS} days &nbsp;·&nbsp; Phoenix area or remote</div>
 </td></tr>

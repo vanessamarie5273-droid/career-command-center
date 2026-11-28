@@ -10,6 +10,7 @@ import { bestAccomplishment, ensureFitBriefs, type FitBrief, type FitChecks } fr
 import { FAMILY_LABEL, type RoleFamily } from "./roles";
 import { KIND_LABEL } from "./mail/sync";
 import { PROFILE } from "./profile";
+import { APP_NAME } from "./brand";
 import { STAGE_LABEL, range, titleCase } from "./format";
 
 const DAY = 86400000;
@@ -272,7 +273,7 @@ const ACTION_COLOR: Record<string, string> = { Apply: BRAND, "Seek a referral": 
 
 export function briefingHtml(b: BriefingContent, base = "") {
   const v = b.v2;
-  if (!v) return `<p>Open the Command Center to see today's briefing.</p>`;
+  if (!v) return `<p>Open ${APP_NAME} to see today's briefing.</p>`;
   const stat = (n: string | number, l: string) => `<td style="padding:10px 12px;background-color:#7a52ff;background-color:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:10px;text-align:center"><div style="font-size:22px;font-weight:700;color:#fff">${n}</div><div style="font-size:11px;color:#f1eaff">${l}</div></td>`;
   const sec = (t: string) => `<div style="margin:18px 0 8px;font-size:16px;font-weight:700;color:${INK};border-left:4px solid ${MAGENTA};padding-left:8px">${titleCase(t)}</div>`;
   const pri = v.priorities.map((p, i) => `<tr><td style="vertical-align:top;padding:6px 10px 6px 0"><div style="width:26px;height:26px;border-radius:13px;background:#ffffff;color:${BRAND};font-weight:700;text-align:center;line-height:26px">${i + 1}</div></td><td style="padding:6px 0"><a href="${p.href}" style="color:#ffffff;font-weight:700;text-decoration:none">${esc(p.title)}</a><div style="color:#e6defe;font-size:13px">${esc(p.reason)}</div></td></tr>`).join("");
@@ -288,7 +289,7 @@ export function briefingHtml(b: BriefingContent, base = "") {
   const urgent = v.urgent.length ? v.urgent.map((u) => `<div style="font-size:13px;padding:3px 0"><span style="color:${tone[u.tone]}">●</span> <a href="${u.href}" style="color:#0f172a;text-decoration:none">${esc(u.text)}</a></div>`).join("") : `<div style="color:${MUTED};font-size:13px">Nothing urgent.</div>`;
   const more: [string, number][] = [["Changes to tracked jobs", v.changes.length], ["Application progress", v.progress.moved.length + v.progress.needsAction.length], ["Waiting on a reply", v.progress.waiting.length], ["People to contact", v.people.length], ["Follow-ups due", v.followUps.length], ["Upcoming interviews", v.interviews.length], ["Company developments", v.news.length]];
   return `<div style="font-family:Inter,Segoe UI,Arial,sans-serif;max-width:680px;color:#0f172a">
-  <div style="${GRAD(BRAND, MAGENTA)};padding:18px 20px;border-radius:12px 12px 0 0"><div style="color:#ffffff;font-size:20px;font-weight:700">Daily Briefing</div><div style="color:#f1eaff;font-size:13px;font-weight:600">${az(b.generatedAt, { weekday: "long", month: "long", day: "numeric" })}</div>
+  <div style="${GRAD(BRAND, MAGENTA)};padding:18px 20px;border-radius:12px 12px 0 0"><div style="color:#f1eaff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">${APP_NAME}</div><div style="color:#ffffff;font-size:20px;font-weight:700">Daily Briefing</div><div style="color:#f1eaff;font-size:13px;font-weight:600">${az(b.generatedAt, { weekday: "long", month: "long", day: "numeric" })}</div>
   <table style="margin-top:12px;border-collapse:separate;border-spacing:6px 0"><tr>${stat(v.stats.active, "Active")}${stat(v.stats.waiting, "Waiting")}${stat(v.stats.interviews, "Interviews")}${stat(v.stats.responseRate == null ? "—" : `${v.stats.responseRate}%`, "Reply Rate")}${stat(v.stats.strongNew, "Strong New")}</tr></table></div>
   <div style="padding:6px 20px 18px;border:1px solid ${LINE};border-top:0;border-radius:0 0 12px 12px">
   <div style="${GRAD(DEEP, "#7a14d0", 155)};border-radius:12px;padding:12px 16px;margin-top:14px"><div style="color:#ffffff;font-size:16px;font-weight:700;margin-bottom:4px">Today's Top Three</div><table style="border-collapse:collapse">${pri || `<tr><td style="color:#e6defe">Nothing pressing today.</td></tr>`}</table></div>

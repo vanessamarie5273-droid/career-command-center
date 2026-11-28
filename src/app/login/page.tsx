@@ -1,4 +1,5 @@
 import LoginForm from "./LoginForm";
+import { APP_NAME } from "@/lib/brand";
 
 export const metadata = { title: "Sign in" };
 
@@ -7,7 +8,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       <div className="hidden lg:flex flex-col justify-between bg-navy-950 p-12 text-white">
-        <div className="flex items-center gap-3"><Mark /><span className="text-lg font-semibold tracking-tight">Career Command Center</span></div>
+        <div className="flex items-center gap-3"><Mark /><span className="text-lg font-semibold tracking-tight">{APP_NAME}</span></div>
         <div>
           <p className="text-3xl font-semibold leading-tight text-white/95">Executive career intelligence.<br /><span className="text-gold-400">Verified openings. Explainable fit.</span></p>
           <p className="mt-4 max-w-md text-white/60 text-sm">Private workspace. Every job links to the employer&apos;s own posting, and every metric is generated from your records.</p>
@@ -16,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </div>
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden mb-8 flex items-center gap-3"><Mark /><span className="font-semibold">Career Command Center</span></div>
+          <div className="lg:hidden mb-8 flex items-center gap-3"><Mark /><span className="font-semibold">{APP_NAME}</span></div>
           <h1 className="h1">Sign in</h1>
           <p className="muted text-sm mt-1 mb-6">Use your personal account.</p>
           <LoginForm next={next && next.startsWith("/") && !next.startsWith("//") ? next : "/"} />

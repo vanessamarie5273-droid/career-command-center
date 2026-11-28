@@ -23,7 +23,7 @@ describe("backup and restore", () => {
   });
 
   it("rejects files that are not backups", async () => {
-    await expect(restoreAll(db, { foo: 1 } as never)).rejects.toThrow(/Not a Career Command Center backup/);
+    await expect(restoreAll(db, { foo: 1 } as never)).rejects.toThrow(/Not a Job Hunt Hub backup/);
   });
 });
 
